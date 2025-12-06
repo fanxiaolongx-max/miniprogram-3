@@ -1,0 +1,167 @@
+.container {
+  padding: 20px;
+  background-color: #F5F7FA;
+  min-height: 100vh;
+}
+
+.phone-helper-section {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.section-desc {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 20px;
+}
+
+/* 加载和空状态 */
+.loading-container,
+.empty-container {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-text,
+.empty-text {
+  color: #999;
+  font-size: 14px;
+}
+
+/* 错误状态 */
+.error-container {
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.error-text {
+  color: #ff3b30;
+  font-size: 16px;
+}
+
+.retry-btn {
+  margin-top: 10px;
+  padding: 12px 32px;
+  background-color: #07c160;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 16px;
+  border: none;
+}
+
+.retry-btn::after {
+  border: none;
+}
+
+/* 代码卡片列表 */
+.codes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.code-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.code-header {
+  margin-bottom: 16px;
+}
+
+.operator-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #07c160;
+}
+
+.code-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.code-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.code-label {
+  font-size: 14px;
+  color: #999;
+}
+
+.code-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  padding: 12px;
+  background-color: #f8f8f8;
+  border-radius: 8px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.code-hint {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+}
+
+.code-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 4px 0;
+}
+
+.code-description {
+  font-size: 14px;
+  color: #666;
+  padding: 12px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  white-space: pre-line;
+  line-height: 1.6;
+}
+
+[data-weui-theme=dark] .container {
+  background-color: #1F1F1F;
+}
+
+[data-weui-theme=dark] .section-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .code-card {
+  background-color: #2C2C2C;
+}
+
+[data-weui-theme=dark] .code-value {
+  background-color: #1F1F1F;
+  color: #fff;
+}
+
+[data-weui-theme=dark] .code-description {
+  background-color: #1F1F1F;
+  color: #ccc;
+}
+
+[data-weui-theme=dark] .error-text {
+  color: #ff6b6b;
+}
+

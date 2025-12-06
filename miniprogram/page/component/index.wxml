@@ -1,0 +1,225 @@
+<view class="page" data-weui-theme="{{theme}}">
+  <view class="index" style="background-color: #F5F7FA;">
+    <view class="index-hd">
+    </view>
+    <view class="index-bd">
+      <!-- 顶部 Banner -->
+      <view class="banner-section">
+        <view class="banner-card">
+          <view class="banner-item" bindtap="goToExchangeRate">
+            <view class="banner-icon">💱</view>
+            <view class="banner-content">
+              <view class="banner-label">本周埃磅汇率</view>
+              <view class="banner-value">{{exchangeRate || '6.7'}} EGP</view>
+            </view>
+          </view>
+          <view class="banner-divider"></view>
+          <view class="banner-item" bindtap="goToWeather">
+            <view class="banner-icon">🌤️</view>
+            <view class="banner-content">
+              <view class="banner-label">天气预警</view>
+              <view class="banner-value">{{weather || '晴朗'}}</view>
+            </view>
+          </view>
+          <view class="banner-divider"></view>
+          <view class="banner-item" bindtap="goToHotActivity">
+            <view class="banner-icon">🔥</view>
+            <view class="banner-content">
+              <view class="banner-label">热门活动</view>
+              <view class="banner-value">{{hotActivity || '查看'}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 主功能区 - 宫格布局 -->
+      <view class="section-group">
+        <view class="section-title">主功能区</view>
+        <view class="grid-container">
+          <view class="grid-item" bindtap="goToTranslation">
+            <view class="grid-icon-wrapper grid-icon-blue">
+              <text class="grid-icon">🗣️</text>
+            </view>
+            <view class="grid-title">问路卡片</view>
+            <view class="grid-desc">中阿互译</view>
+          </view>
+          <view class="grid-item" bindtap="goToPhoneHelper">
+            <view class="grid-icon-wrapper grid-icon-green">
+              <text class="grid-icon">🔢</text>
+            </view>
+            <view class="grid-title">话费助手</view>
+            <view class="grid-desc">查余额/充值</view>
+          </view>
+          <view class="grid-item" bindtap="goToChineseFood">
+            <view class="grid-icon-wrapper grid-icon-orange">
+              <text class="grid-icon">🍜</text>
+            </view>
+            <view class="grid-title">寻味中国</view>
+            <view class="grid-desc">中餐厅/超市</view>
+            <view class="grid-badge" wx:if="{{chineseFoodOpen}}">▼</view>
+          </view>
+          <view class="grid-item" bindtap="locationToggle">
+            <view class="grid-icon-wrapper grid-icon-purple">
+              <text class="grid-icon">🚕</text>
+            </view>
+            <view class="grid-title">常用导航</view>
+            <view class="grid-desc">机场/商场/景点</view>
+            <view class="grid-badge" wx:if="{{locationOpen}}">▼</view>
+          </view>
+          <view class="grid-item" bindtap="rentalToggle">
+            <view class="grid-icon-wrapper grid-icon-pink">
+              <text class="grid-icon">🏘️</text>
+            </view>
+            <view class="grid-title">租房/酒店</view>
+            <view class="grid-desc">华人房源</view>
+            <view class="grid-badge" wx:if="{{rentalOpen}}">▼</view>
+          </view>
+          <view class="grid-item" bindtap="goToSecondHand">
+            <view class="grid-icon-wrapper grid-icon-teal">
+              <text class="grid-icon">♻️</text>
+            </view>
+            <view class="grid-title">二手集市</view>
+            <view class="grid-desc">跳蚤市场</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 常用导航展开内容 -->
+      <view class="ios-card" wx:if="{{locationOpen}}" style="margin: 0 20px 16px;">
+        <view wx:if="{{locationLoading}}" class="loading-container">
+          <text class="loading-text">加载中...</text>
+        </view>
+        <block wx:else>
+          <view wx:if="{{locationList.length === 0}}" class="empty-container">
+            <text class="empty-text">暂无地点数据</text>
+          </view>
+          <view wx:for="{{locationList}}" wx:key="id" class="ios-sub-item" bindtap="openLocation" data-location="{{item}}">
+            <image class="ios-sub-item-image" src="{{item.image}}" mode="aspectFill" binderror="onImageError" data-index="{{index}}" data-type="location"></image>
+            <view class="ios-sub-item-content">
+              <view class="ios-sub-item-title">{{item.name}}</view>
+              <view class="ios-sub-item-desc">{{item.address}}</view>
+            </view>
+            <text class="ios-arrow-sub">></text>
+          </view>
+        </block>
+      </view>
+
+      <!-- 租房/酒店展开内容 -->
+      <view class="ios-card" wx:if="{{rentalOpen}}" style="margin: 0 20px 16px;">
+        <view wx:if="{{rentalLoading}}" class="loading-container">
+          <text class="loading-text">加载中...</text>
+        </view>
+        <block wx:else>
+          <view wx:if="{{rentalList.length === 0}}" class="empty-container">
+            <text class="empty-text">暂无租房信息</text>
+          </view>
+          <view wx:for="{{rentalList}}" wx:key="id" class="ios-sub-item" bindtap="viewRental" data-rental="{{item}}">
+            <image class="ios-sub-item-image" src="{{item.image}}" mode="aspectFill" binderror="onImageError" data-index="{{index}}" data-type="rental"></image>
+            <view class="ios-sub-item-content">
+              <view class="ios-sub-item-title">{{item.title}}</view>
+              <view class="ios-sub-item-desc">
+                <text class="rental-price-inline">{{item.price}} EGP/月</text>
+                <text class="rental-address-inline">· {{item.address}}</text>
+              </view>
+              <view class="ios-sub-item-tags">
+                <text wx:if="{{item.type}}" class="ios-tag">{{item.type}}</text>
+                <text wx:if="{{item.rooms}}" class="ios-tag">{{item.rooms}}室</text>
+                <text wx:if="{{item.area}}" class="ios-tag">{{item.area}}㎡</text>
+              </view>
+            </view>
+            <text class="ios-arrow-sub">></text>
+          </view>
+        </block>
+      </view>
+
+      <!-- 寻味中国展开内容（合并了常用菜单链接） -->
+      <view class="ios-card" wx:if="{{chineseFoodOpen}}" style="margin: 0 20px 16px;">
+        <view wx:if="{{menuLinksLoading}}" class="loading-container">
+          <text class="loading-text">加载中...</text>
+        </view>
+        <block wx:else>
+          <view wx:if="{{menuLinks.length === 0}}" class="empty-container">
+            <text class="empty-text">暂无菜单链接</text>
+          </view>
+          <navigator wx:for="{{menuLinks}}" wx:key="id" url="/packageComponent/pages/open/web-view/web-view?url={{item.url}}&title={{item.title}}" class="ios-sub-item">
+            <view class="ios-sub-item-text">{{item.name}}</view>
+            <text class="ios-arrow-sub">></text>
+          </navigator>
+        </block>
+      </view>
+
+      <!-- 实用指南 -->
+      <view class="section-group">
+        <view class="section-title">实用指南</view>
+        <view class="ios-card">
+          <!-- 紧急求助置顶 -->
+          <view class="ios-list-item ios-list-item-compact ios-list-item-emergency" bindtap="goToEmergency">
+            <view class="ios-item-left">
+              <view class="ios-icon-wrapper ios-icon-red">
+                <text class="ios-icon">🚨</text>
+              </view>
+              <view class="ios-item-content">
+                <view class="ios-item-title">紧急求助</view>
+              </view>
+            </view>
+            <text class="ios-arrow">></text>
+          </view>
+          <view class="ios-divider"></view>
+          <view class="ios-list-item ios-list-item-compact" bindtap="goToVisaGuide">
+            <view class="ios-item-left">
+              <view class="ios-icon-wrapper ios-icon-blue">
+                <text class="ios-icon">🛂</text>
+              </view>
+              <view class="ios-item-content">
+                <view class="ios-item-title">签证攻略</view>
+              </view>
+            </view>
+            <text class="ios-arrow">></text>
+          </view>
+          <view class="ios-divider"></view>
+          <view class="ios-list-item ios-list-item-compact" bindtap="goToTipGuide">
+            <view class="ios-item-left">
+              <view class="ios-icon-wrapper ios-icon-orange">
+                <text class="ios-icon">🎩</text>
+              </view>
+              <view class="ios-item-content">
+                <view class="ios-item-title">小费指南</view>
+              </view>
+            </view>
+            <text class="ios-arrow">></text>
+          </view>
+          <view class="ios-divider"></view>
+          <view class="ios-list-item ios-list-item-compact" bindtap="spotsToggle">
+            <view class="ios-item-left">
+              <view class="ios-icon-wrapper ios-icon-orange">
+                <text class="ios-icon">📸</text>
+              </view>
+              <view class="ios-item-content">
+                <view class="ios-item-title">热门打卡地</view>
+              </view>
+            </view>
+            <text class="ios-arrow">{{spotsOpen ? '▼' : '>'}}</text>
+          </view>
+          <view class="ios-item-content-expand {{spotsOpen ? 'ios-item-content-expand-show' : ''}}">
+            <view wx:if="{{hotSpotsLoading}}" class="loading-container">
+              <text class="loading-text">加载中...</text>
+            </view>
+            <block wx:else>
+              <view wx:if="{{hotSpots.length === 0}}" class="empty-container">
+                <text class="empty-text">暂无打卡地数据</text>
+              </view>
+              <view wx:for="{{hotSpots}}" wx:key="id" class="ios-sub-item" bindtap="shareSpot" data-spot="{{item}}">
+                <image class="ios-sub-item-image" src="{{item.image}}" mode="aspectFill" binderror="onImageError" data-index="{{index}}" data-type="hotSpot"></image>
+                <view class="ios-sub-item-content">
+                  <view class="ios-sub-item-title">{{item.name}}</view>
+                  <view class="ios-sub-item-desc">{{item.description}}</view>
+                </view>
+                <text class="ios-arrow-sub">></text>
+              </view>
+            </block>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

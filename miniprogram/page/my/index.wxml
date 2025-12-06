@@ -1,0 +1,78 @@
+<view class="page" data-weui-theme="{{theme}}">
+  <view class="container">
+    <!-- 用户信息区域 -->
+    <view class="user-section">
+      <block wx:if="{{hasUserInfo === true}}">
+        <image class="userinfo-avatar" src="{{userInfo.avatarUrl}}"></image>
+        <text class="userinfo-nickname">{{userInfo.nickName}}</text>
+      </block>
+      <block wx:else>
+        <view class="user-placeholder">
+          <text class="user-placeholder-text">未登录</text>
+        </view>
+      </block>
+    </view>
+
+    <!-- 获取用户信息按钮区域 -->
+    <view class="btn-section">
+      <block wx:if="{{hasUserInfo === false}}">
+        <button wx:if="{{canIUseGetUserProfile}}" type="primary" bindtap="handleGetUserProfile">登录</button>
+        <button wx:else type="primary" open-type="getUserInfo" bindgetuserinfo="getUserInfo">登录</button>
+      </block>
+      <block wx:else>
+        <text class="status-text">已获取用户信息</text>
+      </block>
+    </view>
+
+    <!-- 反馈建议区域 -->
+    <view class="feedback-section">
+      <view class="feedback-title">📝 反馈建议</view>
+      <view class="feedback-card">
+        <view class="feedback-form">
+          <!-- 功能分类选择 -->
+          <view class="form-item">
+            <view class="form-label">功能分类（可选）</view>
+            <picker 
+              mode="selector" 
+              range="{{feedbackCategories}}" 
+              range-key="label"
+              value="{{feedbackCategoryIndex}}"
+              bindchange="onCategoryChange"
+            >
+              <view class="picker-view">
+                {{feedbackCategory || '请选择功能分类'}}
+                <text class="picker-arrow">▼</text>
+              </view>
+            </picker>
+          </view>
+
+          <!-- 反馈内容输入 -->
+          <view class="form-item">
+            <view class="form-label">反馈内容</view>
+            <textarea 
+              class="feedback-textarea"
+              placeholder="请输入您的反馈、建议或需求（5-500字）"
+              value="{{feedbackContent}}"
+              bindinput="onFeedbackInput"
+              maxlength="500"
+              show-confirm-bar="{{false}}"
+            ></textarea>
+            <view class="char-count">{{feedbackContent.length}}/500</view>
+          </view>
+
+          <!-- 提交按钮 -->
+          <button 
+            class="submit-btn" 
+            type="primary" 
+            bindtap="submitFeedback"
+            disabled="{{submitting}}"
+            loading="{{submitting}}"
+          >
+            {{submitting ? '提交中...' : '提交反馈'}}
+          </button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+

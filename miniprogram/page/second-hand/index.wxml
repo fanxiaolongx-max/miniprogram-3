@@ -1,0 +1,58 @@
+<view class="page" data-weui-theme="{{theme}}">
+  <view class="container">
+    <view class="second-hand-section">
+      <view class="section-title">♻️ 二手集市</view>
+
+      <!-- 加载状态 -->
+      <view wx:if="{{loading}}" class="loading-container">
+        <text class="loading-text">加载中...</text>
+      </view>
+
+      <!-- 错误状态 -->
+      <view wx:elif="{{error}}" class="error-container">
+        <text class="error-text">获取数据失败，请稍后重试</text>
+        <button class="retry-btn" bindtap="retry">重试</button>
+      </view>
+
+      <!-- 商品列表 -->
+      <block wx:else>
+        <view wx:if="{{items.length === 0}}" class="empty-container">
+          <text class="empty-text">暂无商品信息</text>
+        </view>
+        <view wx:else class="items-list">
+          <view 
+            wx:for="{{items}}" 
+            wx:key="id"
+            wx:for-item="item"
+            class="item-card"
+            bindtap="viewItem"
+            data-item="{{item}}"
+          >
+            <image 
+              class="item-image" 
+              src="{{item.image}}" 
+              mode="aspectFill"
+              binderror="onImageError"
+              data-index="{{index}}"
+            ></image>
+            <view class="item-content">
+              <view class="item-header">
+                <view class="item-title">{{item.title}}</view>
+                <view class="item-price">{{item.price}} EGP</view>
+              </view>
+              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
+              <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <view class="item-footer">
+                <view class="item-contact" bindtap="copyContact" data-contact="{{item.contact}}" catchtap="true">
+                  <text class="contact-icon">📞</text>
+                  <text class="contact-text">{{item.contact}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>
+

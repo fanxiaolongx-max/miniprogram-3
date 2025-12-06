@@ -1,0 +1,51 @@
+<view class="page" data-weui-theme="{{theme}}">
+  <view class="container">
+    <view class="exchange-section">
+      <view class="exchange-title">💱 人民币 → 埃镑汇率转换</view>
+      <view class="exchange-rate-info">
+        <view wx:if="{{rateLoading}}" class="rate-loading">
+          <text class="rate-text">正在加载汇率...</text>
+        </view>
+        <block wx:else>
+          <view class="rate-header">
+            <text class="rate-text">当前汇率：1 CNY = {{exchangeRate}} EGP</text>
+            <text class="rate-update" bindtap="updateRate">更新汇率</text>
+          </view>
+        </block>
+        <text wx:if="{{lastUpdated}}" class="rate-time">更新时间：{{lastUpdated}}</text>
+      </view>
+      
+      <view class="input-section">
+        <view class="input-group">
+          <view class="currency-label">人民币 (CNY)</view>
+          <input 
+            class="currency-input" 
+            type="digit" 
+            placeholder="请输入金额"
+            value="{{cnyAmount}}"
+            bindinput="onCNYInput"
+          />
+        </view>
+        
+        <view class="arrow-icon">↓</view>
+        
+        <view class="input-group">
+          <view class="currency-label">埃镑 (EGP)</view>
+          <view class="currency-result">{{egpAmount}}</view>
+        </view>
+      </view>
+
+      <view class="quick-amounts">
+        <view class="quick-title">快速输入</view>
+        <view class="quick-buttons">
+          <button class="quick-btn" bindtap="setAmount" data-amount="10">10</button>
+          <button class="quick-btn" bindtap="setAmount" data-amount="50">50</button>
+          <button class="quick-btn" bindtap="setAmount" data-amount="100">100</button>
+          <button class="quick-btn" bindtap="setAmount" data-amount="500">500</button>
+          <button class="quick-btn" bindtap="setAmount" data-amount="1000">1000</button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+

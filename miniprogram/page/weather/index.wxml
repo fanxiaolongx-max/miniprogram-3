@@ -1,0 +1,33 @@
+<view class="page" data-weui-theme="{{theme}}">
+  <view class="container">
+    <view class="weather-section">
+      <view class="section-title">🌤️ 天气预警</view>
+
+      <!-- 加载状态 -->
+      <view wx:if="{{loading}}" class="loading-container">
+        <text class="loading-text">加载中...</text>
+      </view>
+
+      <!-- 错误状态 -->
+      <view wx:elif="{{error}}" class="error-container">
+        <text class="error-text">获取数据失败，请稍后重试</text>
+        <button class="retry-btn" bindtap="retry">重试</button>
+      </view>
+
+      <!-- 天气内容 -->
+      <block wx:else>
+        <view class="weather-card">
+          <view class="weather-icon">🌤️</view>
+          <view class="weather-content">
+            <view class="weather-main">{{weather}}</view>
+            <view wx:if="{{condition && temperature}}" class="weather-details">
+              <text class="weather-detail-item">天气：{{condition}}</text>
+              <text class="weather-detail-item">温度：{{temperature}}°C</text>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>
+

@@ -1,0 +1,89 @@
+.container {
+  padding: 20px;
+  background-color: #F5F7FA;
+  min-height: 100vh;
+}
+
+.guide-section {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.guide-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* 加载状态 */
+.loading-container {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-text {
+  color: #999;
+  font-size: 14px;
+}
+
+/* 错误状态 */
+.error-container {
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.error-text {
+  color: #ff3b30;
+  font-size: 16px;
+}
+
+.retry-btn {
+  margin-top: 10px;
+  padding: 12px 32px;
+  background-color: #07c160;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 16px;
+  border: none;
+}
+
+.retry-btn::after {
+  border: none;
+}
+
+/* 内容 */
+.guide-content {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  line-height: 1.8;
+  color: #333;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+[data-weui-theme=dark] .container {
+  background-color: #1F1F1F;
+}
+
+[data-weui-theme=dark] .guide-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .guide-content {
+  background-color: #2C2C2C;
+  color: #fff;
+}
+
+[data-weui-theme=dark] .error-text {
+  color: #ff6b6b;
+}
+

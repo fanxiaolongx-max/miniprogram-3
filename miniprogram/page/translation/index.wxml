@@ -1,0 +1,62 @@
+<view class="page" data-weui-theme="{{theme}}">
+  <view class="container">
+    <view class="translation-section">
+      <!-- 分类筛选 -->
+      <view class="category-filter">
+        <view 
+          wx:for="{{categories}}" 
+          wx:key="*this"
+          class="category-item {{selectedCategory === item ? 'active' : ''}}"
+          bindtap="selectCategory"
+          data-category="{{item}}"
+        >
+          {{item === 'all' ? '全部' : item}}
+        </view>
+      </view>
+
+      <!-- 加载状态 -->
+      <view wx:if="{{loading}}" class="loading-container">
+        <text class="loading-text">加载中...</text>
+      </view>
+
+      <!-- 错误状态 -->
+      <view wx:elif="{{error}}" class="error-container">
+        <text class="error-text">获取数据失败，请稍后重试</text>
+        <button class="retry-btn" bindtap="retry">重试</button>
+      </view>
+
+      <!-- 翻译卡片列表 -->
+      <block wx:else>
+        <view wx:if="{{phrases.length === 0}}" class="empty-container">
+          <text class="empty-text">暂无翻译数据</text>
+        </view>
+        <view wx:else class="phrase-list">
+          <view 
+            wx:for="{{phrases}}" 
+            wx:key="id"
+            wx:for-item="phrase"
+            class="phrase-card {{selectedCategory !== 'all' && phrase.category !== selectedCategory ? 'hidden' : ''}}"
+          >
+            <view class="phrase-category">{{phrase.category}}</view>
+            <view class="phrase-content">
+              <view class="phrase-item">
+                <view class="phrase-label">中文</view>
+                <view class="phrase-text" bindtap="copyText" data-text="{{phrase.chinese}}">
+                  {{phrase.chinese}}
+                </view>
+              </view>
+              <view class="phrase-divider"></view>
+              <view class="phrase-item">
+                <view class="phrase-label">阿拉伯文</view>
+                <view class="phrase-text arabic" bindtap="copyText" data-text="{{phrase.arabic}}">
+                  {{phrase.arabic}}
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>
+

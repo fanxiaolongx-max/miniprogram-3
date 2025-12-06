@@ -1,0 +1,129 @@
+.container {
+  padding: 20px;
+  background-color: #F5F7FA;
+  min-height: 100vh;
+}
+
+.activity-section {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+/* 加载和空状态 */
+.loading-container,
+.empty-container {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-text,
+.empty-text {
+  color: #999;
+  font-size: 14px;
+}
+
+/* 错误状态 */
+.error-container {
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.error-text {
+  color: #ff3b30;
+  font-size: 16px;
+}
+
+.retry-btn {
+  margin-top: 10px;
+  padding: 12px 32px;
+  background-color: #07c160;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 16px;
+  border: none;
+}
+
+.retry-btn::after {
+  border: none;
+}
+
+/* 活动列表 */
+.activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.activity-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.activity-card:active {
+  transform: scale(0.98);
+}
+
+.activity-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.activity-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.activity-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.activity-description {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  padding-left: 36px;
+}
+
+[data-weui-theme=dark] .container {
+  background-color: #1F1F1F;
+}
+
+[data-weui-theme=dark] .section-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .activity-card {
+  background-color: #2C2C2C;
+}
+
+[data-weui-theme=dark] .activity-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .activity-description {
+  color: #ccc;
+}
+
+[data-weui-theme=dark] .error-text {
+  color: #ff6b6b;
+}
+
