@@ -1,0 +1,56 @@
+<view class="page" data-weui-theme="{{theme}}">
+  <view class="container">
+    <view class="blacklist-section">
+      <view class="section-header">
+        <view class="section-title">🛡️ 防骗预警</view>
+        <view class="section-subtitle">避坑指南，保护您的财产安全</view>
+      </view>
+
+      <!-- 加载状态 -->
+      <view wx:if="{{loading}}" class="loading-container">
+        <text class="loading-text">加载中...</text>
+      </view>
+
+      <!-- 错误状态 -->
+      <view wx:elif="{{error}}" class="error-container">
+        <text class="error-text">获取数据失败，请稍后重试</text>
+        <button class="retry-btn" bindtap="retry">重试</button>
+      </view>
+
+      <!-- 黑名单列表 -->
+      <block wx:else>
+        <view wx:if="{{items.length === 0}}" class="empty-container">
+          <text class="empty-text">暂无预警信息</text>
+        </view>
+        <view wx:else class="items-list">
+          <view 
+            wx:for="{{items}}" 
+            wx:key="id"
+            wx:for-item="item"
+            class="item-card"
+            bindtap="viewItem"
+            data-item="{{item}}"
+          >
+            <view class="item-header">
+              <view class="item-icon">⚠️</view>
+              <view class="item-content-wrapper">
+                <view class="item-title">{{item.title}}</view>
+                <view class="item-meta">
+                  <text wx:if="{{item.type}}" class="item-type">{{item.type}}</text>
+                  <text wx:if="{{item.date}}" class="item-date">{{item.date}}</text>
+                </view>
+              </view>
+            </view>
+            <view wx:if="{{item.description}}" class="item-description">
+              {{item.description}}
+            </view>
+            <view class="item-footer">
+              <text class="item-hint">点击查看详情</text>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>
+

@@ -165,6 +165,18 @@
             <text class="ios-arrow">></text>
           </view>
           <view class="ios-divider"></view>
+          <view class="ios-list-item ios-list-item-compact" bindtap="goToBlacklist">
+            <view class="ios-item-left">
+              <view class="ios-icon-wrapper ios-icon-warning">
+                <text class="ios-icon">🛡️</text>
+              </view>
+              <view class="ios-item-content">
+                <view class="ios-item-title">防骗预警</view>
+              </view>
+            </view>
+            <text class="ios-arrow">></text>
+          </view>
+          <view class="ios-divider"></view>
           <view class="ios-list-item ios-list-item-compact" bindtap="goToVisaGuide">
             <view class="ios-item-left">
               <view class="ios-icon-wrapper ios-icon-blue">

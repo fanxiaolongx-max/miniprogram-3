@@ -459,7 +459,7 @@ const config = {
    *     ]
    *   }
    */
-    phoneHelperApi: 'https://bobapro.life/api/custom/phone-helper',
+  phoneHelperApi: 'https://bobapro.life/api/custom/phone-helper',
 
   /**
    * 二手集市 API
@@ -579,6 +579,44 @@ const config = {
    *   }
    */
   tipGuideApi: 'https://bobapro.life/api/custom/tip-guide',
+
+  /**
+   * 防骗预警（黑名单）API
+   * 请求方式: GET
+   * 返回格式:
+   *   - 直接数组: [{ id, title, description, type, date }]
+   *   - 包装对象: { data: [{ id, title, description, type, date }] }
+   *   - 包装对象: { blacklist: [{ id, title, description, type, date }] }
+   * 字段说明:
+   *   - id: 唯一标识（必填）
+   *   - title/name: 标题（必填，如 "虚假租房信息"）
+   *   - description/desc: 详细描述（必填）
+   *   - type/category: 类型（可选，如 "租房诈骗"、"购物诈骗"）
+   *   - date/createdAt: 发布时间（可选）
+   * 返回示例:
+   *   [
+   *     {
+   *       "id": 1,
+   *       "title": "虚假租房信息",
+   *       "description": "某中介发布虚假房源信息，收取定金后失联...",
+   *       "type": "租房诈骗",
+   *       "date": "2024-01-15"
+   *     }
+   *   ]
+   *   或
+   *   {
+   *     "data": [
+   *       {
+   *         "id": 1,
+   *         "title": "虚假租房信息",
+   *         "description": "某中介发布虚假房源信息，收取定金后失联...",
+   *         "type": "租房诈骗",
+   *         "date": "2024-01-15"
+   *       }
+   *     ]
+   *   }
+   */
+  blacklistApi: 'https://bobapro.life/api/custom/blacklist',
 
   /**
    * 反馈建议 API

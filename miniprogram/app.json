@@ -9,7 +9,8 @@
     "page/visa-guide/index",
     "page/tip-guide/index",
     "page/hot-activity/index",
-    "page/weather/index"
+    "page/weather/index",
+    "page/blacklist/index"
   ],
   "subpackages": [
     {

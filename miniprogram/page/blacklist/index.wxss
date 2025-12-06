@@ -1,0 +1,193 @@
+.container {
+  padding: 20px;
+  background-color: #F5F7FA;
+  min-height: 100vh;
+}
+
+.blacklist-section {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.section-header {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: #999;
+}
+
+/* 加载和空状态 */
+.loading-container,
+.empty-container {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-text,
+.empty-text {
+  color: #999;
+  font-size: 14px;
+}
+
+/* 错误状态 */
+.error-container {
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.error-text {
+  color: #ff3b30;
+  font-size: 16px;
+}
+
+.retry-btn {
+  margin-top: 10px;
+  padding: 12px 32px;
+  background-color: #07c160;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 16px;
+  border: none;
+}
+
+.retry-btn::after {
+  border: none;
+}
+
+/* 黑名单列表 */
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.item-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #ff9500;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.item-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(255, 149, 0, 0.2);
+}
+
+.item-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.item-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.item-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.4;
+}
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.item-type {
+  font-size: 12px;
+  color: #ff9500;
+  background-color: #fff4e6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.item-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.item-description {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.item-footer {
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.item-hint {
+  font-size: 12px;
+  color: #999;
+}
+
+[data-weui-theme=dark] .container {
+  background-color: #1F1F1F;
+}
+
+[data-weui-theme=dark] .section-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .item-card {
+  background-color: #2C2C2C;
+  border-left-color: #ff9500;
+}
+
+[data-weui-theme=dark] .item-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .item-description {
+  color: #ccc;
+}
+
+[data-weui-theme=dark] .item-footer {
+  border-top-color: #3C3C3C;
+}
+
+[data-weui-theme=dark] .item-type {
+  background-color: #3C2A1F;
+  color: #ff9500;
+}
+
+[data-weui-theme=dark] .error-text {
+  color: #ff6b6b;
+}
+

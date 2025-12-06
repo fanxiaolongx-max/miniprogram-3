@@ -503,6 +503,12 @@ Page({
     })
   },
 
+  goToBlacklist() {
+    wx.navigateTo({
+      url: '/page/blacklist/index'
+    })
+  },
+
   // 获取汇率（用于 Banner）
   fetchExchangeRateForBanner() {
     const config = require('../../config.js')
