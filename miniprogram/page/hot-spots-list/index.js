@@ -1,8 +1,8 @@
 Page({
   onShareAppMessage() {
     return {
-      title: '热门活动',
-      path: 'page/hot-activity/index'
+      title: '热门打卡地',
+      path: 'page/hot-spots-list/index'
     }
   },
 
@@ -48,12 +48,12 @@ Page({
       this.handleSearchOrFilter()
     }, 500)
 
-    this.fetchHotActivity()
+    this.fetchHotSpots()
   },
 
-  fetchHotActivity(isLoadMore = false) {
+  fetchHotSpots(isLoadMore = false) {
     const config = require('../../config.js')
-    const apiUrl = config.hotActivityApi || `${config.apiBaseUrl}/hot-activity`
+    const apiUrl = config.hotSpotsApi || `${config.apiBaseUrl}/hot-spots`
     
     // 如果是加载更多，设置 loadingMore；否则设置 loading
     if (isLoadMore) {
@@ -76,7 +76,7 @@ Page({
     
     // 获取过滤条件（两个独立的过滤条件，可以单独使用或组合使用）
     // category: 分类过滤（精确匹配 category 字段）
-    // keyword: 全文搜索（搜索 title、description 等多个字段）
+    // keyword: 全文搜索（搜索 name、description 等多个字段）
     const category = this.data.selectedCategory || ''
     const keyword = (this.data.searchKeyword || '').trim()
     
@@ -94,7 +94,7 @@ Page({
     
     const url = `${apiUrl}?${params.join('&')}`
     
-    console.log(`[fetchHotActivity] 请求参数：isLoadMore=${isLoadMore}, currentPage=${currentPage}, requestPage=${requestPage}, pageSize=${pageSize}, category=${category || '无'}, keyword=${keyword || '无'}`)
+    console.log(`[fetchHotSpots] 请求参数：isLoadMore=${isLoadMore}, currentPage=${currentPage}, requestPage=${requestPage}, pageSize=${pageSize}, category=${category || '无'}, keyword=${keyword || '无'}`)
 
     wx.request({
       url: url,
@@ -103,9 +103,9 @@ Page({
         'content-type': 'application/json'
       },
       success: (res) => {
-        console.log('获取热门活动数据响应', res)
+        console.log('获取热门打卡地响应', res)
         if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取热门活动数据失败', res.statusCode, res.data)
+          console.error('获取热门打卡地失败', res.statusCode, res.data)
           if (isLoadMore) {
             this.setData({ loadingMore: false })
           } else {
@@ -115,7 +115,7 @@ Page({
         }
 
         if (!res.data) {
-          console.error('获取热门活动数据失败：返回数据为空')
+          console.error('获取热门打卡地失败：返回数据为空')
           if (isLoadMore) {
             this.setData({ loadingMore: false })
           } else {
@@ -133,34 +133,23 @@ Page({
           items = res.data.data
           total = res.data.total || 0
           hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
-          console.log(`[fetchHotActivity] 分页数据：请求页 ${requestPage}，返回 ${items.length} 条，总计 ${total}，还有更多：${hasMore}`)
+          console.log(`[fetchHotSpots] 分页数据：请求页 ${requestPage}，返回 ${items.length} 条，总计 ${total}，还有更多：${hasMore}`)
         }
         // 处理数组格式（format=array 时）：[...]
         else if (Array.isArray(res.data)) {
           items = res.data
           hasMore = items.length >= pageSize
-          console.log(`[fetchHotActivity] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
+          console.log(`[fetchHotSpots] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
         }
-        // 兼容旧格式：{ activities: [...] }
-        else if (res.data.activities && Array.isArray(res.data.activities)) {
-          items = res.data.activities
+        // 兼容旧格式：{ hotSpots: [...] }
+        else if (res.data.hotSpots && Array.isArray(res.data.hotSpots)) {
+          items = res.data.hotSpots
           total = res.data.total || items.length
           hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
         }
-        // 兼容单个对象格式（仅首次加载时）
-        else if (!isLoadMore && (res.data.title || res.data.name)) {
-          items = [{
-            id: res.data.id || Math.random(),
-            title: res.data.title || res.data.name || '活动',
-            description: res.data.description || res.data.desc || '',
-            image: res.data.image || res.data.imageUrl || '/page/component/resources/pic/1.jpg',
-            category: res.data.category || ''
-          }]
-          hasMore = false
-        }
 
         if (!Array.isArray(items)) {
-          console.error('获取热门活动数据失败：返回格式不正确')
+          console.error('获取热门打卡地失败：返回格式不正确')
           if (isLoadMore) {
             this.setData({ loadingMore: false })
           } else {
@@ -185,9 +174,11 @@ Page({
 
         const newItems = items.map(item => ({
           id: item.id || item._id || Math.random(),
-          title: item.title || item.name || '活动',
+          name: item.name || item.title || '未知地点',
           description: item.description || item.desc || '',
           image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
+          latitude: parseFloat(item.latitude || item.lat || 30.0444),
+          longitude: parseFloat(item.longitude || item.lng || item.lon || 31.2357),
           category: item.category || ''
         }))
 
@@ -208,7 +199,7 @@ Page({
 
         // 更新页码：加载更多时页码+1，首次加载时重置为1
         const nextPage = isLoadMore ? requestPage : 1
-        console.log(`[fetchHotActivity] 准备更新数据，请求页: ${requestPage}，更新后页码: ${nextPage}，isLoadMore: ${isLoadMore}`)
+        console.log(`[fetchHotSpots] 准备更新数据，请求页: ${requestPage}，更新后页码: ${nextPage}，isLoadMore: ${isLoadMore}`)
         
         this.setData({
           items: allItems,
@@ -220,7 +211,7 @@ Page({
           hasMore: hasMore,
           page: nextPage
         }, () => {
-          console.log(`[fetchHotActivity] setData 完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${allItems.length}`)
+          console.log(`[fetchHotSpots] setData 完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${allItems.length}`)
           
           // 如果是加载更多，恢复滚动位置
           if (isLoadMore && this._savedScrollTop !== undefined && this._savedScrollTop > 0) {
@@ -230,7 +221,7 @@ Page({
                 scrollTop: this._savedScrollTop,
                 duration: 0 // 立即滚动，无动画
               })
-              console.log(`[fetchHotActivity] 恢复滚动位置到: ${this._savedScrollTop}px`)
+              console.log(`[fetchHotSpots] 恢复滚动位置到: ${this._savedScrollTop}px`)
               // 重置保存的滚动位置
               this._savedScrollTop = 0
             }, 100)
@@ -238,7 +229,7 @@ Page({
         })
       },
       fail: (err) => {
-        console.error('获取热门活动数据失败', err)
+        console.error('获取热门打卡地失败', err)
         if (isLoadMore) {
           this.setData({ loadingMore: false })
           wx.showToast({
@@ -272,7 +263,7 @@ Page({
         this._savedScrollTop = scrollTop
         
         // 调用加载函数
-        this.fetchHotActivity(true)
+        this.fetchHotSpots(true)
       }).exec()
     }
   },
@@ -285,7 +276,7 @@ Page({
       items: [],
       filteredItems: []
     })
-    this.fetchHotActivity(false)
+    this.fetchHotSpots(false)
     setTimeout(() => {
       wx.stopPullDownRefresh()
     }, 500)
@@ -307,7 +298,7 @@ Page({
   },
 
   retry() {
-    this.fetchHotActivity()
+    this.fetchHotSpots()
   },
 
   // 处理搜索或过滤变化（重置页码并请求）
@@ -329,7 +320,7 @@ Page({
     })
     
     // 重新请求数据（不带isLoadMore参数，表示首次加载）
-    this.fetchHotActivity(false)
+    this.fetchHotSpots(false)
   },
 
   // 选择分类
@@ -375,10 +366,33 @@ Page({
   viewDetail(e) {
     const item = e.currentTarget.dataset.item
     wx.showModal({
-      title: item.title,
-      content: item.description || '暂无详细描述',
-      showCancel: false,
-      confirmText: '知道了'
+      title: item.name,
+      content: `${item.description || '暂无描述'}\n\n点击"导航"可查看位置`,
+      showCancel: true,
+      cancelText: '关闭',
+      confirmText: '导航',
+      success: (res) => {
+        if (res.confirm) {
+          this.openLocation(item)
+        }
+      }
+    })
+  },
+
+  openLocation(e) {
+    const item = typeof e === 'object' && e.currentTarget ? e.currentTarget.dataset.item : e
+    wx.openLocation({
+      latitude: item.latitude,
+      longitude: item.longitude,
+      name: item.name,
+      address: item.description || '',
+      fail: (err) => {
+        console.error('打开地图失败', err)
+        wx.showToast({
+          title: '打开地图失败',
+          icon: 'none'
+        })
+      }
     })
   },
 
@@ -391,3 +405,4 @@ Page({
     }
   }
 })
+

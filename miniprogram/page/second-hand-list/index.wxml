@@ -5,7 +5,7 @@
       <view class="search-box">
         <input 
           class="search-input"
-          placeholder="搜索活动..."
+          placeholder="搜索商品..."
           value="{{searchKeyword}}"
           bindinput="onSearchInput"
         />
@@ -38,7 +38,7 @@
     <!-- 瀑布流列表 -->
     <block wx:else>
       <view wx:if="{{filteredItems.length === 0}}" class="empty-container">
-        <text class="empty-text">暂无活动信息</text>
+        <text class="empty-text">暂无商品信息</text>
       </view>
       <view wx:else class="waterfall-container">
         <view class="waterfall-column">
@@ -61,8 +61,12 @@
             ></image>
             <view class="item-content">
               <view class="item-title">{{item.title}}</view>
-              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
-              <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <view class="item-footer">
+                <text class="item-price">{{item.price}} EGP</text>
+                <view class="contact-btn" bindtap="contactSeller" data-item="{{item}}" catchtap="true">
+                  <text class="contact-icon">💬</text>
+                </view>
+              </view>
             </view>
           </view>
         </view>
@@ -86,8 +90,12 @@
             ></image>
             <view class="item-content">
               <view class="item-title">{{item.title}}</view>
-              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
-              <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <view class="item-footer">
+                <text class="item-price">{{item.price}} EGP</text>
+                <view class="contact-btn" bindtap="contactSeller" data-item="{{item}}" catchtap="true">
+                  <text class="contact-icon">💬</text>
+                </view>
+              </view>
             </view>
           </view>
         </view>
@@ -107,3 +115,4 @@
     </block>
   </view>
 </view>
+

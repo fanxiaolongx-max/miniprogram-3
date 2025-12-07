@@ -1,51 +1,133 @@
-<view class="page" data-weui-theme="{{theme}}">
+<view class="page" data-weui-theme="light" style="width: 100%; overflow-x: hidden;">
   <view class="container">
-    <view class="exchange-section">
-      <view class="exchange-title">💱 人民币 → 埃镑汇率转换</view>
+    <!-- 核心卡片 -->
+    <view class="main-card">
+      <!-- 汇率信息 -->
       <view class="exchange-rate-info">
         <view wx:if="{{rateLoading}}" class="rate-loading">
           <text class="rate-text">正在加载汇率...</text>
         </view>
         <block wx:else>
           <view class="rate-header">
-            <text class="rate-text">当前汇率：1 CNY = {{exchangeRate}} EGP</text>
-            <text class="rate-update" bindtap="updateRate">更新汇率</text>
+            <text class="rate-text">
+              <text wx:if="{{!isReversed}}">1 CNY = {{exchangeRate}} EGP</text>
+              <text wx:else>1 EGP = {{reverseRate}} CNY</text>
+            </text>
+            <text class="rate-update" bindtap="updateRate">更新</text>
           </view>
+          <text wx:if="{{lastUpdated}}" class="rate-time">{{lastUpdated}}</text>
         </block>
-        <text wx:if="{{lastUpdated}}" class="rate-time">更新时间：{{lastUpdated}}</text>
       </view>
       
+      <!-- 输入/输出区域 -->
       <view class="input-section">
-        <view class="input-group">
-          <view class="currency-label">人民币 (CNY)</view>
-          <input 
-            class="currency-input" 
-            type="digit" 
-            placeholder="请输入金额"
-            value="{{cnyAmount}}"
-            bindinput="onCNYInput"
-          />
+        <!-- 上方货币（根据isReversed条件渲染） -->
+        <view wx:if="{{!isReversed}}" class="currency-row currency-row-top">
+          <view class="currency-info">
+            <text>🇨🇳</text>
+            <text class="currency-code">CNY</text>
+          </view>
+          <view class="currency-amount-wrapper">
+            <text class="currency-symbol">¥</text>
+            <input 
+              class="currency-amount" 
+              type="digit" 
+              placeholder="0.00"
+              value="{{cnyAmount}}"
+              bindinput="onCNYInput"
+            />
+          </view>
+        </view>
+        <view wx:else class="currency-row currency-row-top">
+          <view class="currency-info">
+            <text>🇪🇬</text>
+            <text class="currency-code">EGP</text>
+          </view>
+          <view class="currency-amount-wrapper">
+            <text class="currency-symbol">E£</text>
+            <input 
+              class="currency-amount" 
+              type="digit" 
+              placeholder="0.00"
+              value="{{egpAmount}}"
+              bindinput="onEGPInput"
+            />
+          </view>
         </view>
         
-        <view class="arrow-icon">↓</view>
-        
-        <view class="input-group">
-          <view class="currency-label">埃镑 (EGP)</view>
-          <view class="currency-result">{{egpAmount}}</view>
+        <!-- 切换按钮 -->
+        <view class="switch-button" bindtap="toggleDirection">
+          <text class="switch-icon">⇅</text>
         </view>
-      </view>
+        
+        <!-- 下方货币（根据isReversed条件渲染，支持输入） -->
+        <view wx:if="{{!isReversed}}" class="currency-row currency-row-bottom">
+          <view class="currency-info">
+            <text>🇪🇬</text>
+            <text class="currency-code">EGP</text>
+          </view>
+          <view class="currency-amount-wrapper">
+            <text class="currency-symbol">E£</text>
+            <input 
+              class="currency-amount" 
+              type="digit" 
+              placeholder="0.00"
+              value="{{egpAmount}}"
+              bindinput="onEGPInput"
+            />
+          </view>
+        </view>
+        <view wx:else class="currency-row currency-row-bottom">
+          <view class="currency-info">
+            <text>🇨🇳</text>
+            <text class="currency-code">CNY</text>
+          </view>
+          <view class="currency-amount-wrapper">
+            <text class="currency-symbol">¥</text>
+            <input 
+              class="currency-amount" 
+              type="digit" 
+              placeholder="0.00"
+              value="{{cnyAmount}}"
+              bindinput="onCNYInput"
+            />
+          </view>
+        </view>
 
-      <view class="quick-amounts">
-        <view class="quick-title">快速输入</view>
-        <view class="quick-buttons">
-          <button class="quick-btn" bindtap="setAmount" data-amount="10">10</button>
-          <button class="quick-btn" bindtap="setAmount" data-amount="50">50</button>
-          <button class="quick-btn" bindtap="setAmount" data-amount="100">100</button>
-          <button class="quick-btn" bindtap="setAmount" data-amount="500">500</button>
-          <button class="quick-btn" bindtap="setAmount" data-amount="1000">1000</button>
+        <!-- 购买力参考 -->
+        <view wx:if="{{purchasingPower}}" class="purchasing-power">
+          <text class="power-text">{{purchasingPower}}</text>
         </view>
       </view>
     </view>
+
+    <!-- 汇率看板列表 -->
+    <view wx:if="{{safeOtherCurrencies && safeOtherCurrencies.length > 0}}" class="rate-board">
+      <view class="board-title">其他货币参考</view>
+      <view class="currency-list">
+        <block wx:for="{{safeOtherCurrencies}}" wx:key="index" wx:for-item="item" wx:for-index="index">
+          <view wx:if="{{item && item.code && item.name && item.flag && item.symbol && item.amount}}" class="currency-card">
+            <view class="card-left">
+              <text class="card-flag">{{item.flag || ''}}</text>
+              <text class="card-name">{{item.name || ''}}</text>
+              <text class="card-code">{{item.code || ''}}</text>
+            </view>
+            <view class="card-right">
+              <text class="card-symbol">{{item.symbol || ''}}</text>
+              <text class="card-amount">{{item.amount || '0.00'}}</text>
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+    
+    <!-- 失败提示（独立显示） -->
+    <view wx:if="{{failedCurrenciesText && failedCurrenciesText !== ''}}" class="rate-board">
+      <view class="failed-hint">
+        <text class="failed-text">以下货币汇率获取失败，未参与计算：{{failedCurrenciesText}}</text>
+      </view>
+    </view>
+
   </view>
 </view>
 

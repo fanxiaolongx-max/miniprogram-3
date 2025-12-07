@@ -48,8 +48,9 @@ Page({
   },
 
   onLoad() {
+    const systemInfo = require('../../utils/systemInfo.js')
     this.setData({
-      theme: wx.getSystemInfoSync().theme || 'light'
+      theme: systemInfo.getTheme()
     })
 
     if (wx.onThemeChange) {
@@ -58,14 +59,6 @@ Page({
       })
     }
 
-    // 加载常用菜单链接
-    this.fetchMenuLinks()
-    // 加载常用地点导航列表
-    this.fetchLocationList()
-    // 加载热门打卡地
-    this.fetchHotSpots()
-    // 加载租房信息
-    this.fetchRentals()
     // 加载汇率
     this.fetchExchangeRateForBanner()
     // 加载天气
@@ -404,33 +397,21 @@ Page({
   },
 
   locationToggle(e) {
-    this.setData({
-      locationOpen: !this.data.locationOpen,
-      rentalOpen: false,
-      chineseFoodOpen: false,
-      spotsOpen: false
+    wx.navigateTo({
+      url: '/page/location-list/index'
     })
-    wx.reportAnalytics('click_view_programmatically', {})
   },
 
   rentalToggle(e) {
-    this.setData({
-      rentalOpen: !this.data.rentalOpen,
-      locationOpen: false,
-      chineseFoodOpen: false,
-      spotsOpen: false
+    wx.navigateTo({
+      url: '/page/rental-list/index'
     })
-    wx.reportAnalytics('click_view_programmatically', {})
   },
 
   spotsToggle(e) {
-    this.setData({
-      spotsOpen: !this.data.spotsOpen,
-      locationOpen: false,
-      rentalOpen: false,
-      chineseFoodOpen: false
+    wx.navigateTo({
+      url: '/page/hot-spots-list/index'
     })
-    wx.reportAnalytics('click_view_programmatically', {})
   },
 
   // 顶部 Banner 相关功能
@@ -466,18 +447,14 @@ Page({
   },
 
   goToChineseFood() {
-    // 展开寻味中国（合并了常用菜单链接）
-    this.setData({
-      chineseFoodOpen: !this.data.chineseFoodOpen,
-      locationOpen: false,
-      rentalOpen: false,
-      spotsOpen: false
+    wx.navigateTo({
+      url: '/page/chinese-food-list/index'
     })
   },
 
   goToSecondHand() {
     wx.navigateTo({
-      url: '/page/second-hand/index'
+      url: '/page/second-hand-list/index'
     })
   },
 
@@ -513,6 +490,7 @@ Page({
   fetchExchangeRateForBanner() {
     const config = require('../../config.js')
     const apiUrl = config.exchangeRateApi || `${config.apiBaseUrl}/exchange-rate`
+    const app = getApp()
     
     wx.request({
       url: apiUrl,
@@ -523,13 +501,79 @@ Page({
       success: (res) => {
         if (res.statusCode === 200 && res.data) {
           let rate = 6.7
-          if (typeof res.data === 'number') {
-            rate = res.data
-          } else if (res.data.rate) {
-            rate = parseFloat(res.data.rate)
-          } else if (res.data.exchangeRate) {
-            rate = parseFloat(res.data.exchangeRate)
+          let rates = {}
+          let lastUpdated = ''
+          const data = res.data.data || res.data
+          
+          // 优先处理多币种格式
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            // 检查是否是多币种格式：{ CNY: { EGP: 6.7 }, USD: { EGP: 30.5 } }
+            if (data.CNY && data.CNY.EGP) {
+              rate = parseFloat(data.CNY.EGP)
+              // 过滤掉非汇率字段（如 updatedAt, lastUpdated, updateTime）
+              rates = {}
+              if (data && typeof data === 'object' && !Array.isArray(data) && data !== null) {
+                try {
+                  const keys = Object.keys(data)
+                  for (let i = 0; i < keys.length; i++) {
+                    const key = keys[i]
+                    if (key !== 'updatedAt' && key !== 'lastUpdated' && key !== 'updateTime' && 
+                        data[key] && typeof data[key] === 'object' && !Array.isArray(data[key]) && data[key] !== null) {
+                      rates[key] = data[key]
+                    }
+                  }
+                } catch (err) {
+                  console.error('[fetchExchangeRateForBanner] 处理多币种汇率数据出错', err)
+                  rates = {}
+                }
+              }
+            }
+            // 检查是否是 rates 格式：{ rates: { CNY: { EGP: 6.7 } } }
+            else if (data.rates && data.rates.CNY && data.rates.CNY.EGP) {
+              rate = parseFloat(data.rates.CNY.EGP)
+              rates = data.rates
+            }
+            // 检查是否是单币种对象格式：{ rate: 6.7 } 或 { exchangeRate: 6.7 }
+            else if (data.rate) {
+              rate = parseFloat(data.rate)
+            } else if (data.exchangeRate) {
+              rate = parseFloat(data.exchangeRate)
+            }
           }
+          // 处理数字格式
+          else if (typeof data === 'number') {
+            rate = data
+          }
+          
+          // 获取更新时间
+          if (res.data.updatedAt || res.data.lastUpdated || res.data.updateTime) {
+            lastUpdated = res.data.updatedAt || res.data.lastUpdated || res.data.updateTime
+          } else if (res.data.data && (res.data.data.updatedAt || res.data.data.lastUpdated || res.data.data.updateTime)) {
+            lastUpdated = res.data.data.updatedAt || res.data.data.lastUpdated || res.data.data.updateTime
+          } else {
+            // 如果没有提供更新时间，使用当前时间
+            const now = new Date()
+            const month = String(now.getMonth() + 1).padStart(2, '0')
+            const day = String(now.getDate()).padStart(2, '0')
+            const hours = String(now.getHours()).padStart(2, '0')
+            const minutes = String(now.getMinutes()).padStart(2, '0')
+            lastUpdated = `${month}-${day} ${hours}:${minutes}`
+          }
+          
+          // 计算反向汇率
+          const reverseRate = parseFloat((1 / rate).toFixed(4))
+          
+          // 存储到全局缓存
+          app.globalData.exchangeRateCache = {
+            rate: rate,
+            reverseRate: reverseRate,
+            rates: rates,
+            lastUpdated: lastUpdated,
+            timestamp: Date.now() // 记录缓存时间
+          }
+          
+          console.log('[fetchExchangeRateForBanner] 汇率数据已缓存到 globalData', app.globalData.exchangeRateCache)
+          
           this.setData({
             exchangeRate: rate.toFixed(2)
           })
@@ -541,7 +585,7 @@ Page({
     })
   },
 
-  // 获取天气（用于 Banner 显示）
+  // 获取出行风向标（用于 Banner 显示）
   fetchWeather() {
     const config = require('../../config.js')
     const apiUrl = config.weatherApi || `${config.apiBaseUrl}/weather`
@@ -553,57 +597,32 @@ Page({
         'content-type': 'application/json'
       },
       success: (res) => {
-        console.log('获取天气数据响应（Banner）', res)
-        // 检查状态码和 success 字段
-        if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取天气数据失败（Banner）', res.statusCode, res.data)
-          // Banner 中失败不显示错误，保持默认值
-          return
-        }
-
-        if (!res.data) {
-          console.error('获取天气数据失败（Banner）：返回数据为空')
-          return
-        }
-
-        let weather = ''
-
-        // 处理不同的返回格式
-        if (typeof res.data === 'string') {
-          weather = res.data
-        } else if (res.data.weather) {
-          weather = res.data.weather
-        } else if (res.data.data) {
-          if (typeof res.data.data === 'string') {
-            weather = res.data.data
-          } else if (res.data.data.weather) {
-            weather = res.data.data.weather
+        // Banner 中只显示简单提示
+        if (res.statusCode === 200 && res.data) {
+          let data = res.data
+          if (res.data.data) {
+            data = res.data.data
           }
-        }
-
-        // 如果没有 weather 字段，尝试从 condition 和 temperature 组合
-        if (!weather) {
-          const condition = res.data.condition || res.data.data?.condition || ''
-          const temperature = res.data.temperature || res.data.data?.temperature || ''
-          if (condition && temperature) {
-            weather = `${condition} ${temperature}°C`
-          } else if (condition) {
-            weather = condition
-          } else if (temperature) {
-            weather = `${temperature}°C`
+          
+          // 如果有全域预警，显示预警提示
+          if (data.globalAlert && data.globalAlert.message) {
+            this.setData({
+              weather: '有预警'
+            })
+          } else {
+            // 否则显示"查看"
+            this.setData({
+              weather: '查看'
+            })
           }
-        }
-
-        // 更新 Banner 显示
-        if (weather && weather.trim() !== '') {
-    this.setData({
-            weather: weather
-          })
         }
       },
       fail: (err) => {
-        console.error('获取天气数据失败（Banner）', err)
+        console.error('获取出行风向标数据失败（Banner）', err)
         // Banner 中失败不显示错误，保持默认值
+        this.setData({
+          weather: '查看'
+        })
       }
     })
   },

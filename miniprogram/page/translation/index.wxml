@@ -1,4 +1,4 @@
-<view class="page" data-weui-theme="{{theme}}">
+<view class="page" data-weui-theme="light">
   <view class="container">
     <view class="translation-section">
       <!-- 分类筛选 -->
@@ -25,37 +25,42 @@
         <button class="retry-btn" bindtap="retry">重试</button>
       </view>
 
-      <!-- 翻译卡片列表 -->
+      <!-- 大色块矩阵布局 -->
       <block wx:else>
         <view wx:if="{{phrases.length === 0}}" class="empty-container">
           <text class="empty-text">暂无翻译数据</text>
         </view>
-        <view wx:else class="phrase-list">
+        <view wx:else class="phrase-grid">
           <view 
             wx:for="{{phrases}}" 
             wx:key="id"
             wx:for-item="phrase"
-            class="phrase-card {{selectedCategory !== 'all' && phrase.category !== selectedCategory ? 'hidden' : ''}}"
+            class="phrase-button {{selectedCategory !== 'all' && phrase.category !== selectedCategory ? 'hidden' : ''}}"
+            bindtap="showPhrase"
+            data-phrase="{{phrase}}"
           >
-            <view class="phrase-category">{{phrase.category}}</view>
-            <view class="phrase-content">
-              <view class="phrase-item">
-                <view class="phrase-label">中文</view>
-                <view class="phrase-text" bindtap="copyText" data-text="{{phrase.chinese}}">
-                  {{phrase.chinese}}
-                </view>
-              </view>
-              <view class="phrase-divider"></view>
-              <view class="phrase-item">
-                <view class="phrase-label">阿拉伯文</view>
-                <view class="phrase-text arabic" bindtap="copyText" data-text="{{phrase.arabic}}">
-                  {{phrase.arabic}}
-                </view>
-              </view>
-            </view>
+            <view class="phrase-button-text">{{phrase.chinese}}</view>
+            <view class="phrase-button-category">{{phrase.category}}</view>
           </view>
         </view>
       </block>
+    </view>
+
+    <!-- 全屏显示弹窗 -->
+    <view wx:if="{{showModal}}" class="phrase-modal" bindtap="hidePhrase">
+      <view class="modal-content" catchtap="true">
+        <view class="modal-header">
+          <text class="modal-title">{{currentPhrase.chinese}}</text>
+          <text class="modal-close" bindtap="hidePhrase">✕</text>
+        </view>
+        <view class="modal-body">
+          <view class="modal-arabic">{{currentPhrase.arabic}}</view>
+          <view class="modal-actions">
+            <button class="action-btn" bindtap="copyArabic" data-text="{{currentPhrase.arabic}}">复制阿语</button>
+            <button class="action-btn" bindtap="copyChinese" data-text="{{currentPhrase.chinese}}">复制中文</button>
+          </view>
+        </view>
+      </view>
     </view>
   </view>
 </view>

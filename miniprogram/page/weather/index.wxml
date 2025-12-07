@@ -1,8 +1,6 @@
-<view class="page" data-weui-theme="{{theme}}">
+<view class="page" data-weui-theme="light">
   <view class="container">
     <view class="weather-section">
-      <view class="section-title">🌤️ 天气预警</view>
-
       <!-- 加载状态 -->
       <view wx:if="{{loading}}" class="loading-container">
         <text class="loading-text">加载中...</text>
@@ -14,20 +12,89 @@
         <button class="retry-btn" bindtap="retry">重试</button>
       </view>
 
-      <!-- 天气内容 -->
+      <!-- 内容区域 -->
       <block wx:else>
-        <view class="weather-card">
-          <view class="weather-icon">🌤️</view>
-          <view class="weather-content">
-            <view class="weather-main">{{weather}}</view>
-            <view wx:if="{{condition && temperature}}" class="weather-details">
-              <text class="weather-detail-item">天气：{{condition}}</text>
-              <text class="weather-detail-item">温度：{{temperature}}°C</text>
+        <!-- 全域预警 -->
+        <view wx:if="{{globalAlert}}" class="global-alert {{getAlertLevelClass(globalAlert.level)}}">
+          <view class="alert-icon">🚨</view>
+          <view class="alert-message">{{globalAlert.message}}</view>
+        </view>
+
+        <!-- 板块一：热门景点"宜游指数" -->
+        <view class="section-block">
+          <view class="section-title">热门景点"宜游指数"</view>
+          <scroll-view class="attractions-scroll" scroll-x="true" show-scrollbar="false">
+            <view class="attractions-container">
+              <view 
+                wx:for="{{attractions}}" 
+                wx:key="id"
+                wx:for-item="attraction"
+                class="attraction-card"
+              >
+                <view class="attraction-name">{{attraction.name}}</view>
+                <view class="attraction-info">
+                  <view class="info-item">
+                    <text class="info-icon">🌡️</text>
+                    <text class="info-text">{{attraction.temperature}}℃ ({{getTemperatureDesc(attraction.temperature)}})</text>
+                  </view>
+                  <view class="info-item">
+                    <text class="info-icon">👀</text>
+                    <text class="info-text">能见度：{{attraction.visibility}}</text>
+                    <text wx:if="{{attraction.visibility === '高'}}" class="info-badge">📸 适合拍照</text>
+                  </view>
+                  <view class="info-item">
+                    <text class="info-icon">☀️</text>
+                    <text class="info-text">紫外线：{{getUVDesc(attraction.uvIndex)}} ({{attraction.uvIndex}})</text>
+                  </view>
+                  <view wx:if="{{attraction.windSpeed}}" class="info-item">
+                    <text class="info-icon">🌬️</text>
+                    <text class="info-text">风力：{{attraction.windSpeed}}</text>
+                  </view>
+                </view>
+                <view wx:if="{{attraction.suggestion}}" class="attraction-suggestion">
+                  <text class="suggestion-icon">🚩</text>
+                  <text class="suggestion-text">建议：{{attraction.suggestion}}</text>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- 板块二：路况广播 -->
+        <view wx:if="{{traffic.length > 0}}" class="section-block">
+          <view class="section-title">实时路况 & 突发事件</view>
+          <view class="traffic-timeline">
+            <view 
+              wx:for="{{traffic}}" 
+              wx:key="id"
+              wx:for-item="item"
+              wx:for-index="index"
+              class="traffic-item"
+            >
+              <view class="timeline-dot"></view>
+              <view class="timeline-line" wx:if="{{index < traffic.length - 1}}"></view>
+              <view class="traffic-content">
+                <view class="traffic-header">
+                  <text class="traffic-time">{{item.time}}</text>
+                  <view class="traffic-type">
+                    <text class="traffic-type-icon">{{getTrafficTypeIcon(item.type)}}</text>
+                    <text class="traffic-type-text">[{{item.type}}]</text>
+                  </view>
+                </view>
+                <view class="traffic-message">
+                  <text wx:if="{{item.location}}" class="traffic-location">{{item.location}}</text>
+                  <text class="traffic-text">{{item.message}}</text>
+                </view>
+              </view>
             </view>
           </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view wx:if="{{!globalAlert && attractions.length === 0 && traffic.length === 0}}" class="empty-container">
+          <text class="empty-text">暂无出行信息</text>
         </view>
       </block>
     </view>
   </view>
 </view>
-

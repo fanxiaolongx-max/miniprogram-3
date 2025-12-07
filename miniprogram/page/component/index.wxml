@@ -1,4 +1,4 @@
-<view class="page" data-weui-theme="{{theme}}">
+<view class="page" data-weui-theme="light">
   <view class="index" style="background-color: #F5F7FA;">
     <view class="index-hd">
     </view>
@@ -9,16 +9,17 @@
           <view class="banner-item" bindtap="goToExchangeRate">
             <view class="banner-icon">💱</view>
             <view class="banner-content">
-              <view class="banner-label">本周埃磅汇率</view>
+              <view class="banner-label">今日汇率</view>
               <view class="banner-value">{{exchangeRate || '6.7'}} EGP</view>
             </view>
           </view>
           <view class="banner-divider"></view>
           <view class="banner-item" bindtap="goToWeather">
-            <view class="banner-icon">🌤️</view>
+            <view class="banner-icon">🧭</view>
             <view class="banner-content">
-              <view class="banner-label">天气预警</view>
-              <view class="banner-value">{{weather || '晴朗'}}</view>
+              <view class="banner-label">出行</view>
+              <view class="banner-label">风向标</view>
+              <view class="banner-value">{{weather || '查看'}}</view>
             </view>
           </view>
           <view class="banner-divider"></view>
@@ -56,7 +57,6 @@
             </view>
             <view class="grid-title">寻味中国</view>
             <view class="grid-desc">中餐厅/超市</view>
-            <view class="grid-badge" wx:if="{{chineseFoodOpen}}">▼</view>
           </view>
           <view class="grid-item" bindtap="locationToggle">
             <view class="grid-icon-wrapper grid-icon-purple">
@@ -64,7 +64,6 @@
             </view>
             <view class="grid-title">常用导航</view>
             <view class="grid-desc">机场/商场/景点</view>
-            <view class="grid-badge" wx:if="{{locationOpen}}">▼</view>
           </view>
           <view class="grid-item" bindtap="rentalToggle">
             <view class="grid-icon-wrapper grid-icon-pink">
@@ -72,7 +71,6 @@
             </view>
             <view class="grid-title">租房/酒店</view>
             <view class="grid-desc">华人房源</view>
-            <view class="grid-badge" wx:if="{{rentalOpen}}">▼</view>
           </view>
           <view class="grid-item" bindtap="goToSecondHand">
             <view class="grid-icon-wrapper grid-icon-teal">
@@ -210,25 +208,7 @@
                 <view class="ios-item-title">热门打卡地</view>
               </view>
             </view>
-            <text class="ios-arrow">{{spotsOpen ? '▼' : '>'}}</text>
-          </view>
-          <view class="ios-item-content-expand {{spotsOpen ? 'ios-item-content-expand-show' : ''}}">
-            <view wx:if="{{hotSpotsLoading}}" class="loading-container">
-              <text class="loading-text">加载中...</text>
-            </view>
-            <block wx:else>
-              <view wx:if="{{hotSpots.length === 0}}" class="empty-container">
-                <text class="empty-text">暂无打卡地数据</text>
-              </view>
-              <view wx:for="{{hotSpots}}" wx:key="id" class="ios-sub-item" bindtap="shareSpot" data-spot="{{item}}">
-                <image class="ios-sub-item-image" src="{{item.image}}" mode="aspectFill" binderror="onImageError" data-index="{{index}}" data-type="hotSpot"></image>
-                <view class="ios-sub-item-content">
-                  <view class="ios-sub-item-title">{{item.name}}</view>
-                  <view class="ios-sub-item-desc">{{item.description}}</view>
-                </view>
-                <text class="ios-arrow-sub">></text>
-              </view>
-            </block>
+            <text class="ios-arrow">></text>
           </view>
         </view>
       </view>

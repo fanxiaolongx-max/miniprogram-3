@@ -12,12 +12,17 @@ Page({
     loading: false,
     categories: [],
     selectedCategory: 'all',
-    error: false
+    error: false,
+    showModal: false,
+    currentPhrase: {}
   },
 
   onLoad() {
     this.setData({
-      theme: wx.getSystemInfoSync().theme || 'light'
+      theme: (() => {
+        const systemInfo = require('../../utils/systemInfo.js')
+        return systemInfo.getTheme()
+      })()
     })
 
     if (wx.onThemeChange) {
@@ -132,14 +137,44 @@ Page({
     })
   },
 
-  // 复制文本
-  copyText(e) {
-    const text = e.currentTarget.dataset.text
+  // 显示短语（全屏弹窗）
+  showPhrase(e) {
+    const phrase = e.currentTarget.dataset.phrase
+    this.setData({
+      showModal: true,
+      currentPhrase: phrase
+    })
+  },
+
+  // 隐藏弹窗
+  hidePhrase() {
+    this.setData({
+      showModal: false
+    })
+  },
+
+  // 复制阿拉伯文
+  copyArabic(e) {
+    const text = e.currentTarget.dataset.text || this.data.currentPhrase.arabic
     wx.setClipboardData({
       data: text,
       success: () => {
         wx.showToast({
-          title: '已复制',
+          title: '已复制阿语',
+          icon: 'success'
+        })
+      }
+    })
+  },
+
+  // 复制中文
+  copyChinese(e) {
+    const text = e.currentTarget.dataset.text || this.data.currentPhrase.chinese
+    wx.setClipboardData({
+      data: text,
+      success: () => {
+        wx.showToast({
+          title: '已复制中文',
           icon: 'success'
         })
       }

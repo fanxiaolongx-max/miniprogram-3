@@ -1,23 +1,26 @@
 Page({
   onShareAppMessage() {
     return {
-      title: '天气预警',
+      title: '出行风向标',
       path: 'page/weather/index'
     }
   },
 
   data: {
     theme: 'light',
-    weather: '',
-    condition: '',
-    temperature: '',
+    globalAlert: null,
+    attractions: [],
+    traffic: [],
     loading: false,
     error: false
   },
 
   onLoad() {
     this.setData({
-      theme: wx.getSystemInfoSync().theme || 'light'
+      theme: (() => {
+        const systemInfo = require('../../utils/systemInfo.js')
+        return systemInfo.getTheme()
+      })()
     })
 
     if (wx.onThemeChange) {
@@ -26,11 +29,9 @@ Page({
       })
     }
 
-    // 加载天气数据
     this.fetchWeather()
   },
 
-  // 从 API 获取天气数据
   fetchWeather() {
     const config = require('../../config.js')
     const apiUrl = config.weatherApi || `${config.apiBaseUrl}/weather`
@@ -46,82 +47,82 @@ Page({
         'content-type': 'application/json'
       },
       success: (res) => {
-        console.log('获取天气数据响应', res)
-        // 检查状态码和 success 字段
+        console.log('获取出行风向标数据响应', res)
         if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取天气数据失败', res.statusCode, res.data)
+          console.error('获取出行风向标数据失败', res.statusCode, res.data)
           this.showError()
           return
         }
 
         if (!res.data) {
-          console.error('获取天气数据失败：返回数据为空')
+          console.error('获取出行风向标数据失败：返回数据为空')
           this.showError()
           return
         }
 
-        let weather = ''
-        let condition = ''
-        let temperature = ''
-
-        // 处理不同的返回格式
-        if (typeof res.data === 'string') {
-          weather = res.data
-        } else if (res.data.weather) {
-          weather = res.data.weather
-          condition = res.data.condition || ''
-          temperature = res.data.temperature || ''
-        } else if (res.data.data) {
-          if (typeof res.data.data === 'string') {
-            weather = res.data.data
-          } else if (res.data.data.weather) {
-            weather = res.data.data.weather
-            condition = res.data.data.condition || ''
-            temperature = res.data.data.temperature || ''
-          }
+        let data = res.data
+        if (res.data.data) {
+          data = res.data.data
         }
 
-        // 如果没有 weather 字段，尝试从 condition 和 temperature 组合
-        if (!weather && (condition || temperature)) {
-          if (condition && temperature) {
-            weather = `${condition} ${temperature}°C`
-          } else if (condition) {
-            weather = condition
-          } else if (temperature) {
-            weather = `${temperature}°C`
-          }
+        // 处理全域预警
+        const globalAlert = data.globalAlert || null
+
+        // 处理景点信息
+        let attractions = []
+        if (Array.isArray(data.attractions)) {
+          attractions = data.attractions.map(item => ({
+            id: item.id || item._id || Math.random(),
+            name: item.name || '未知景点',
+            temperature: item.temperature || 0,
+            visibility: item.visibility || '中',
+            uvIndex: item.uvIndex || 0,
+            windSpeed: item.windSpeed || '',
+            suggestion: item.suggestion || ''
+          }))
         }
 
-        // 检查是否有有效内容
-        if (!weather || weather.trim() === '') {
-          console.error('获取天气数据失败：内容为空')
+        // 处理路况广播
+        let traffic = []
+        if (Array.isArray(data.traffic)) {
+          traffic = data.traffic.map(item => ({
+            id: item.id || item._id || Math.random(),
+            time: item.time || '',
+            type: item.type || '其他',
+            location: item.location || '',
+            message: item.message || ''
+          }))
+        }
+
+        // 检查是否有有效数据
+        if (attractions.length === 0 && !globalAlert && traffic.length === 0) {
+          console.error('获取出行风向标数据失败：数据格式不正确或为空')
           this.showError()
           return
         }
 
         this.setData({
-          weather: weather,
-          condition: condition,
-          temperature: temperature,
+          globalAlert: globalAlert,
+          attractions: attractions,
+          traffic: traffic,
           loading: false,
           error: false
         })
       },
       fail: (err) => {
-        console.error('获取天气数据失败', err)
+        console.error('获取出行风向标数据失败', err)
         this.showError()
       }
     })
   },
 
-  // 显示错误提示
   showError() {
     this.setData({
       loading: false,
       error: true,
-      weather: '',
-      condition: '',
-      temperature: ''
+      globalAlert: null,
+      attractions: [],
+      traffic: []
     })
     
     wx.showToast({
@@ -131,9 +132,40 @@ Page({
     })
   },
 
-  // 重试
   retry() {
     this.fetchWeather()
+  },
+
+  // 获取温度描述
+  getTemperatureDesc(temp) {
+    if (temp >= 35) return '暴晒'
+    if (temp >= 30) return '炎热'
+    if (temp >= 25) return '温暖'
+    if (temp >= 15) return '舒适'
+    if (temp >= 5) return '凉爽'
+    return '极冷'
+  },
+
+  // 获取紫外线描述
+  getUVDesc(uvIndex) {
+    if (uvIndex >= 10) return '极高'
+    if (uvIndex >= 7) return '高'
+    if (uvIndex >= 4) return '中等'
+    return '低'
+  },
+
+  // 获取预警级别样式
+  getAlertLevelClass(level) {
+    if (level === 'high') return 'alert-high'
+    if (level === 'medium') return 'alert-medium'
+    return 'alert-low'
+  },
+
+  // 获取路况类型图标
+  getTrafficTypeIcon(type) {
+    if (type === '车祸') return '🚨'
+    if (type === '施工') return '🚧'
+    if (type === '天气') return '🌤️'
+    return '📢'
   }
 })
-

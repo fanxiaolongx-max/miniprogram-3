@@ -1,4 +1,4 @@
-<view class="page" data-weui-theme="{{theme}}">
+<view class="page" data-weui-theme="light">
   <view class="container">
     <view class="blacklist-section">
       <view class="section-header">
@@ -17,7 +17,7 @@
         <button class="retry-btn" bindtap="retry">重试</button>
       </view>
 
-      <!-- 黑名单列表 -->
+      <!-- 黑名单列表 - 通栏列表 -->
       <block wx:else>
         <view wx:if="{{items.length === 0}}" class="empty-container">
           <text class="empty-text">暂无预警信息</text>
@@ -27,25 +27,20 @@
             wx:for="{{items}}" 
             wx:key="id"
             wx:for-item="item"
-            class="item-card"
+            class="list-item"
             bindtap="viewItem"
             data-item="{{item}}"
           >
-            <view class="item-header">
-              <view class="item-icon">⚠️</view>
-              <view class="item-content-wrapper">
-                <view class="item-title">{{item.title}}</view>
-                <view class="item-meta">
-                  <text wx:if="{{item.type}}" class="item-type">{{item.type}}</text>
-                  <text wx:if="{{item.date}}" class="item-date">{{item.date}}</text>
-                </view>
-              </view>
+            <view class="list-item-left">
+              <view class="warning-badge">避坑</view>
             </view>
-            <view wx:if="{{item.description}}" class="item-description">
-              {{item.description}}
+            <view class="list-item-content">
+              <view class="list-item-title">{{item.title}}</view>
+              <view wx:if="{{item.type}}" class="list-item-type">{{item.type}}</view>
             </view>
-            <view class="item-footer">
-              <text class="item-hint">点击查看详情</text>
+            <view class="list-item-right">
+              <text wx:if="{{item.date}}" class="list-item-date">{{item.date}}</text>
+              <text class="list-item-arrow">></text>
             </view>
           </view>
         </view>

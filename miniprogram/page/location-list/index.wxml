@@ -5,7 +5,7 @@
       <view class="search-box">
         <input 
           class="search-input"
-          placeholder="搜索活动..."
+          placeholder="搜索地点..."
           value="{{searchKeyword}}"
           bindinput="onSearchInput"
         />
@@ -38,7 +38,7 @@
     <!-- 瀑布流列表 -->
     <block wx:else>
       <view wx:if="{{filteredItems.length === 0}}" class="empty-container">
-        <text class="empty-text">暂无活动信息</text>
+        <text class="empty-text">暂无地点信息</text>
       </view>
       <view wx:else class="waterfall-container">
         <view class="waterfall-column">
@@ -49,7 +49,7 @@
             wx:for-index="index"
             wx:if="{{index % 2 === 0}}"
             class="waterfall-item"
-            bindtap="viewDetail"
+            bindtap="openLocation"
             data-item="{{item}}"
           >
             <image 
@@ -60,9 +60,8 @@
               data-index="{{index}}"
             ></image>
             <view class="item-content">
-              <view class="item-title">{{item.title}}</view>
-              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
-              <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <view class="item-title">{{item.name}}</view>
+              <view class="item-address">{{item.address}}</view>
             </view>
           </view>
         </view>
@@ -74,7 +73,7 @@
             wx:for-index="index"
             wx:if="{{index % 2 === 1}}"
             class="waterfall-item"
-            bindtap="viewDetail"
+            bindtap="openLocation"
             data-item="{{item}}"
           >
             <image 
@@ -85,9 +84,8 @@
               data-index="{{index}}"
             ></image>
             <view class="item-content">
-              <view class="item-title">{{item.title}}</view>
-              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
-              <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <view class="item-title">{{item.name}}</view>
+              <view class="item-address">{{item.address}}</view>
             </view>
           </view>
         </view>
@@ -107,3 +105,4 @@
     </block>
   </view>
 </view>
+

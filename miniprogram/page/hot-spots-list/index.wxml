@@ -5,7 +5,7 @@
       <view class="search-box">
         <input 
           class="search-input"
-          placeholder="搜索活动..."
+          placeholder="搜索打卡地..."
           value="{{searchKeyword}}"
           bindinput="onSearchInput"
         />
@@ -38,7 +38,7 @@
     <!-- 瀑布流列表 -->
     <block wx:else>
       <view wx:if="{{filteredItems.length === 0}}" class="empty-container">
-        <text class="empty-text">暂无活动信息</text>
+        <text class="empty-text">暂无打卡地信息</text>
       </view>
       <view wx:else class="waterfall-container">
         <view class="waterfall-column">
@@ -60,9 +60,14 @@
               data-index="{{index}}"
             ></image>
             <view class="item-content">
-              <view class="item-title">{{item.title}}</view>
-              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
+              <view class="item-title">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <view class="item-footer">
+                <view class="location-btn" bindtap="openLocation" data-item="{{item}}" catchtap="true">
+                  <text class="location-icon">📍</text>
+                  <text class="location-text">导航</text>
+                </view>
+              </view>
             </view>
           </view>
         </view>
@@ -85,9 +90,14 @@
               data-index="{{index}}"
             ></image>
             <view class="item-content">
-              <view class="item-title">{{item.title}}</view>
-              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
+              <view class="item-title">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <view class="item-footer">
+                <view class="location-btn" bindtap="openLocation" data-item="{{item}}" catchtap="true">
+                  <text class="location-icon">📍</text>
+                  <text class="location-text">导航</text>
+                </view>
+              </view>
             </view>
           </view>
         </view>
@@ -107,3 +117,4 @@
     </block>
   </view>
 </view>
+

@@ -51,10 +51,25 @@ App({
       }
   },
   globalData: {
-    theme: wx.getSystemInfoSync().theme,
+    theme: (() => {
+      try {
+        const systemInfo = require('./utils/systemInfo.js')
+        return systemInfo.getTheme()
+      } catch (e) {
+        return 'light'
+      }
+    })(),
     hasLogin: false,
     openid: null,
     iconTabbar: '/page/weui/example/images/icon_tabbar.png',
+    // 汇率数据缓存
+    exchangeRateCache: {
+      rate: null, // CNY -> EGP 汇率
+      reverseRate: null, // EGP -> CNY 汇率
+      rates: null, // 多币种汇率对象 { CNY: { EGP: 6.7 }, USD: { EGP: 30.5 }, ... }
+      lastUpdated: null, // 最后更新时间
+      timestamp: null // 缓存时间戳，用于判断缓存是否过期
+    }
   },
   // lazy loading openid
   getUserOpenId(callback) {

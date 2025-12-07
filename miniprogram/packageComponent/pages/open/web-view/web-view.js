@@ -11,7 +11,10 @@ Page({
   },
   onLoad(options) {
     this.setData({
-      theme: wx.getSystemInfoSync().theme || 'light'
+      theme: (() => {
+        const systemInfo = require('../../../../utils/systemInfo.js')
+        return systemInfo.getTheme()
+      })()
     })
 
     // 从 URL 参数获取 web-view 的地址和标题

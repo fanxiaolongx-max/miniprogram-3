@@ -1,4 +1,4 @@
-<view class="page" data-weui-theme="{{theme}}">
+<view class="page" data-weui-theme="light">
   <view class="container">
     <!-- 用户信息区域 -->
     <view class="user-section">

@@ -10,7 +10,12 @@
     "page/tip-guide/index",
     "page/hot-activity/index",
     "page/weather/index",
-    "page/blacklist/index"
+    "page/blacklist/index",
+    "page/rental-list/index",
+    "page/second-hand-list/index",
+    "page/chinese-food-list/index",
+    "page/hot-spots-list/index",
+    "page/location-list/index"
   ],
   "subpackages": [
     {
@@ -71,7 +76,7 @@
   "cloud": true,
   "sitemapLocation": "sitemap.json",
   "themeLocation": "demo.theme.json",
-  "darkmode": true,
+  "darkmode": false,
   "resizable": true,
   "useExtendedLib": {
     "weui": true

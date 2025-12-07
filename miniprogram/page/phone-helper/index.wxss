@@ -74,8 +74,10 @@
 .code-card {
   background-color: #fff;
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+  border: 1px solid #f0f0f0;
 }
 
 .code-header {

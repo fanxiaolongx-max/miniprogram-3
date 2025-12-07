@@ -7,7 +7,6 @@
   /* 移除 overflow-y: auto，让页面本身可以滚动，这样才能触发 onReachBottom */
 }
 
-/* 搜索和筛选区域 */
 .filter-section {
   background: #fff;
   padding: 16px;
@@ -17,9 +16,29 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+.category-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.category-tag {
+  padding: 6px 16px;
+  background: #f5f5f5;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.category-tag.active {
+  background: #07c160;
+  color: #fff;
+}
+
 .search-box {
   position: relative;
-  margin-bottom: 12px;
 }
 
 .search-input {
@@ -40,27 +59,6 @@
   font-size: 18px;
 }
 
-.category-tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.category-tag {
-  padding: 6px 16px;
-  background: #f5f5f5;
-  border-radius: 16px;
-  font-size: 13px;
-  color: #666;
-  transition: all 0.2s;
-}
-
-.category-tag.active {
-  background: #ff3b30;
-  color: #fff;
-}
-
-/* 加载和错误状态 */
 .loading-container,
 .empty-container {
   text-align: center;
@@ -100,7 +98,6 @@
   border: none;
 }
 
-/* 瀑布流布局 */
 .waterfall-container {
   display: flex;
   gap: 8px;
@@ -140,7 +137,7 @@
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .item-title {
@@ -148,29 +145,12 @@
   font-weight: 600;
   color: #333;
   line-height: 1.4;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
 }
 
-.item-category {
+.item-address {
   font-size: 12px;
-  color: #ff3b30;
-  background: #ffe5e5;
-  padding: 4px 8px;
-  border-radius: 4px;
-  width: fit-content;
-}
-
-.item-description {
-  font-size: 13px;
-  color: #666;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  color: #999;
+  line-height: 1.4;
 }
 
 [data-weui-theme=dark] .container {
@@ -181,14 +161,14 @@
   background: #2C2C2C;
 }
 
-[data-weui-theme=dark] .search-input {
-  background: #1F1F1F;
-  color: #fff;
-}
-
 [data-weui-theme=dark] .category-tag {
   background: #1F1F1F;
   color: #ccc;
+}
+
+[data-weui-theme=dark] .search-input {
+  background: #1F1F1F;
+  color: #fff;
 }
 
 [data-weui-theme=dark] .waterfall-item {
@@ -197,15 +177,6 @@
 
 [data-weui-theme=dark] .item-title {
   color: #fff;
-}
-
-[data-weui-theme=dark] .item-category {
-  background: #3C1F1F;
-  color: #ff6b6b;
-}
-
-[data-weui-theme=dark] .item-description {
-  color: #ccc;
 }
 
 [data-weui-theme=dark] .error-text {
@@ -254,3 +225,4 @@
   color: #999;
   font-size: 26rpx;
 }
+
