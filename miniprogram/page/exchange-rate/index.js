@@ -98,6 +98,8 @@ Page({
     const numAmount = parseFloat(amount)
     if (isNaN(numAmount) || numAmount < 0) {
         this.setData({
+          cnyAmount: '',
+          egpAmount: '',
           purchasingPower: '',
           otherCurrencies: [],
           safeOtherCurrencies: [], // 必须同步清空安全副本

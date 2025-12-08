@@ -511,11 +511,46 @@ Page({
 
   onImageError(e) {
     const index = e.currentTarget.dataset.index
-    const items = this.data.items
-    if (items[index]) {
-      items[index].image = '/page/component/resources/pic/1.jpg'
-      this.setData({ items })
+    const itemId = e.currentTarget.dataset.id
+    const defaultImage = '/page/component/resources/pic/1.jpg'
+    
+    // 优先使用 itemId 查找，如果没有则使用 index
+    if (itemId) {
+      const items = this.data.items
+      const filteredItems = this.data.filteredItems
+      
+      // 更新 items 中的图片
+      const itemInItems = items.find(item => String(item.id) === String(itemId))
+      if (itemInItems && itemInItems.image !== defaultImage) {
+        itemInItems.image = defaultImage
+        this.setData({ items })
+      }
+      
+      // 更新 filteredItems 中的图片
+      const itemInFiltered = filteredItems.find(item => String(item.id) === String(itemId))
+      if (itemInFiltered && itemInFiltered.image !== defaultImage) {
+        itemInFiltered.image = defaultImage
+        this.setData({ filteredItems })
+      }
+    } else {
+      // 兼容旧逻辑：使用 index（可能不准确，因为 filteredItems 和 items 的索引可能不一致）
+      const filteredItems = this.data.filteredItems
+      if (filteredItems[index] && filteredItems[index].image !== defaultImage) {
+        filteredItems[index].image = defaultImage
+        this.setData({ filteredItems })
+        
+        // 同时更新 items 中对应的项
+        const itemId = filteredItems[index].id
+        const items = this.data.items
+        const itemInItems = items.find(item => String(item.id) === String(itemId))
+        if (itemInItems) {
+          itemInItems.image = defaultImage
+          this.setData({ items })
+        }
+      }
     }
+    
+    console.warn(`[onImageError] 图片加载失败，已使用默认占位图: index=${index}, id=${itemId || 'unknown'}`)
   }
 })
 

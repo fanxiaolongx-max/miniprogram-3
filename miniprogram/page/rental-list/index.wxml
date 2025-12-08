@@ -58,6 +58,7 @@
               mode="aspectFill"
               binderror="onImageError"
               data-index="{{index}}"
+              data-id="{{item.id}}"
             ></image>
             <view class="item-content">
               <view class="item-title">{{item.title}}</view>
@@ -92,6 +93,7 @@
               mode="aspectFill"
               binderror="onImageError"
               data-index="{{index}}"
+              data-id="{{item.id}}"
             ></image>
             <view class="item-content">
               <view class="item-title">{{item.title}}</view>
