@@ -441,8 +441,10 @@ Page({
   },
 
   goToPhoneHelper() {
+    const url = 'https://pay.iezan.cn/'
+    const title = '话费充值'
     wx.navigateTo({
-      url: '/page/phone-helper/index'
+      url: `/packageComponent/pages/open/web-view/web-view?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`
     })
   },
 
