@@ -44,12 +44,12 @@
             <view class="grid-title">问路卡片</view>
             <view class="grid-desc">中阿互译</view>
           </view>
-          <view class="grid-item" bindtap="goToPhoneHelper">
+          <view class="grid-item" bindtap="goToNileHot">
             <view class="grid-icon-wrapper grid-icon-green">
-              <text class="grid-icon">🔢</text>
+              <text class="grid-icon">🎬</text>
             </view>
-            <view class="grid-title">话费助手</view>
-            <view class="grid-desc">查余额/充值</view>
+            <view class="grid-title">尼罗河热映</view>
+            <view class="grid-desc">电影/演出</view>
           </view>
           <view class="grid-item" bindtap="goToChineseFood">
             <view class="grid-icon-wrapper grid-icon-orange">

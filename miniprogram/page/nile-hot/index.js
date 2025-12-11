@@ -1,8 +1,8 @@
 Page({
   onShareAppMessage() {
     return {
-      title: '热门打卡地',
-      path: 'page/hot-spots-list/index'
+      title: '尼罗河热映',
+      path: 'page/nile-hot/index'
     }
   },
 
@@ -48,12 +48,12 @@ Page({
       this.handleSearchOrFilter()
     }, 500)
 
-    this.fetchHotSpots()
+    this.fetchNileHot()
   },
 
-  fetchHotSpots(isLoadMore = false) {
+  fetchNileHot(isLoadMore = false) {
     const config = require('../../config.js')
-    const apiUrl = config.hotSpotsApi || `${config.apiBaseUrl}/hot-spots`
+    const apiUrl = config.nileHotApi || `${config.apiBaseUrl}/nile-hot`
     
     // 如果是加载更多，设置 loadingMore；否则设置 loading
     if (isLoadMore) {
@@ -69,32 +69,26 @@ Page({
     }
 
     // 构建请求参数（支持分页和过滤）
-    // 如果是加载更多，应该请求下一页；如果是首次加载或过滤，请求第1页
     const currentPage = this.data.page
     const requestPage = isLoadMore ? (currentPage + 1) : 1
     const pageSize = this.data.pageSize
     
-    // 获取过滤条件（两个独立的过滤条件，可以单独使用或组合使用）
-    // category: 分类过滤（精确匹配 category 字段）
-    // keyword: 全文搜索（搜索 name、description 等多个字段）
+    // 获取过滤条件
     const category = this.data.selectedCategory || ''
     const keyword = (this.data.searchKeyword || '').trim()
     
     // 构建URL参数
     const params = [`page=${requestPage}`, `pageSize=${pageSize}`]
-    // 分类过滤：只传有值的分类
     if (category) {
       params.push(`category=${encodeURIComponent(category)}`)
     }
-    // 关键词搜索：只传有值的关键词
     if (keyword) {
       params.push(`keyword=${encodeURIComponent(keyword)}`)
     }
-    // 注意：如果两个条件都有值，会同时传递，后端会组合过滤
     
     const url = `${apiUrl}?${params.join('&')}`
     
-    console.log(`[fetchHotSpots] 请求参数：isLoadMore=${isLoadMore}, currentPage=${currentPage}, requestPage=${requestPage}, pageSize=${pageSize}, category=${category || '无'}, keyword=${keyword || '无'}`)
+    console.log(`[fetchNileHot] 请求参数：isLoadMore=${isLoadMore}, currentPage=${currentPage}, requestPage=${requestPage}, pageSize=${pageSize}, category=${category || '无'}, keyword=${keyword || '无'}`)
 
     wx.request({
       url: url,
@@ -103,9 +97,9 @@ Page({
         'content-type': 'application/json'
       },
       success: (res) => {
-        console.log('获取热门打卡地响应', res)
+        console.log('获取尼罗河热映响应', res)
         if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取热门打卡地失败', res.statusCode, res.data)
+          console.error('获取尼罗河热映失败', res.statusCode, res.data)
           if (isLoadMore) {
             this.setData({ loadingMore: false })
           } else {
@@ -115,7 +109,7 @@ Page({
         }
 
         if (!res.data) {
-          console.error('获取热门打卡地失败：返回数据为空')
+          console.error('获取尼罗河热映失败：返回数据为空')
           if (isLoadMore) {
             this.setData({ loadingMore: false })
           } else {
@@ -133,23 +127,23 @@ Page({
           items = res.data.data
           total = res.data.total || 0
           hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
-          console.log(`[fetchHotSpots] 分页数据：请求页 ${requestPage}，返回 ${items.length} 条，总计 ${total}，还有更多：${hasMore}`)
+          console.log(`[fetchNileHot] 分页数据：请求页 ${requestPage}，返回 ${items.length} 条，总计 ${total}，还有更多：${hasMore}`)
         }
         // 处理数组格式（format=array 时）：[...]
         else if (Array.isArray(res.data)) {
           items = res.data
           hasMore = items.length >= pageSize
-          console.log(`[fetchHotSpots] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
+          console.log(`[fetchNileHot] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
         }
-        // 兼容旧格式：{ hotSpots: [...] }
-        else if (res.data.hotSpots && Array.isArray(res.data.hotSpots)) {
-          items = res.data.hotSpots
+        // 兼容旧格式：{ items: [...] }
+        else if (res.data.items && Array.isArray(res.data.items)) {
+          items = res.data.items
           total = res.data.total || items.length
           hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
         }
 
         if (!Array.isArray(items)) {
-          console.error('获取热门打卡地失败：返回格式不正确')
+          console.error('获取尼罗河热映失败：返回格式不正确')
           if (isLoadMore) {
             this.setData({ loadingMore: false })
           } else {
@@ -174,14 +168,11 @@ Page({
 
         const newItems = items.map(item => ({
           id: item.id || item._id || Math.random(),
-          name: item.name || item.title || '未知地点',
+          name: item.name || item.title || '未知应用',
           description: item.description || item.desc || '',
           image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
-          latitude: parseFloat(item.latitude || item.lat || 30.0444),
-          longitude: parseFloat(item.longitude || item.lng || item.lon || 31.2357),
           category: item.category || '',
-          detailApi: item.detailApi || item.detailUrl || '',
-          title: item.title || item.name || '打卡地详情'
+          detailApi: item.detailApi || item.detailUrl || ''
         }))
 
         // 合并数据（加载更多时追加，首次加载时替换）
@@ -199,9 +190,9 @@ Page({
           categories = ['全部', ...Array.from(categorySet).sort()]
         }
 
-        // 更新页码：加载更多时页码+1，首次加载时重置为1
+        // 更新页码
         const nextPage = isLoadMore ? requestPage : 1
-        console.log(`[fetchHotSpots] 准备更新数据，请求页: ${requestPage}，更新后页码: ${nextPage}，isLoadMore: ${isLoadMore}`)
+        console.log(`[fetchNileHot] 准备更新数据，请求页: ${requestPage}，更新后页码: ${nextPage}，isLoadMore: ${isLoadMore}`)
         
         this.setData({
           items: allItems,
@@ -213,25 +204,23 @@ Page({
           hasMore: hasMore,
           page: nextPage
         }, () => {
-          console.log(`[fetchHotSpots] setData 完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${allItems.length}`)
+          console.log(`[fetchNileHot] setData 完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${allItems.length}`)
           
           // 如果是加载更多，恢复滚动位置
           if (isLoadMore && this._savedScrollTop !== undefined && this._savedScrollTop > 0) {
-            // 延迟恢复，确保DOM已更新
             setTimeout(() => {
               wx.pageScrollTo({
                 scrollTop: this._savedScrollTop,
-                duration: 0 // 立即滚动，无动画
+                duration: 0
               })
-              console.log(`[fetchHotSpots] 恢复滚动位置到: ${this._savedScrollTop}px`)
-              // 重置保存的滚动位置
+              console.log(`[fetchNileHot] 恢复滚动位置到: ${this._savedScrollTop}px`)
               this._savedScrollTop = 0
             }, 100)
           }
         })
       },
       fail: (err) => {
-        console.error('获取热门打卡地失败', err)
+        console.error('获取尼罗河热映失败', err)
         if (isLoadMore) {
           this.setData({ loadingMore: false })
           wx.showToast({
@@ -246,7 +235,7 @@ Page({
     })
   },
 
-  // 滚动到底部 - 已禁用自动加载，仅保留日志
+  // 滚动到底部 - 已禁用自动加载
   onReachBottom() {
     console.log('[onReachBottom] 触发，但已禁用自动加载，用户需手动点击"加载更多"按钮')
   },
@@ -261,11 +250,10 @@ Page({
         const scrollTop = res ? res.scrollTop : 0
         console.log(`[loadMore] 保存当前滚动位置: ${scrollTop}px`)
         
-        // 保存到页面数据中，用于加载完成后恢复
         this._savedScrollTop = scrollTop
         
         // 调用加载函数
-        this.fetchHotSpots(true)
+        this.fetchNileHot(true)
       }).exec()
     }
   },
@@ -278,7 +266,7 @@ Page({
       items: [],
       filteredItems: []
     })
-    this.fetchHotSpots(false)
+    this.fetchNileHot(false)
     setTimeout(() => {
       wx.stopPullDownRefresh()
     }, 500)
@@ -300,7 +288,7 @@ Page({
   },
 
   retry() {
-    this.fetchHotSpots()
+    this.fetchNileHot()
   },
 
   // 处理搜索或过滤变化（重置页码并请求）
@@ -321,28 +309,8 @@ Page({
       duration: 300
     })
     
-    // 重新请求数据（不带isLoadMore参数，表示首次加载）
-    this.fetchHotSpots(false)
-  },
-
-  // 选择分类
-  selectCategory(e) {
-    const category = e.currentTarget.dataset.category
-    const newCategory = category === '全部' ? '' : category
-    
-    // 如果分类没有变化，不处理
-    if (this.data.selectedCategory === newCategory) {
-      return
-    }
-    
-    console.log(`[selectCategory] 分类变化：${this.data.selectedCategory} -> ${newCategory}`)
-    
-    this.setData({
-      selectedCategory: newCategory
-    })
-    
-    // 重置页码并请求
-    this.handleSearchOrFilter()
+    // 重新请求数据
+    this.fetchNileHot(false)
   },
 
   // 搜索输入（防抖处理）
@@ -365,46 +333,44 @@ Page({
     }
   },
 
-  viewDetail(e) {
+  // 选择分类
+  selectCategory(e) {
+    const category = e.currentTarget.dataset.category
+    const newCategory = category === '全部' ? '' : category
+    
+    // 如果分类没有变化，不处理
+    if (this.data.selectedCategory === newCategory) {
+      return
+    }
+    
+    console.log(`[selectCategory] 分类变化：${this.data.selectedCategory} -> ${newCategory}`)
+    
+    this.setData({
+      selectedCategory: newCategory
+    })
+    
+    // 重置页码并请求
+    this.handleSearchOrFilter()
+  },
+
+  // 打开应用（如果有detailApi则调用API获取HTML内容，否则显示详情）
+  openApp(e) {
     const item = e.currentTarget.dataset.item
     
-    // 如果有detailApi，调用API获取HTML内容并展示
     if (item.detailApi) {
+      // 如果有detailApi，调用API获取HTML内容并展示
       wx.navigateTo({
         url: `/page/article-detail/index?apiUrl=${encodeURIComponent(item.detailApi)}`
       })
     } else {
-      // 如果没有detailApi，保持原来的逻辑（显示弹窗+导航）
+      // 如果没有detailApi，显示详情
       wx.showModal({
         title: item.name,
-        content: `${item.description || '暂无描述'}\n\n点击"导航"可查看位置`,
-        showCancel: true,
-        cancelText: '关闭',
-        confirmText: '导航',
-        success: (res) => {
-          if (res.confirm) {
-            this.openLocation(item)
-          }
-        }
+        content: item.description || '暂无描述',
+        showCancel: false,
+        confirmText: '知道了'
       })
     }
-  },
-
-  openLocation(e) {
-    const item = typeof e === 'object' && e.currentTarget ? e.currentTarget.dataset.item : e
-    wx.openLocation({
-      latitude: item.latitude,
-      longitude: item.longitude,
-      name: item.name,
-      address: item.description || '',
-      fail: (err) => {
-        console.error('打开地图失败', err)
-        wx.showToast({
-          title: '打开地图失败',
-          icon: 'none'
-        })
-      }
-    })
   },
 
   onImageError(e) {
@@ -412,7 +378,7 @@ Page({
     const itemId = e.currentTarget.dataset.id
     const defaultImage = '/page/component/resources/pic/1.jpg'
     
-    // 优先使用 itemId 查找，如果没有则使用 index
+    // 优先使用 itemId 查找
     if (itemId) {
       const items = this.data.items
       const filteredItems = this.data.filteredItems
@@ -431,7 +397,7 @@ Page({
         this.setData({ filteredItems })
       }
     } else {
-      // 兼容旧逻辑：使用 index（可能不准确，因为 filteredItems 和 items 的索引可能不一致）
+      // 兼容旧逻辑：使用 index
       const filteredItems = this.data.filteredItems
       if (filteredItems[index] && filteredItems[index].image !== defaultImage) {
         filteredItems[index].image = defaultImage
@@ -451,4 +417,3 @@ Page({
     console.warn(`[onImageError] 图片加载失败，已使用默认占位图: index=${index}, id=${itemId || 'unknown'}`)
   }
 })
-

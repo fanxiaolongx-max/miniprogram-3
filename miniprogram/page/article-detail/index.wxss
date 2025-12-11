@@ -1,0 +1,93 @@
+.container {
+  padding: 20px;
+  background-color: #F5F7FA;
+  min-height: 100vh;
+}
+
+.loading-container,
+.error-container {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.loading-text,
+.error-text {
+  color: #999;
+  font-size: 14px;
+}
+
+.error-text {
+  color: #ff3b30;
+  font-size: 16px;
+}
+
+.retry-btn {
+  margin-top: 20px;
+  padding: 12px 32px;
+  background-color: #07c160;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 16px;
+  border: none;
+}
+
+.retry-btn::after {
+  border: none;
+}
+
+.article-container {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.article-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.article-meta {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.article-content {
+  font-size: 16px;
+  color: #333;
+  line-height: 1.8;
+  word-wrap: break-word;
+}
+
+/* 注意：rich-text组件在小程序中会自动处理HTML标签样式，这里只设置容器样式 */
+/* 如需自定义HTML标签样式，需要在返回的HTML内容中使用内联样式 */
+
+[data-weui-theme=dark] .container {
+  background-color: #1F1F1F;
+}
+
+[data-weui-theme=dark] .article-container {
+  background: #2C2C2C;
+}
+
+[data-weui-theme=dark] .article-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .article-content {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .article-meta {
+  border-bottom-color: #3C3C3C;
+}
+
+[data-weui-theme=dark] .error-text {
+  color: #ff6b6b;
+}

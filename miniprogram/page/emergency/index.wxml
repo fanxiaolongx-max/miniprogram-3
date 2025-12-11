@@ -1,0 +1,36 @@
+<view class="page" data-weui-theme="light">
+  <view class="container">
+    <view class="emergency-section">
+      <view class="section-title">🚨 紧急求助电话</view>
+      <view class="section-desc">点击号码可直接拨打</view>
+
+      <!-- 紧急号码列表 -->
+      <view class="phone-list">
+        <view 
+          wx:for="{{emergencyNumbers}}" 
+          wx:key="number"
+          class="phone-item"
+          bindtap="callPhone"
+          data-phone="{{item.number}}"
+        >
+          <view class="phone-icon">{{item.icon}}</view>
+          <view class="phone-content">
+            <view class="phone-name">{{item.name}}</view>
+            <view class="phone-number">{{item.displayNumber}}</view>
+          </view>
+          <view class="phone-call-icon">📞</view>
+        </view>
+      </view>
+
+      <!-- 提示信息 -->
+      <view class="tip-section">
+        <view class="tip-title">💡 温馨提示</view>
+        <view class="tip-content">
+          <text>• 点击号码后，系统会自动弹出确认框</text>
+          <text>• 确认后即可直接拨打</text>
+          <text>• 请根据实际情况选择合适的求助电话</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

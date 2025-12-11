@@ -14,7 +14,10 @@
     "page/second-hand-list/index",
     "page/chinese-food-list/index",
     "page/hot-spots-list/index",
-    "page/location-list/index"
+    "page/location-list/index",
+    "page/nile-hot/index",
+    "page/emergency/index",
+    "page/article-detail/index"
   ],
   "subpackages": [
     {

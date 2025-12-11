@@ -21,7 +21,7 @@ Page({
     feedbackCategories: [
       { value: '', label: '请选择功能分类' },
       { value: '问路卡片', label: '问路卡片' },
-      { value: '话费助手', label: '话费助手' },
+      { value: '尼罗河热映', label: '尼罗河热映' },
       { value: '寻味中国', label: '寻味中国' },
       { value: '常用导航', label: '常用导航' },
       { value: '租房/酒店', label: '租房/酒店' },

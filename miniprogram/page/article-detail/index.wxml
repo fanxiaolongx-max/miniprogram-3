@@ -1,0 +1,21 @@
+<view class="page" data-weui-theme="{{theme}}">
+  <view class="container">
+    <!-- 加载状态 -->
+    <view wx:if="{{loading}}" class="loading-container">
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <!-- 错误状态 -->
+    <view wx:elif="{{error}}" class="error-container">
+      <text class="error-text">获取内容失败，请稍后重试</text>
+      <button class="retry-btn" bindtap="retry">重试</button>
+    </view>
+
+    <!-- 内容展示 -->
+    <view wx:else class="article-container">
+      <view wx:if="{{title}}" class="article-title">{{title}}</view>
+      <view wx:if="{{meta}}" class="article-meta">{{meta}}</view>
+      <rich-text class="article-content" nodes="{{content}}"></rich-text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,139 @@
+.container {
+  padding: 20px;
+  background-color: #F5F7FA;
+  min-height: 100vh;
+}
+
+.emergency-section {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.section-desc {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 24px;
+}
+
+.phone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.phone-item {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.phone-item:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.phone-icon {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.phone-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phone-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.phone-number {
+  font-size: 14px;
+  color: #07c160;
+  font-weight: 500;
+}
+
+.phone-call-icon {
+  font-size: 20px;
+  color: #07c160;
+}
+
+.tip-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tip-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.tip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tip-content text {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+}
+
+[data-weui-theme=dark] .container {
+  background-color: #1F1F1F;
+}
+
+[data-weui-theme=dark] .section-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .phone-item {
+  background-color: #2C2C2C;
+}
+
+[data-weui-theme=dark] .phone-name {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .phone-icon {
+  background-color: #1F1F1F;
+}
+
+[data-weui-theme=dark] .tip-section {
+  background-color: #2C2C2C;
+}
+
+[data-weui-theme=dark] .tip-title {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .tip-content text {
+  color: #ccc;
+}

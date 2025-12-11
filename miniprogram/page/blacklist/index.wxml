@@ -17,32 +17,90 @@
         <button class="retry-btn" bindtap="retry">重试</button>
       </view>
 
-      <!-- 黑名单列表 - 通栏列表 -->
+      <!-- 瀑布流列表 -->
       <block wx:else>
         <view wx:if="{{items.length === 0}}" class="empty-container">
           <text class="empty-text">暂无预警信息</text>
         </view>
-        <view wx:else class="items-list">
-          <view 
-            wx:for="{{items}}" 
-            wx:key="id"
-            wx:for-item="item"
-            class="list-item"
-            bindtap="viewItem"
-            data-item="{{item}}"
-          >
-            <view class="list-item-left">
-              <view class="warning-badge">避坑</view>
-            </view>
-            <view class="list-item-content">
-              <view class="list-item-title">{{item.title}}</view>
-              <view wx:if="{{item.type}}" class="list-item-type">{{item.type}}</view>
-            </view>
-            <view class="list-item-right">
-              <text wx:if="{{item.date}}" class="list-item-date">{{item.date}}</text>
-              <text class="list-item-arrow">></text>
+        <view wx:else class="waterfall-container">
+          <view class="waterfall-column">
+            <view 
+              wx:for="{{items}}" 
+              wx:key="id"
+              wx:for-item="item"
+              wx:for-index="index"
+              wx:if="{{index % 2 === 0}}"
+              class="waterfall-item"
+              bindtap="viewItem"
+              data-item="{{item}}"
+            >
+              <image 
+                wx:if="{{item.image}}"
+                class="item-image" 
+                src="{{item.image}}" 
+                mode="aspectFill"
+                binderror="onImageError"
+                data-index="{{index}}"
+                data-id="{{item.id}}"
+              ></image>
+              <view class="item-content">
+                <view class="item-header">
+                  <view wx:if="{{item.type}}" class="item-type-tag">
+                    <text class="type-icon">{{item.typeIcon}}</text>
+                    <text class="type-text">{{item.type}}</text>
+                  </view>
+                  <text wx:if="{{item.date}}" class="item-date">{{item.date}}</text>
+                </view>
+                <view class="item-title">{{item.title}}</view>
+                <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              </view>
             </view>
           </view>
+          <view class="waterfall-column">
+            <view 
+              wx:for="{{items}}" 
+              wx:key="id"
+              wx:for-item="item"
+              wx:for-index="index"
+              wx:if="{{index % 2 === 1}}"
+              class="waterfall-item"
+              bindtap="viewItem"
+              data-item="{{item}}"
+            >
+              <image 
+                wx:if="{{item.image}}"
+                class="item-image" 
+                src="{{item.image}}" 
+                mode="aspectFill"
+                binderror="onImageError"
+                data-index="{{index}}"
+                data-id="{{item.id}}"
+              ></image>
+              <view class="item-content">
+                <view class="item-header">
+                  <view wx:if="{{item.type}}" class="item-type-tag">
+                    <text class="type-icon">{{item.typeIcon}}</text>
+                    <text class="type-text">{{item.type}}</text>
+                  </view>
+                  <text wx:if="{{item.date}}" class="item-date">{{item.date}}</text>
+                </view>
+                <view class="item-title">{{item.title}}</view>
+                <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              </view>
+            </view>
+          </view>
+        </view>
+        <!-- 加载更多按钮 -->
+        <view wx:if="{{hasMore && !loadingMore && !loading}}" class="load-more-container">
+          <text class="load-more-btn" bindtap="loadMore">加载更多</text>
+        </view>
+        <!-- 加载中提示 -->
+        <view wx:if="{{loadingMore}}" class="loading-more">
+          <text class="loading-text">加载中...</text>
+        </view>
+        <!-- 没有更多提示 -->
+        <view wx:if="{{!hasMore && items.length > 0}}" class="no-more">
+          <text class="no-more-text">没有更多数据了</text>
         </view>
       </block>
     </view>

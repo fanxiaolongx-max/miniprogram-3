@@ -208,7 +208,8 @@ Page({
             description: item.description || item.desc || '',
             image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
             contact: item.contact || item.phone || '',
-            category: item.category || item.type || ''
+            category: item.category || item.type || '',
+            detailApi: item.detailApi || item.detailUrl || ''
           }
         })
 
@@ -452,18 +453,27 @@ Page({
 
   viewDetail(e) {
     const item = e.currentTarget.dataset.item
-    wx.showModal({
-      title: item.title,
-      content: `价格：${item.price} EGP\n${item.description ? `\n${item.description}\n` : ''}\n联系方式：${item.contact}`,
-      showCancel: true,
-      cancelText: '关闭',
-      confirmText: '联系',
-      success: (res) => {
-        if (res.confirm) {
-          this.contactSeller(item)
+    
+    // 如果有detailApi，调用API获取HTML内容并展示
+    if (item.detailApi) {
+      wx.navigateTo({
+        url: `/page/article-detail/index?apiUrl=${encodeURIComponent(item.detailApi)}`
+      })
+    } else {
+      // 如果没有detailApi，保持原来的逻辑（显示弹窗+联系卖家）
+      wx.showModal({
+        title: item.title,
+        content: `价格：${item.price} EGP\n${item.description ? `\n${item.description}\n` : ''}\n联系方式：${item.contact}`,
+        showCancel: true,
+        cancelText: '关闭',
+        confirmText: '联系',
+        success: (res) => {
+          if (res.confirm) {
+            this.contactSeller(item)
+          }
         }
-      }
-    })
+      })
+    }
   },
 
   contactSeller(e) {

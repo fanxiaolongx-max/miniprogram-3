@@ -187,7 +187,8 @@ Page({
           latitude: parseFloat(item.latitude || item.lat || 30.0444),
           longitude: parseFloat(item.longitude || item.lng || item.lon || 31.2357),
           contact: item.contact || item.phone || '联系方式：请咨询',
-          category: item.category || ''
+          category: item.category || '',
+          detailApi: item.detailApi || item.detailUrl || ''
         }))
 
         // 合并数据（加载更多时追加，首次加载时替换）
@@ -377,18 +378,27 @@ Page({
   // 查看详情
   viewDetail(e) {
     const item = e.currentTarget.dataset.item
-    wx.showModal({
-      title: item.title,
-      content: `价格：${item.price} EGP/月\n地址：${item.address}\n类型：${item.type}\n房间：${item.rooms}室\n面积：${item.area}㎡\n\n联系方式：${item.contact}`,
-      showCancel: true,
-      cancelText: '关闭',
-      confirmText: '联系',
-      success: (res) => {
-        if (res.confirm) {
-          this.contactOwner(item)
+    
+    // 如果有detailApi，调用API获取HTML内容并展示
+    if (item.detailApi) {
+      wx.navigateTo({
+        url: `/page/article-detail/index?apiUrl=${encodeURIComponent(item.detailApi)}`
+      })
+    } else {
+      // 如果没有detailApi，保持原来的逻辑（显示弹窗+联系房东）
+      wx.showModal({
+        title: item.title,
+        content: `价格：${item.price} EGP/月\n地址：${item.address}\n类型：${item.type}\n房间：${item.rooms}室\n面积：${item.area}㎡\n\n联系方式：${item.contact}`,
+        showCancel: true,
+        cancelText: '关闭',
+        confirmText: '联系',
+        success: (res) => {
+          if (res.confirm) {
+            this.contactOwner(item)
+          }
         }
-      }
-    })
+      })
+    }
   },
 
   // 联系房东

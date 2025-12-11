@@ -440,11 +440,9 @@ Page({
     })
   },
 
-  goToPhoneHelper() {
-    const url = 'https://pay.iezan.cn/'
-    const title = '话费充值'
+  goToNileHot() {
     wx.navigateTo({
-      url: `/packageComponent/pages/open/web-view/web-view?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`
+      url: '/page/nile-hot/index'
     })
   },
 
@@ -474,11 +472,8 @@ Page({
   },
 
   goToEmergency() {
-    wx.showModal({
-      title: '紧急求助',
-      content: '报警电话：122\n救护车：123\n消防：180\n中国驻埃及大使馆：+20-2-27361234',
-      showCancel: false,
-      confirmText: '知道了'
+    wx.navigateTo({
+      url: '/page/emergency/index'
     })
   },
 
