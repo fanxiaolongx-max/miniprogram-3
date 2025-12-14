@@ -52,6 +52,11 @@ Page({
       },
       success: (res) => {
         console.log('获取翻译数据响应', res)
+        
+        // 处理API响应数据，自动替换URL（开发环境：bobapro.life -> boba.app）
+        const envHelper = require('../../utils/envHelper.js')
+        res.data = envHelper.processApiResponse(res.data)
+        
         // 检查状态码和 success 字段
         if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
           console.error('获取翻译数据失败', res.statusCode, res.data)

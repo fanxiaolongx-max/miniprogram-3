@@ -25,13 +25,11 @@ Page({
   },
 
   onLoad() {
+    const systemInfo = require('../../utils/systemInfo.js')
     const { debounce } = require('../../utils/debounce.js')
     
     this.setData({
-      theme: (() => {
-        const systemInfo = require('../../utils/systemInfo.js')
-        return systemInfo.getTheme()
-      })()
+      theme: systemInfo.getTheme()
     })
     
     // 初始化保存的滚动位置
@@ -51,20 +49,26 @@ Page({
     this.fetchHotSpots()
   },
 
-  fetchHotSpots(isLoadMore = false) {
+  fetchHotSpots(isLoadMore = false, isPreload = false) {
     const config = require('../../config.js')
     const apiUrl = config.hotSpotsApi || `${config.apiBaseUrl}/hot-spots`
     
     // 如果是加载更多，设置 loadingMore；否则设置 loading
     if (isLoadMore) {
+      if (isPreload) {
+        // 预加载时不显示 loadingMore，避免影响用户体验
+        console.log('[fetchHotSpots] 预加载模式，不显示加载提示')
+      } else {
       this.setData({
         loadingMore: true
       })
+      }
     } else {
       this.setData({
         loading: true,
         page: 1,
-        hasMore: true
+        hasMore: true,
+        preloadTriggered: false // 重置预加载标记
       })
     }
 
@@ -104,6 +108,11 @@ Page({
       },
       success: (res) => {
         console.log('获取热门打卡地响应', res)
+        
+        // 处理API响应数据，自动替换URL（开发环境：bobapro.life -> boba.app）
+        const envHelper = require('../../utils/envHelper.js')
+        res.data = envHelper.processApiResponse(res.data)
+        
         if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
           console.error('获取热门打卡地失败', res.statusCode, res.data)
           if (isLoadMore) {
@@ -172,26 +181,81 @@ Page({
           return
         }
 
-        const newItems = items.map(item => ({
-          id: item.id || item._id || Math.random(),
+        // 生成唯一ID，确保不会重复
+        const existingItems = isLoadMore ? (this.data.items || []) : []
+        const existingIds = new Set(existingItems.map(item => String(item.id)))
+        
+        const newItems = items.map((item, index) => {
+          // 优先使用API返回的id
+          let uniqueId = String(item.id || item._id || '')
+          
+          // 如果id为空，生成唯一id
+          if (!uniqueId) {
+            // 使用请求页码、索引、时间戳和随机数生成唯一id
+            uniqueId = `item_${requestPage}_${index}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          }
+          
+          // 如果id已存在，也生成新的唯一id（避免重复）
+          if (existingIds.has(uniqueId)) {
+            console.warn(`[fetchHotSpots] 发现重复id: ${uniqueId}，生成新id`)
+            uniqueId = `item_${requestPage}_${index}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          }
+          
+          // 添加到已存在id集合，避免同批次数据重复
+          existingIds.add(uniqueId)
+          
+          return {
+            id: uniqueId,
           name: item.name || item.title || '未知地点',
+            title: item.title || item.name || '打卡地详情',
           description: item.description || item.desc || '',
           image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
+            category: item.category || '',
+            htmlContent: item.htmlContent || '', // 添加 htmlContent 字段
+            detailApi: item.detailApi || item.detailUrl || '', // 保留用于向后兼容
+            meta: item.meta || item.date || item.updatedAt || '', // 添加 meta 字段
+            published: item.published !== false, // 添加 published 字段，默认为 true
+            // 保留原有字段用于兼容
           latitude: parseFloat(item.latitude || item.lat || 30.0444),
-          longitude: parseFloat(item.longitude || item.lng || item.lon || 31.2357),
-          category: item.category || '',
-          detailApi: item.detailApi || item.detailUrl || '',
-          title: item.title || item.name || '打卡地详情'
-        }))
+            longitude: parseFloat(item.longitude || item.lng || item.lon || 31.2357)
+          }
+        })
 
         // 合并数据（加载更多时追加，首次加载时替换）
-        const allItems = isLoadMore ? [...this.data.items, ...newItems] : newItems
+        // 再次过滤：确保新数据的id不在已存在的数据中
+        const uniqueNewItems = isLoadMore 
+          ? newItems.filter(item => {
+              const exists = existingItems.some(existing => String(existing.id) === String(item.id))
+              if (exists) {
+                console.warn(`[fetchHotSpots] 过滤重复项: id=${item.id}`)
+              }
+              return !exists
+            })
+          : newItems
+        
+        const allItems = isLoadMore 
+          ? [...existingItems, ...uniqueNewItems]
+          : uniqueNewItems
+        
+        // 最终去重：使用Map确保id唯一（双重保险）
+        const uniqueItemsMap = new Map()
+        allItems.forEach(item => {
+          const itemId = String(item.id)
+          if (!uniqueItemsMap.has(itemId)) {
+            uniqueItemsMap.set(itemId, item)
+          } else {
+            console.warn(`[fetchHotSpots] 最终去重：发现重复id: ${itemId}，已跳过`)
+          }
+        })
+        const finalItems = Array.from(uniqueItemsMap.values())
+        
+        console.log(`[fetchHotSpots] 数据处理：API返回 ${items.length} 条，处理后 ${newItems.length} 条，过滤重复后 ${uniqueNewItems.length} 条，合并后 ${allItems.length} 条，最终去重后 ${finalItems.length} 条`)
 
         // 从所有数据中提取分类（只在首次加载时更新分类）
         let categories = this.data.categories
         if (!isLoadMore) {
           const categorySet = new Set()
-          allItems.forEach(item => {
+          finalItems.forEach(item => {
             if (item.category) {
               categorySet.add(item.category)
             }
@@ -203,20 +267,37 @@ Page({
         const nextPage = isLoadMore ? requestPage : 1
         console.log(`[fetchHotSpots] 准备更新数据，请求页: ${requestPage}，更新后页码: ${nextPage}，isLoadMore: ${isLoadMore}`)
         
-        this.setData({
-          items: allItems,
-          filteredItems: allItems, // 后端已过滤，直接使用返回的数据
+        // 更新数据
+        // 注意：由于后端已处理过滤，返回的数据已经是过滤后的结果
+        const updateData = {
+          items: finalItems,
+          filteredItems: finalItems, // 后端已过滤，直接使用返回的数据
           categories: categories,
           loading: false,
-          loadingMore: false,
           error: false,
           hasMore: hasMore,
           page: nextPage
-        }, () => {
-          console.log(`[fetchHotSpots] setData 完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${allItems.length}`)
-          
-          // 如果是加载更多，恢复滚动位置
-          if (isLoadMore && this._savedScrollTop !== undefined && this._savedScrollTop > 0) {
+        }
+
+        // 根据加载类型设置不同的状态
+        if (isPreload) {
+          // 预加载完成，重置预加载状态
+          updateData.preloading = false
+          console.log(`[fetchHotSpots] 预加载完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${finalItems.length}（新增 ${newItems.length} 条）`)
+        } else if (isLoadMore) {
+          // 正常加载更多完成
+          updateData.loadingMore = false
+          updateData.preloadTriggered = false // 重置预加载标记，允许下次预加载
+          console.log(`[fetchHotSpots] 加载更多完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${finalItems.length}（新增 ${newItems.length} 条，原有 ${existingItems.length} 条）`)
+        } else {
+          // 首次加载完成
+          updateData.preloadTriggered = false // 重置预加载标记
+          console.log(`[fetchHotSpots] 首次加载完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${finalItems.length}`)
+        }
+
+        this.setData(updateData, () => {
+          // 如果是加载更多（非预加载），恢复滚动位置
+          if (isLoadMore && !isPreload && this._savedScrollTop !== undefined && this._savedScrollTop > 0) {
             // 延迟恢复，确保DOM已更新
             setTimeout(() => {
               wx.pageScrollTo({
@@ -233,12 +314,21 @@ Page({
       fail: (err) => {
         console.error('获取热门打卡地失败', err)
         if (isLoadMore) {
+          if (isPreload) {
+            // 预加载失败，重置预加载状态
+            this.setData({ 
+              preloading: false,
+              preloadTriggered: false 
+            })
+            console.error('[fetchHotSpots] 预加载失败，已重置预加载状态')
+          } else {
           this.setData({ loadingMore: false })
           wx.showToast({
             title: '加载失败，请重试',
             icon: 'none',
             duration: 2000
           })
+          }
         } else {
           this.showError()
         }
@@ -265,20 +355,23 @@ Page({
         this._savedScrollTop = scrollTop
         
         // 调用加载函数
-        this.fetchHotSpots(true)
+        this.fetchHotSpots(true, false) // 第二个参数 false 表示不是预加载
       }).exec()
     }
   },
 
   // 下拉刷新
   onPullDownRefresh() {
+    // 下拉刷新时保持当前的过滤条件，只重置页码
     this.setData({
       page: 1,
       hasMore: true,
       items: [],
-      filteredItems: []
+      filteredItems: [],
+      preloadTriggered: false // 重置预加载标记
     })
     this.fetchHotSpots(false)
+    // 注意：fetchHotSpots 内部会设置 loading: false，这里延迟停止下拉刷新
     setTimeout(() => {
       wx.stopPullDownRefresh()
     }, 500)
@@ -368,24 +461,22 @@ Page({
   viewDetail(e) {
     const item = e.currentTarget.dataset.item
     
-    // 如果有detailApi，调用API获取HTML内容并展示
-    if (item.detailApi) {
+    // 直接使用 htmlContent 字段，不再通过 detailApi 获取
+    if (item.htmlContent) {
+      const params = {
+        htmlContent: encodeURIComponent(item.htmlContent),
+        title: encodeURIComponent(item.title || item.name || '详情'),
+        meta: encodeURIComponent(item.meta || item.date || '')
+      }
       wx.navigateTo({
-        url: `/page/article-detail/index?apiUrl=${encodeURIComponent(item.detailApi)}`
+        url: `/page/article-detail/index?htmlContent=${params.htmlContent}&title=${params.title}&meta=${params.meta}`
       })
     } else {
-      // 如果没有detailApi，保持原来的逻辑（显示弹窗+导航）
-      wx.showModal({
-        title: item.name,
-        content: `${item.description || '暂无描述'}\n\n点击"导航"可查看位置`,
-        showCancel: true,
-        cancelText: '关闭',
-        confirmText: '导航',
-        success: (res) => {
-          if (res.confirm) {
-            this.openLocation(item)
-          }
-        }
+      // 如果没有 htmlContent，提示用户
+      wx.showToast({
+        title: '暂无详情内容',
+        icon: 'none',
+        duration: 2000
       })
     }
   },
@@ -449,6 +540,7 @@ Page({
     }
     
     console.warn(`[onImageError] 图片加载失败，已使用默认占位图: index=${index}, id=${itemId || 'unknown'}`)
+    console.warn(`[onImageError] 失败原因可能是：1) 域名未添加到微信公众平台的 downloadFile 白名单；2) 服务器未配置正确的 CORS 响应头；3) 服务器有防盗链限制`)
   }
 })
 

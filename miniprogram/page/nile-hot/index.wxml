@@ -49,17 +49,20 @@
             wx:for-index="index"
             wx:if="{{index % 2 === 0}}"
             class="waterfall-item"
-            bindtap="openApp"
+            bindtap="viewDetail"
             data-item="{{item}}"
           >
-            <image 
-              class="item-image" 
-              src="{{item.image}}" 
-              mode="aspectFill"
-              binderror="onImageError"
-              data-index="{{index}}"
-              data-id="{{item.id}}"
-            ></image>
+            <view class="item-image-wrapper">
+              <image 
+                class="item-image" 
+                src="{{item.image}}" 
+                mode="aspectFill"
+                binderror="onImageError"
+                data-index="{{index}}"
+                data-id="{{item.id}}"
+              ></image>
+              <view wx:if="{{!item.published}}" class="draft-badge">草稿</view>
+            </view>
             <view class="item-content">
               <view class="item-title">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
@@ -74,17 +77,20 @@
             wx:for-index="index"
             wx:if="{{index % 2 === 1}}"
             class="waterfall-item"
-            bindtap="openApp"
+            bindtap="viewDetail"
             data-item="{{item}}"
           >
-            <image 
-              class="item-image" 
-              src="{{item.image}}" 
-              mode="aspectFill"
-              binderror="onImageError"
-              data-index="{{index}}"
-              data-id="{{item.id}}"
-            ></image>
+            <view class="item-image-wrapper">
+              <image 
+                class="item-image" 
+                src="{{item.image}}" 
+                mode="aspectFill"
+                binderror="onImageError"
+                data-index="{{index}}"
+                data-id="{{item.id}}"
+              ></image>
+              <view wx:if="{{!item.published}}" class="draft-badge">草稿</view>
+            </view>
             <view class="item-content">
               <view class="item-title">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>

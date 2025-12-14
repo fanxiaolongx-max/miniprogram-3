@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "签证攻略",
-  "usingComponents": {}
+  "usingComponents": {},
+  "disableScroll": false,
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 50
 }
-

@@ -104,6 +104,11 @@ Page({
       },
       success: (res) => {
         console.log('获取热门活动数据响应', res)
+        
+        // 处理API响应数据，自动替换URL（开发环境：bobapro.life -> boba.app）
+        const envHelper = require('../../utils/envHelper.js')
+        res.data = envHelper.processApiResponse(res.data)
+        
         if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
           console.error('获取热门活动数据失败', res.statusCode, res.data)
           if (isLoadMore) {
@@ -185,10 +190,15 @@ Page({
 
         const newItems = items.map(item => ({
           id: item.id || item._id || Math.random(),
+          name: item.name || item.title || '活动',
           title: item.title || item.name || '活动',
           description: item.description || item.desc || '',
           image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
-          category: item.category || ''
+          category: item.category || '',
+          htmlContent: item.htmlContent || '', // 添加 htmlContent 字段
+          detailApi: item.detailApi || item.detailUrl || '', // 保留用于向后兼容
+          meta: item.meta || item.date || item.updatedAt || '', // 添加 meta 字段
+          published: item.published !== false // 添加 published 字段，默认为 true
         }))
 
         // 合并数据（加载更多时追加，首次加载时替换）
@@ -374,12 +384,25 @@ Page({
 
   viewDetail(e) {
     const item = e.currentTarget.dataset.item
-    wx.showModal({
-      title: item.title,
-      content: item.description || '暂无详细描述',
-      showCancel: false,
-      confirmText: '知道了'
-    })
+
+    // 直接使用 htmlContent 字段，不再通过 detailApi 获取
+    if (item.htmlContent) {
+      const params = {
+        htmlContent: encodeURIComponent(item.htmlContent),
+        title: encodeURIComponent(item.title || item.name || '详情'),
+        meta: encodeURIComponent(item.meta || item.date || '')
+      }
+      wx.navigateTo({
+        url: `/page/article-detail/index?htmlContent=${params.htmlContent}&title=${params.title}&meta=${params.meta}`
+      })
+    } else {
+      // 如果没有 htmlContent，提示用户
+      wx.showToast({
+        title: '暂无详情内容',
+        icon: 'none',
+        duration: 2000
+      })
+    }
   },
 
   onImageError(e) {

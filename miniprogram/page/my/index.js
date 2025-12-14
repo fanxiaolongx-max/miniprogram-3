@@ -233,6 +233,10 @@ Page({
       success: (res) => {
         console.log('提交反馈响应', res)
         
+        // 处理API响应数据，自动替换URL（开发环境：bobapro.life -> boba.app）
+        const envHelper = require('../../utils/envHelper.js')
+        res.data = envHelper.processApiResponse(res.data)
+
         if (res.statusCode === 200 && res.data && (res.data.success === true || res.data.success === undefined)) {
           wx.showToast({
             title: '提交成功，感谢您的反馈！',

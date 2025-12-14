@@ -2,12 +2,25 @@
  * 小程序配置文件
  */
 
+// 引入环境检测工具
+const envHelper = require('./utils/envHelper.js')
+
+// 获取当前环境对应的API基础域名
+const apiBaseDomain = envHelper.getApiBaseDomain()
+const isDev = envHelper.isDevelopment()
+
+console.log(`[config] 环境检测完成，当前环境: ${isDev ? '开发环境' : '生产环境'}，API域名: ${apiBaseDomain}`)
+
 const config = {
-  // 测试的请求地址，用于测试会话
-  requestUrl: 'https://bobapro.life',
+  // 环境信息
+  isDevelopment: isDev,
+  apiBaseDomain: apiBaseDomain,
+  
+  // 测试的请求地址，用于测试会话（根据环境自动选择）
+  requestUrl: apiBaseDomain,
 
   // ==================== API 端点配置 ====================
-  apiBaseUrl: 'https://bobapro.life/api/custom',
+  apiBaseUrl: `${apiBaseDomain}/api/custom`,
 
   /**
    * 常用地点导航 API
@@ -108,7 +121,7 @@ const config = {
    *     }
    *   ]
    */
-  locationsApi: 'https://bobapro.life/api/custom/locations',
+  locationsApi: `${apiBaseDomain}/api/custom/locations`,
 
   /**
    * 常用菜单链接 API（寻味中国）
@@ -205,7 +218,7 @@ const config = {
    *     }
    *   ]
    */
-  menuLinksApi: 'https://bobapro.life/api/custom/menu-links',
+  menuLinksApi: `${apiBaseDomain}/api/custom/menu-links`,
 
   /**
    * 热门打卡地 API
@@ -225,14 +238,15 @@ const config = {
    *   - 如果同时传 category 和 keyword，先按分类过滤，再在结果中搜索关键词（组合过滤）
    *   - 如果都不传，返回全部数据
    * 返回格式:
-   *   - 直接数组: [{ id, name, description, image, latitude, longitude, category, detailApi }]
-   *   - 包装对象: { data: [{ id, name, description, image, latitude, longitude, category, detailApi }] }
-   *   - 包装对象: { hotSpots: [{ id, name, description, image, latitude, longitude, category, detailApi }] }
-   * 字段说明:
+   *   - 直接数组: [{ id, name, title, description, image, category, htmlContent, latitude, longitude }]
+   *   - 包装对象: { data: [{ id, name, title, description, image, category, htmlContent, latitude, longitude }] }
+   *   - 包装对象: { hotSpots: [{ id, name, title, description, image, category, htmlContent, latitude, longitude }] }
+   * 字段说明（统一标准字段，所有瀑布流API通用）:
    *   - id: 唯一标识（必填）
-   *   - name: 打卡地名称（必填）
-   *   - description: 描述信息（可选）
-   *   - image: 图片URL（可选）
+   *   - name: 名称（必填，用于卡片显示）
+   *   - title: 标题（可选，用于详情页标题，如果不提供则使用name）
+   *   - description: 描述信息（可选，用于卡片摘要显示）
+   *   - image/imageUrl: 图片URL（可选，用于瀑布流展示）
    *     支持格式：
    *     - 本地路径：如 "/page/component/resources/pic/1.jpg"
    *     - HTTPS外部URL：如 "https://example.com/image.jpg"
@@ -244,14 +258,29 @@ const config = {
    *        - 服务器拒绝了请求（如防盗链、权限限制等）
    *        - 域名未添加到 downloadFile 白名单
    *     3. 图片加载失败时会自动使用默认占位图
-   *   - category: 分类（可选，如 "景点"、"博物馆"、"公园"、"餐厅" 等，用于页面分类筛选）
+   *   - category: 分类（可选，用于页面分类筛选）
    *     注意：页面会自动从API返回的数据中提取所有分类，无需在代码中写死分类名称
-   *   - latitude: 纬度（必填，数字）
-   *   - longitude: 经度（必填，数字）
-   *   - detailApi/detailUrl: 详情API地址（可选，字符串）
-   *     如果提供此字段，点击打卡地卡片时会调用该API获取HTML格式的文章内容并在小程序中展示
-   *     如果不提供，点击后会显示弹窗，用户可选择导航到地图位置
-   *     注意：detailApi应该是完整的API地址（HTTPS），返回格式请参考"详情API"说明
+   *   - htmlContent: HTML内容（必填，字符串）
+   *     注意：htmlContent应该是完整的HTML字符串，用于直接显示在详情页面，不再需要通过detailApi获取
+   *   - detailApi: 详情API地址（已废弃，保留用于向后兼容，但不再使用）
+   * 扩展字段（各API特有字段）:
+   *   热门打卡地:
+   *     - latitude: 纬度（可选，数字，用于地图导航）
+   *     - longitude: 经度（可选，数字，用于地图导航）
+   *   租房信息:
+   *     - address: 地址（可选，字符串）
+   *     - price: 价格（可选，字符串，如 "3500"）
+   *     - type: 类型（可选，如 "整租"、"合租"）
+   *     - rooms: 房间数（可选，字符串，如 "2"）
+   *     - area: 面积（可选，字符串，如 "80"）
+   *     - contact: 联系方式（可选，字符串）
+   *     - latitude: 纬度（可选，数字，用于地图导航）
+   *     - longitude: 经度（可选，数字，用于地图导航）
+   *   二手集市:
+   *     - price: 价格（可选，字符串，如 "2000"）
+   *     - contact: 联系方式（可选，字符串）
+   *   防骗预警:
+   *     - date: 发布时间（可选，字符串，如 "2024-01-15"）
    * 请求示例:
    *   1. 获取第1页，每页20条（无过滤）:
    *      GET /api/custom/hot-spots?page=1&pageSize=20
@@ -275,16 +304,19 @@ const config = {
    *         "latitude": 29.9792,
    *         "longitude": 31.1342,
    *         "category": "景点",
-   *         "detailApi": "https://example.com/api/hot-spots/1/detail"
+   *         "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>",
+   *         "title": "金字塔详情"
    *       },
    *       {
    *         "id": 2,
    *         "name": "埃及博物馆",
+   *         "title": "埃及博物馆",
    *         "description": "收藏大量古埃及文物",
    *         "image": "/page/component/resources/pic/2.jpg",
    *         "latitude": 30.0444,
    *         "longitude": 31.2357,
-   *         "category": "博物馆"
+   *         "category": "博物馆",
+   *         "detailApi": "https://example.com/api/hot-spots/2/detail"
    *       }
    *     ],
    *     "total": 80,
@@ -300,20 +332,23 @@ const config = {
    *       "latitude": 29.9792,
    *       "longitude": 31.1342,
    *       "category": "景点",
-   *       "detailApi": "https://example.com/api/hot-spots/1/detail"
+   *       "detailApi": "https://example.com/api/hot-spots/1/detail",
+   *       "title": "金字塔详情"
    *     },
    *     {
    *       "id": 2,
    *       "name": "埃及博物馆",
+   *       "title": "埃及博物馆",
    *       "description": "收藏大量古埃及文物",
    *       "image": "/page/component/resources/pic/2.jpg",
    *       "latitude": 30.0444,
    *       "longitude": 31.2357,
-   *       "category": "博物馆"
+   *       "category": "博物馆",
+   *       "detailApi": "https://example.com/api/hot-spots/2/detail"
    *     }
    *   ]
    */
-  hotSpotsApi: 'https://bobapro.life/api/custom/hot-spots',
+  hotSpotsApi: `${apiBaseDomain}/api/custom/hot-spots`,
 
   /**
    * 租房信息 API
@@ -333,21 +368,15 @@ const config = {
    *   - 如果同时传 category 和 keyword，先按分类过滤，再在结果中搜索关键词（组合过滤）
    *   - 如果都不传，返回全部数据
    * 返回格式:
-   *   - 直接数组: [{ id, title, address, price, type, rooms, area, contact, latitude, longitude, image, category, detailApi }]
-   *   - 包装对象: { data: [{ id, title, address, price, type, rooms, area, contact, latitude, longitude, image, category, detailApi }] }
-   *   - 包装对象: { rentals: [{ id, title, address, price, type, rooms, area, contact, latitude, longitude, image, category, detailApi }] }
-   * 字段说明:
+   *   - 直接数组: [{ id, name, title, description, image, category, htmlContent, address, price, type, rooms, area, contact, latitude, longitude }]
+   *   - 包装对象: { data: [{ id, name, title, description, image, category, htmlContent, address, price, type, rooms, area, contact, latitude, longitude }] }
+   *   - 包装对象: { rentals: [{ id, name, title, description, image, category, htmlContent, address, price, type, rooms, area, contact, latitude, longitude }] }
+   * 字段说明（统一标准字段）:
    *   - id: 唯一标识（必填）
-   *   - title: 房源标题（必填）
-   *   - address: 地址（必填）
-   *   - price: 价格（必填，字符串，如 "3500"）
-   *   - type: 类型（可选，如 "整租"、"合租"）
-   *   - rooms: 房间数（可选，字符串，如 "2"）
-   *   - area: 面积（可选，字符串，如 "80"）
-   *   - contact: 联系方式（必填）
-   *   - latitude: 纬度（必填，数字）
-   *   - longitude: 经度（必填，数字）
-   *   - image: 图片URL（可选）
+   *   - name: 名称（必填，用于卡片显示）
+   *   - title: 标题（可选，用于详情页标题，如果不提供则使用name）
+   *   - description: 描述信息（可选，用于卡片摘要显示）
+   *   - image/imageUrl: 图片URL（可选，用于瀑布流展示）
    *     支持格式：
    *     - 本地路径：如 "/page/component/resources/pic/1.jpg"
    *     - HTTPS外部URL：如 "https://example.com/image.jpg"
@@ -359,12 +388,20 @@ const config = {
    *        - 服务器拒绝了请求（如防盗链、权限限制等）
    *        - 域名未添加到 downloadFile 白名单
    *     3. 图片加载失败时会自动使用默认占位图
-   *   - category: 分类（可选，如 "马底"、"纳赛尔城"、"新开罗"、"开罗市中心" 等，用于页面分类筛选）
+   *   - category: 分类（可选，用于页面分类筛选）
    *     注意：页面会自动从API返回的数据中提取所有分类，无需在代码中写死分类名称
-   *   - detailApi/detailUrl: 详情API地址（可选，字符串）
-   *     如果提供此字段，点击房源卡片时会调用该API获取HTML格式的文章内容并在小程序中展示
-   *     如果不提供，点击后会显示弹窗，用户可选择联系房东
-   *     注意：detailApi应该是完整的API地址（HTTPS），返回格式请参考"详情API"说明
+   *   - htmlContent: HTML内容（必填，字符串）
+   *     注意：htmlContent应该是完整的HTML字符串，用于直接显示在详情页面，不再需要通过detailApi获取
+   *   - detailApi: 详情API地址（已废弃，保留用于向后兼容，但不再使用）
+   * 扩展字段（仅租房信息）:
+   *   - address: 地址（可选，字符串）
+   *   - price: 价格（可选，字符串，如 "3500"）
+   *   - type: 类型（可选，如 "整租"、"合租"）
+   *   - rooms: 房间数（可选，字符串，如 "2"）
+   *   - area: 面积（可选，字符串，如 "80"）
+   *   - contact: 联系方式（可选，字符串）
+   *   - latitude: 纬度（可选，数字，用于地图导航）
+   *   - longitude: 经度（可选，数字，用于地图导航）
    * 请求示例:
    *   1. 获取第1页，每页20条（无过滤）:
    *      GET /api/custom/rentals?page=1&pageSize=20
@@ -382,7 +419,9 @@ const config = {
    *     "data": [
    *       {
    *         "id": 1,
+   *         "name": "开罗市中心精装公寓",
    *         "title": "开罗市中心精装公寓",
+   *         "description": "位于开罗市中心，交通便利，精装修",
    *         "address": "开罗市中心，近地铁站",
    *         "price": "3500",
    *         "type": "整租",
@@ -393,11 +432,13 @@ const config = {
    *         "longitude": 31.2357,
    *         "image": "/page/component/resources/pic/1.jpg",
    *         "category": "开罗市中心",
-   *         "detailApi": "https://example.com/api/rentals/1/detail"
+   *         "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
    *       },
    *       {
    *         "id": 2,
+   *         "name": "新开罗三室一厅",
    *         "title": "新开罗三室一厅",
+   *         "description": "位于新开罗区，环境优美，交通便利",
    *         "address": "新开罗区，环境优美",
    *         "price": "5000",
    *         "type": "整租",
@@ -407,7 +448,8 @@ const config = {
    *         "latitude": 30.0131,
    *         "longitude": 31.2089,
    *         "image": "/page/component/resources/pic/2.jpg",
-   *         "category": "新开罗"
+   *         "category": "新开罗",
+   *         "detailApi": "https://example.com/api/rentals/2/detail"
    *       }
    *     ],
    *     "total": 150,
@@ -417,7 +459,9 @@ const config = {
    *   [
    *     {
    *       "id": 1,
+   *       "name": "开罗市中心精装公寓",
    *       "title": "开罗市中心精装公寓",
+   *       "description": "位于开罗市中心，交通便利，精装修",
    *       "address": "开罗市中心，近地铁站",
    *       "price": "3500",
    *       "type": "整租",
@@ -428,11 +472,13 @@ const config = {
    *       "longitude": 31.2357,
    *       "image": "/page/component/resources/pic/1.jpg",
    *       "category": "开罗市中心",
-   *       "detailApi": "https://example.com/api/rentals/1/detail"
+   *       "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
    *     },
    *     {
    *       "id": 2,
+   *       "name": "新开罗三室一厅",
    *       "title": "新开罗三室一厅",
+   *       "description": "位于新开罗区，环境优美，交通便利",
    *       "address": "新开罗区，环境优美",
    *       "price": "5000",
    *       "type": "整租",
@@ -442,11 +488,12 @@ const config = {
    *       "latitude": 30.0131,
    *       "longitude": 31.2089,
    *       "image": "/page/component/resources/pic/2.jpg",
-   *       "category": "新开罗"
+   *       "category": "新开罗",
+   *       "detailApi": "https://example.com/api/rentals/2/detail"
    *     }
    *   ]
    */
-  rentalsApi: 'https://bobapro.life/api/custom/rentals',
+  rentalsApi: `${apiBaseDomain}/api/custom/rentals`,
 
   /**
    * 汇率 API
@@ -547,7 +594,7 @@ const config = {
    *     "updatedAt": "2024-01-01 12:00:00"
    *   }
    */
-  exchangeRateApi: 'https://bobapro.life/api/custom/exchange-rate',
+  exchangeRateApi: `${apiBaseDomain}/api/custom/exchange-rate`,
 
   /**
    * 出行风向标 API（综合出行信息）
@@ -653,7 +700,7 @@ const config = {
    *     }
    *   }
    */
-  weatherApi: 'https://bobapro.life/api/custom/weather',
+  weatherApi: `${apiBaseDomain}/api/custom/weather`,
 
   /**
    * 热门活动 API
@@ -753,7 +800,7 @@ const config = {
    *     }
    *   ]
    */
-  hotActivityApi: 'https://bobapro.life/api/custom/hot-activity',
+  hotActivityApi: `${apiBaseDomain}/api/custom/hot-activity`,
 
   /**
    * 问路卡片（中阿互译）API
@@ -806,7 +853,7 @@ const config = {
    *     ]
    *   }
    */
-  translationApi: 'https://bobapro.life/api/custom/translation',
+  translationApi: `${apiBaseDomain}/api/custom/translation`,
 
   /**
    * 话费助手 API
@@ -858,7 +905,7 @@ const config = {
    *     ]
    *   }
    */
-  phoneHelperApi: 'https://bobapro.life/api/custom/phone-helper',
+  phoneHelperApi: `${apiBaseDomain}/api/custom/phone-helper`,
 
   /**
    * 尼罗河热映 API
@@ -881,16 +928,28 @@ const config = {
    *   - 直接数组: [{ id, name, title, description, image, category, detailApi }]
    *   - 包装对象: { data: [{ id, name, title, description, image, category, detailApi }] }
    *   - 包装对象: { items: [{ id, name, title, description, image, category, detailApi }] }
-   * 字段说明:
+   * 字段说明（统一标准字段，所有瀑布流API通用）:
    *   - id: 唯一标识（必填）
-   *   - name/title: 应用名称（必填）
-   *   - description/desc: 应用描述（可选）
-   *   - image/imageUrl: 图片URL（必填，用于瀑布流展示）
+   *   - name: 名称（必填，用于卡片显示）
+   *   - title: 标题（可选，用于详情页标题，如果不提供则使用name）
+   *   - description: 描述信息（可选，用于卡片摘要显示）
+   *   - image/imageUrl: 图片URL（可选，用于瀑布流展示）
+   *     支持格式：
+   *     - 本地路径：如 "/page/component/resources/pic/1.jpg"
+   *     - HTTPS外部URL：如 "https://example.com/image.jpg"
+   *     注意事项：
+   *     1. 使用外部HTTPS图片时，需要在微信公众平台配置 downloadFile 合法域名
+   *     2. 如果出现 ERR_BLOCKED_BY_RESPONSE 错误，可能原因：
+   *        - 服务器未配置正确的 CORS 响应头
+   *        - 服务器返回的 Content-Type 不正确
+   *        - 服务器拒绝了请求（如防盗链、权限限制等）
+   *        - 域名未添加到 downloadFile 白名单
+   *     3. 图片加载失败时会自动使用默认占位图
    *   - category: 分类（可选，用于页面分类筛选）
-   *   - detailApi/detailUrl: 详情API地址（可选，字符串）
-   *     如果提供此字段，点击应用卡片时会调用该API获取HTML格式的文章内容并在小程序中展示
-   *     如果不提供，点击后会显示弹窗，展示应用描述
-   *     注意：detailApi应该是完整的API地址（HTTPS），返回格式请参考"详情API"说明
+   *     注意：页面会自动从API返回的数据中提取所有分类，无需在代码中写死分类名称
+   *   - htmlContent: HTML内容（必填，字符串）
+   *     注意：htmlContent应该是完整的HTML字符串，用于直接显示在详情页面，不再需要通过detailApi获取
+   *   - detailApi: 详情API地址（已废弃，保留用于向后兼容，但不再使用）
    * 返回示例:
    *   {
    *     "data": [
@@ -901,14 +960,14 @@ const config = {
    *         "description": "应用描述",
    *         "image": "https://example.com/image.jpg",
    *         "category": "分类",
-   *         "detailApi": "https://example.com/api/nile-hot/1/detail"
+   *         "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
    *       }
    *     ],
    *     "total": 100,
    *     "hasMore": true
    *   }
    */
-  nileHotApi: 'https://bobapro.life/api/custom/nile-hot',
+  nileHotApi: `${apiBaseDomain}/api/custom/nile-hot`,
 
   /**
    * 二手集市 API
@@ -928,22 +987,34 @@ const config = {
    *   - 如果同时传 category 和 keyword，先按分类过滤，再在结果中搜索关键词（组合过滤）
    *   - 如果都不传，返回全部数据
    * 返回格式:
-   *   - 直接数组: [{ id, title, price, description, image, contact, category, detailApi }]
-   *   - 包装对象: { data: [{ id, title, price, description, image, contact, category, detailApi }] }
-   *   - 包装对象: { items: [{ id, title, price, description, image, contact, category, detailApi }] }
-   * 字段说明:
+   *   - 直接数组: [{ id, name, title, description, image, category, detailApi, price, contact }]
+   *   - 包装对象: { data: [{ id, name, title, description, image, category, detailApi, price, contact }] }
+   *   - 包装对象: { items: [{ id, name, title, description, image, category, detailApi, price, contact }] }
+   * 字段说明（统一标准字段）:
    *   - id: 唯一标识（必填）
-   *   - title/name: 商品标题（必填）
-   *   - price/amount: 价格（必填，字符串，如 "2000"）
-   *   - description/desc: 商品描述（可选）
-   *   - image/imageUrl: 图片URL（可选）
-   *   - contact/phone: 联系方式（必填）
-   *   - category/type: 商品分类（可选，如 "交通工具"、"家具"）
+   *   - name: 名称（必填，用于卡片显示）
+   *   - title: 标题（可选，用于详情页标题，如果不提供则使用name）
+   *   - description: 描述信息（可选，用于卡片摘要显示）
+   *   - image/imageUrl: 图片URL（可选，用于瀑布流展示）
+   *     支持格式：
+   *     - 本地路径：如 "/page/component/resources/pic/1.jpg"
+   *     - HTTPS外部URL：如 "https://example.com/image.jpg"
+   *     注意事项：
+   *     1. 使用外部HTTPS图片时，需要在微信公众平台配置 downloadFile 合法域名
+   *     2. 如果出现 ERR_BLOCKED_BY_RESPONSE 错误，可能原因：
+   *        - 服务器未配置正确的 CORS 响应头
+   *        - 服务器返回的 Content-Type 不正确
+   *        - 服务器拒绝了请求（如防盗链、权限限制等）
+   *        - 域名未添加到 downloadFile 白名单
+   *     3. 图片加载失败时会自动使用默认占位图
+   *   - category: 分类（可选，用于页面分类筛选）
    *     注意：页面会自动从API返回的数据中提取所有分类，无需在代码中写死分类名称
-   *   - detailApi/detailUrl: 详情API地址（可选，字符串）
-   *     如果提供此字段，点击商品卡片时会调用该API获取HTML格式的文章内容并在小程序中展示
-   *     如果不提供，点击后会显示弹窗，用户可选择联系卖家
-   *     注意：detailApi应该是完整的API地址（HTTPS），返回格式请参考"详情API"说明
+   *   - htmlContent: HTML内容（必填，字符串）
+   *     注意：htmlContent应该是完整的HTML字符串，用于直接显示在详情页面，不再需要通过detailApi获取
+   *   - detailApi: 详情API地址（已废弃，保留用于向后兼容，但不再使用）
+   * 扩展字段（仅二手集市）:
+   *   - price/amount: 价格（可选，字符串，如 "2000"）
+   *   - contact/phone: 联系方式（可选，字符串）
    * 请求示例:
    *   1. 获取第1页，每页20条（无过滤）:
    *      GET /api/custom/second-hand?page=1&pageSize=20
@@ -961,22 +1032,25 @@ const config = {
    *     "data": [
    *       {
    *         "id": 1,
+   *         "name": "二手电动车",
    *         "title": "二手电动车",
-   *         "price": "2000",
    *         "description": "九成新，性能良好",
    *         "image": "https://example.com/electric-bike.jpg",
-   *         "contact": "微信：secondhand001",
    *         "category": "交通工具",
-   *         "detailApi": "https://example.com/api/second-hand/1/detail"
+   *         "detailApi": "https://example.com/api/second-hand/1/detail",
+   *         "price": "2000",
+   *         "contact": "微信：secondhand001"
    *       },
    *       {
    *         "id": 2,
+   *         "name": "二手家具",
    *         "title": "二手家具",
-   *         "price": "500",
    *         "description": "沙发、桌子等",
    *         "image": "https://example.com/furniture.jpg",
-   *         "contact": "微信：secondhand002",
-   *         "category": "家具"
+   *         "category": "家具",
+   *         "detailApi": "https://example.com/api/second-hand/2/detail",
+   *         "price": "500",
+   *         "contact": "微信：secondhand002"
    *       }
    *     ],
    *     "total": 200,
@@ -986,101 +1060,180 @@ const config = {
    *   [
    *     {
    *       "id": 1,
+   *       "name": "二手电动车",
    *       "title": "二手电动车",
-   *       "price": "2000",
    *       "description": "九成新，性能良好",
    *       "image": "https://example.com/electric-bike.jpg",
-   *       "contact": "微信：secondhand001",
    *       "category": "交通工具",
-   *       "detailApi": "https://example.com/api/second-hand/1/detail"
+   *       "detailApi": "https://example.com/api/second-hand/1/detail",
+   *       "price": "2000",
+   *       "contact": "微信：secondhand001"
    *     },
    *     {
    *       "id": 2,
+   *       "name": "二手家具",
    *       "title": "二手家具",
-   *       "price": "500",
    *       "description": "沙发、桌子等",
    *       "image": "https://example.com/furniture.jpg",
-   *       "contact": "微信：secondhand002",
-   *       "category": "家具"
+   *       "category": "家具",
+   *       "detailApi": "https://example.com/api/second-hand/2/detail",
+   *       "price": "500",
+   *       "contact": "微信：secondhand002"
    *     },
    *     {
    *       "id": 3,
+   *       "name": "iPhone 12",
    *       "title": "iPhone 12",
-   *       "price": "3000",
    *       "description": "九成新，功能正常",
    *       "image": "https://example.com/iphone.jpg",
-   *       "contact": "微信：secondhand003",
-   *       "category": "电子产品"
+   *       "category": "电子产品",
+   *       "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>",
+   *       "price": "3000",
+   *       "contact": "微信：secondhand003"
    *     }
    *   ]
    */
-  secondHandApi: 'https://bobapro.life/api/custom/second-hand',
+  secondHandApi: `${apiBaseDomain}/api/custom/second-hand`,
 
   /**
    * 签证攻略 API
    * 请求方式: GET
+   * 请求参数（支持分页和过滤）:
+   *   - page: 页码（必填，数字，从1开始，默认1）
+   *   - pageSize: 每页数量（必填，数字，默认20）
+   *   - category: 分类过滤（可选，字符串）
+   *     注意：分类过滤只针对 category 字段进行精确匹配
+   *   - keyword: 搜索关键词（可选，字符串，全文搜索）
+   *     注意：关键词搜索会对多个字段进行全文匹配（如 name、title、description 等），与 category 可以独立使用或组合使用
+   *   - format: 返回格式（可选，字符串，"array" 返回数组，默认返回对象格式）
+   * 过滤逻辑说明:
+   *   - category 和 keyword 是两个独立的过滤条件，可以单独使用，也可以组合使用
+   *   - 如果只传 category，只按分类过滤
+   *   - 如果只传 keyword，只按关键词全文搜索
+   *   - 如果同时传 category 和 keyword，先按分类过滤，再在结果中搜索关键词（组合过滤）
+   *   - 如果都不传，返回全部数据
    * 返回格式:
-   *   - 直接字符串: "签证攻略内容..."
-   *   - 对象: { title: "标题", content: "内容" }
-   *   - 对象: { title: "标题", text: "内容" }
-   *   - 包装对象: { data: { title: "标题", content: "内容" } }
-   * 字段说明:
-   *   - title: 攻略标题（可选）
-   *   - content/text: 攻略内容（必填，字符串）
+   *   - 直接数组: [{ id, name, title, description, image, category, detailApi }]
+   *   - 包装对象: { data: [{ id, name, title, description, image, category, detailApi }] }
+   *   - 包装对象: { items: [{ id, name, title, description, image, category, detailApi }] }
+   * 字段说明（统一标准字段，所有瀑布流API通用）:
+   *   - id: 唯一标识（必填）
+   *   - name: 名称（必填，用于卡片显示）
+   *   - title: 标题（可选，用于详情页标题，如果不提供则使用name）
+   *   - description: 描述信息（可选，用于卡片摘要显示）
+   *   - image/imageUrl: 图片URL（可选，用于瀑布流展示）
+   *     支持格式：
+   *     - 本地路径：如 "/page/component/resources/pic/1.jpg"
+   *     - HTTPS外部URL：如 "https://example.com/image.jpg"
+   *     注意事项：
+   *     1. 使用外部HTTPS图片时，需要在微信公众平台配置 downloadFile 合法域名
+   *     2. 如果出现 ERR_BLOCKED_BY_RESPONSE 错误，可能原因：
+   *        - 服务器未配置正确的 CORS 响应头
+   *        - 服务器返回的 Content-Type 不正确
+   *        - 服务器拒绝了请求（如防盗链、权限限制等）
+   *        - 域名未添加到 downloadFile 白名单
+   *     3. 图片加载失败时会自动使用默认占位图
+   *   - category: 分类（可选，用于页面分类筛选）
+   *     注意：页面会自动从API返回的数据中提取所有分类，无需在代码中写死分类名称
+   *   - htmlContent: HTML内容（必填，字符串）
+   *     注意：htmlContent应该是完整的HTML字符串，用于直接显示在详情页面，不再需要通过detailApi获取
+   *   - detailApi: 详情API地址（已废弃，保留用于向后兼容，但不再使用）
+   * 请求示例:
+   *   1. 获取第1页，每页20条（无过滤）:
+   *      GET /api/custom/visa-guide?page=1&pageSize=20
+   *   2. 只按分类过滤:
+   *      GET /api/custom/visa-guide?page=1&pageSize=20&category=旅游签证
+   *   3. 只按关键词搜索:
+   *      GET /api/custom/visa-guide?page=1&pageSize=20&keyword=工作
    * 返回示例:
-   *   "1. 旅游签证：可在机场办理落地签\n2. 工作签证：需提前申请\n3. 学生签证：需提供学校证明\n\n详细流程请咨询大使馆。"
-   *   或
+   *   默认格式（对象，包含分页信息）:
    *   {
-   *     "title": "埃及签证攻略",
-   *     "content": "1. 旅游签证：可在机场办理落地签\n2. 工作签证：需提前申请\n3. 学生签证：需提供学校证明\n\n详细流程请咨询大使馆。"
-   *   }
-   *   或
-   *   {
-   *     "title": "埃及签证攻略",
-   *     "text": "1. 旅游签证：可在机场办理落地签\n2. 工作签证：需提前申请\n3. 学生签证：需提供学校证明\n\n详细流程请咨询大使馆。"
-   *   }
-   *   或
-   *   {
-   *     "data": {
-   *       "title": "埃及签证攻略",
-   *       "content": "1. 旅游签证：可在机场办理落地签\n2. 工作签证：需提前申请\n3. 学生签证：需提供学校证明\n\n详细流程请咨询大使馆。"
-   *     }
+   *     "data": [
+   *       {
+   *         "id": 1,
+   *         "name": "旅游签证攻略",
+   *         "title": "旅游签证攻略",
+   *         "description": "可在机场办理落地签，详细流程请咨询大使馆",
+   *         "image": "/page/component/resources/pic/1.jpg",
+   *         "category": "旅游签证",
+   *         "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
+   *       }
+   *     ],
+   *     "total": 50,
+   *     "hasMore": true
    *   }
    */
-  visaGuideApi: 'https://bobapro.life/api/custom/visa-guide',
+  visaGuideApi: `${apiBaseDomain}/api/custom/visa-guide`,
 
   /**
    * 小费指南 API
    * 请求方式: GET
+   * 请求参数（支持分页和过滤）:
+   *   - page: 页码（必填，数字，从1开始，默认1）
+   *   - pageSize: 每页数量（必填，数字，默认20）
+   *   - category: 分类过滤（可选，字符串）
+   *     注意：分类过滤只针对 category 字段进行精确匹配
+   *   - keyword: 搜索关键词（可选，字符串，全文搜索）
+   *     注意：关键词搜索会对多个字段进行全文匹配（如 name、title、description 等），与 category 可以独立使用或组合使用
+   *   - format: 返回格式（可选，字符串，"array" 返回数组，默认返回对象格式）
+   * 过滤逻辑说明:
+   *   - category 和 keyword 是两个独立的过滤条件，可以单独使用，也可以组合使用
+   *   - 如果只传 category，只按分类过滤
+   *   - 如果只传 keyword，只按关键词全文搜索
+   *   - 如果同时传 category 和 keyword，先按分类过滤，再在结果中搜索关键词（组合过滤）
+   *   - 如果都不传，返回全部数据
    * 返回格式:
-   *   - 直接字符串: "小费指南内容..."
-   *   - 对象: { title: "标题", content: "内容" }
-   *   - 对象: { title: "标题", text: "内容" }
-   *   - 包装对象: { data: { title: "标题", content: "内容" } }
-   * 字段说明:
-   *   - title: 指南标题（可选）
-   *   - content/text: 指南内容（必填，字符串）
+   *   - 直接数组: [{ id, name, title, description, image, category, detailApi }]
+   *   - 包装对象: { data: [{ id, name, title, description, image, category, detailApi }] }
+   *   - 包装对象: { items: [{ id, name, title, description, image, category, detailApi }] }
+   * 字段说明（统一标准字段，所有瀑布流API通用）:
+   *   - id: 唯一标识（必填）
+   *   - name: 名称（必填，用于卡片显示）
+   *   - title: 标题（可选，用于详情页标题，如果不提供则使用name）
+   *   - description: 描述信息（可选，用于卡片摘要显示）
+   *   - image/imageUrl: 图片URL（可选，用于瀑布流展示）
+   *     支持格式：
+   *     - 本地路径：如 "/page/component/resources/pic/1.jpg"
+   *     - HTTPS外部URL：如 "https://example.com/image.jpg"
+   *     注意事项：
+   *     1. 使用外部HTTPS图片时，需要在微信公众平台配置 downloadFile 合法域名
+   *     2. 如果出现 ERR_BLOCKED_BY_RESPONSE 错误，可能原因：
+   *        - 服务器未配置正确的 CORS 响应头
+   *        - 服务器返回的 Content-Type 不正确
+   *        - 服务器拒绝了请求（如防盗链、权限限制等）
+   *        - 域名未添加到 downloadFile 白名单
+   *     3. 图片加载失败时会自动使用默认占位图
+   *   - category: 分类（可选，用于页面分类筛选）
+   *     注意：页面会自动从API返回的数据中提取所有分类，无需在代码中写死分类名称
+   *   - htmlContent: HTML内容（必填，字符串）
+   *     注意：htmlContent应该是完整的HTML字符串，用于直接显示在详情页面，不再需要通过detailApi获取
+   *   - detailApi: 详情API地址（已废弃，保留用于向后兼容，但不再使用）
+   * 请求示例:
+   *   1. 获取第1页，每页20条（无过滤）:
+   *      GET /api/custom/tip-guide?page=1&pageSize=20
+   *   2. 只按分类过滤:
+   *      GET /api/custom/tip-guide?page=1&pageSize=20&category=餐厅
+   *   3. 只按关键词搜索:
+   *      GET /api/custom/tip-guide?page=1&pageSize=20&keyword=酒店
    * 返回示例:
-   *   "餐厅：账单的10-15%\n酒店：每件行李5-10 EGP\n导游：每天20-50 EGP\n出租车：通常不需要，但可以给零钱\n\n小费是埃及文化的一部分，建议准备零钱。"
-   *   或
+   *   默认格式（对象，包含分页信息）:
    *   {
-   *     "title": "埃及小费指南",
-   *     "content": "餐厅：账单的10-15%\n酒店：每件行李5-10 EGP\n导游：每天20-50 EGP\n出租车：通常不需要，但可以给零钱\n\n小费是埃及文化的一部分，建议准备零钱。"
-   *   }
-   *   或
-   *   {
-   *     "title": "埃及小费指南",
-   *     "text": "餐厅：账单的10-15%\n酒店：每件行李5-10 EGP\n导游：每天20-50 EGP\n出租车：通常不需要，但可以给零钱\n\n小费是埃及文化的一部分，建议准备零钱。"
-   *   }
-   *   或
-   *   {
-   *     "data": {
-   *       "title": "埃及小费指南",
-   *       "content": "餐厅：账单的10-15%\n酒店：每件行李5-10 EGP\n导游：每天20-50 EGP\n出租车：通常不需要，但可以给零钱\n\n小费是埃及文化的一部分，建议准备零钱。"
-   *     }
+   *     "data": [
+   *       {
+   *         "id": 1,
+   *         "name": "餐厅小费指南",
+   *         "title": "餐厅小费指南",
+   *         "description": "账单的10-15%，小费是埃及文化的一部分",
+   *         "image": "/page/component/resources/pic/1.jpg",
+   *         "category": "餐厅",
+   *         "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
+   *       }
+   *     ],
+   *     "total": 30,
+   *     "hasMore": true
    *   }
    */
-  tipGuideApi: 'https://bobapro.life/api/custom/tip-guide',
+  tipGuideApi: `${apiBaseDomain}/api/custom/tip-guide`,
 
   /**
    * 防骗预警（黑名单）API
@@ -1100,16 +1253,14 @@ const config = {
    *   - 如果同时传 category 和 keyword，先按分类过滤，再在结果中搜索关键词（组合过滤）
    *   - 如果都不传，返回全部数据
    * 返回格式:
-   *   - 直接数组: [{ id, title, description, type, date, image, detailApi }]
-   *   - 包装对象: { data: [{ id, title, description, type, date, image, detailApi }] }
-   *   - 包装对象: { blacklist: [{ id, title, description, type, date, image, detailApi }] }
-   * 字段说明:
+   *   - 直接数组: [{ id, name, title, description, image, category, detailApi, date }]
+   *   - 包装对象: { data: [{ id, name, title, description, image, category, detailApi, date }] }
+   *   - 包装对象: { blacklist: [{ id, name, title, description, image, category, detailApi, date }] }
+   * 字段说明（统一标准字段）:
    *   - id: 唯一标识（必填）
-   *   - title/name: 标题（必填，如 "虚假租房信息"）
-   *   - description/desc: 详细描述（必填，用于瀑布流卡片展示摘要）
-   *   - type/category: 类型（可选，如 "租房诈骗"、"购物诈骗"、"网络诈骗"、"电话诈骗"、"交易诈骗"、"虚假信息" 等）
-   *     注意：页面会自动从API返回的数据中提取所有分类，无需在代码中写死分类名称
-   *   - date/createdAt: 发布时间（可选，字符串，如 "2024-01-15"）
+   *   - name: 名称（必填，用于卡片显示）
+   *   - title: 标题（可选，用于详情页标题，如果不提供则使用name）
+   *   - description: 描述信息（可选，用于卡片摘要显示）
    *   - image/imageUrl: 图片URL（可选，用于瀑布流展示）
    *     支持格式：
    *     - 本地路径：如 "/page/component/resources/pic/1.jpg"
@@ -1122,11 +1273,13 @@ const config = {
    *        - 服务器拒绝了请求（如防盗链、权限限制等）
    *        - 域名未添加到 downloadFile 白名单
    *     3. 图片加载失败时会自动使用默认占位图
-   *     4. 如果没有提供图片，卡片将只显示文字内容
-   *   - detailApi/detailUrl: 详情API地址（可选，字符串）
-   *     如果提供此字段，点击卡片时会调用该API获取HTML格式的文章内容并在小程序中展示
-   *     如果不提供，点击后会显示弹窗，展示详细信息
-   *     注意：detailApi应该是完整的API地址（HTTPS），返回格式请参考"详情API"说明
+   *   - category: 分类（可选，用于页面分类筛选）
+   *     注意：页面会自动从API返回的数据中提取所有分类，无需在代码中写死分类名称
+   *   - htmlContent: HTML内容（必填，字符串）
+   *     注意：htmlContent应该是完整的HTML字符串，用于直接显示在详情页面，不再需要通过detailApi获取
+   *   - detailApi: 详情API地址（已废弃，保留用于向后兼容，但不再使用）
+   * 扩展字段（仅防骗预警）:
+   *   - date/createdAt: 发布时间（可选，字符串，如 "2024-01-15"）
    * 请求示例:
    *   1. 获取第1页，每页20条（无过滤）:
    *      GET /api/custom/blacklist?page=1&pageSize=20
@@ -1144,19 +1297,22 @@ const config = {
    *     "data": [
    *       {
    *         "id": 1,
+   *         "name": "虚假租房信息",
    *         "title": "虚假租房信息",
    *         "description": "某中介发布虚假房源信息，收取定金后失联。提醒：租房时务必实地看房，不要提前支付大额定金。",
-   *         "type": "租房诈骗",
+   *         "category": "租房诈骗",
    *         "date": "2024-01-15",
    *         "image": "https://example.com/scam-1.jpg",
-   *         "detailApi": "https://example.com/api/blacklist/1/detail"
+   *         "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
    *       },
    *       {
    *         "id": 2,
+   *         "name": "网络购物诈骗",
    *         "title": "网络购物诈骗",
    *         "description": "虚假购物网站，收款后不发货。提醒：选择正规平台购物，注意查看商家资质。",
-   *         "type": "购物诈骗",
-   *         "date": "2024-01-10"
+   *         "category": "购物诈骗",
+   *         "date": "2024-01-10",
+   *         "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
    *       }
    *     ],
    *     "total": 50,
@@ -1166,37 +1322,47 @@ const config = {
    *   [
    *     {
    *       "id": 1,
+   *       "name": "虚假租房信息",
    *       "title": "虚假租房信息",
    *       "description": "某中介发布虚假房源信息，收取定金后失联。提醒：租房时务必实地看房，不要提前支付大额定金。",
-   *       "type": "租房诈骗",
+   *       "category": "租房诈骗",
    *       "date": "2024-01-15",
    *       "image": "https://example.com/scam-1.jpg",
-   *       "detailApi": "https://example.com/api/blacklist/1/detail"
+   *       "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
    *     },
    *     {
    *       "id": 2,
+   *       "name": "网络购物诈骗",
    *       "title": "网络购物诈骗",
    *       "description": "虚假购物网站，收款后不发货。提醒：选择正规平台购物，注意查看商家资质。",
-   *       "type": "购物诈骗",
-   *       "date": "2024-01-10"
+   *       "category": "购物诈骗",
+   *       "date": "2024-01-10",
+   *       "htmlContent": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
    *     }
    *   ]
    */
-  blacklistApi: 'https://bobapro.life/api/custom/blacklist',
+  blacklistApi: `${apiBaseDomain}/api/custom/blacklist`,
 
   /**
-   * 详情API（通用）
+   * 详情API（通用，已废弃）
    * 请求方式: GET
-   * 说明: 此API用于获取瀑布流页面中卡片的详细内容，返回HTML格式的文章内容
+   * 说明: 此API已废弃，现在所有瀑布流页面直接使用列表API返回的htmlContent字段，不再需要单独请求详情API
+   * 注意: 保留此文档仅用于向后兼容，新开发请直接使用htmlContent字段
    * 请求参数:
-   *   - 由列表API返回的detailApi字段指定，通常包含资源ID等参数
+   *   - 由列表API返回的detailApi字段指定，通常包含资源ID等参数（已废弃）
    * 返回格式（支持多种格式，按优先级处理）:
-   *   1. 对象格式（推荐）:
+   *   1. 数组格式（支持）:
+   *      [{ content: "HTML内容", title: "标题", meta: "元信息（可选）" }]
+   *      或 [{ html: "HTML内容", title: "标题", meta: "元信息（可选）" }]
+   *      注意：如果返回数组，将取第一个元素
+   *   2. 对象格式（推荐）:
    *      { content: "HTML内容", title: "标题", meta: "元信息（可选）" }
    *      或 { html: "HTML内容", title: "标题", meta: "元信息（可选）" }
-   *   2. 包装对象:
+   *   3. 包装对象:
    *      { data: { content: "HTML内容", title: "标题", meta: "元信息（可选）" } }
-   *   3. 直接字符串:
+   *      或 { data: [{ content: "HTML内容", title: "标题", meta: "元信息（可选）" }] }
+   *      注意：如果 data 是数组，将取第一个元素
+   *   4. 直接字符串:
    *      "HTML内容"
    * 字段说明:
    *   - content/html: HTML格式的文章内容（必填，字符串）
@@ -1207,18 +1373,26 @@ const config = {
    *   - meta: 元信息（可选，字符串）
    *     如发布时间、作者等信息，显示在标题下方
    * 返回示例:
-   *   格式1（推荐）:
+   *   格式1（数组格式）:
+   *   [
+   *     {
+   *       "content": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p><p>更多信息请参考官方文档。</p>",
+   *       "title": "文章标题",
+   *       "meta": "2024-01-15"
+   *     }
+   *   ]
+   *   格式2（对象格式，推荐）:
    *   {
    *     "content": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p><p>更多信息请参考官方文档。</p>",
    *     "title": "文章标题",
    *     "meta": "2024-01-15"
    *   }
-   *   格式2:
+   *   格式3:
    *   {
    *     "html": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>",
    *     "title": "文章标题"
    *   }
-   *   格式3:
+   *   格式4:
    *   {
    *     "data": {
    *       "content": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>",
@@ -1226,7 +1400,17 @@ const config = {
    *       "meta": "2024-01-15"
    *     }
    *   }
-   *   格式4（直接字符串）:
+   *   格式5（data为数组）:
+   *   {
+   *     "data": [
+   *       {
+   *         "content": "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>",
+   *         "title": "文章标题",
+   *         "meta": "2024-01-15"
+   *       }
+   *     ]
+   *   }
+   *   格式6（直接字符串）:
    *   "<h2>详细说明</h2><p>这是一段详细的描述内容...</p>"
    * 注意事项:
    *   1. HTML内容中的图片URL必须是HTTPS，且需要在微信公众平台配置downloadFile合法域名
@@ -1253,7 +1437,7 @@ const config = {
    *   - 成功: { success: true, message: "提交成功" }
    *   - 失败: { success: false, message: "错误信息" }
    */
-  feedbackApi: 'https://bobapro.life/api/custom/feedback',
+  feedbackApi: `${apiBaseDomain}/api/custom/feedback`,
 
   // 云开发环境 ID
   envId: 'cloudbase-9gqw4na0bc0be7c5',

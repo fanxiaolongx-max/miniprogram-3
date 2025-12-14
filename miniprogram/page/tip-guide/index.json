@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "小费指南",
-  "usingComponents": {}
+  "usingComponents": {},
+  "disableScroll": false,
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 50
 }
-

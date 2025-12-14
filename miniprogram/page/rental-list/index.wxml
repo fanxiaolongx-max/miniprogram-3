@@ -52,16 +52,20 @@
             bindtap="viewDetail"
             data-item="{{item}}"
           >
-            <image 
-              class="item-image" 
-              src="{{item.image}}" 
-              mode="aspectFill"
-              binderror="onImageError"
-              data-index="{{index}}"
-              data-id="{{item.id}}"
-            ></image>
+            <view class="item-image-wrapper">
+              <image 
+                class="item-image" 
+                src="{{item.image}}" 
+                mode="aspectFill"
+                binderror="onImageError"
+                data-index="{{index}}"
+                data-id="{{item.id}}"
+              ></image>
+              <view wx:if="{{!item.published}}" class="draft-badge">草稿</view>
+            </view>
             <view class="item-content">
-              <view class="item-title">{{item.title}}</view>
+              <view class="item-title">{{item.name}}</view>
+              <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
               <view class="item-info">
                 <text class="item-price">{{item.price}} EGP/月</text>
                 <text wx:if="{{item.rooms}}" class="item-meta">{{item.rooms}}室</text>
@@ -87,16 +91,20 @@
             bindtap="viewDetail"
             data-item="{{item}}"
           >
-            <image 
-              class="item-image" 
-              src="{{item.image}}" 
-              mode="aspectFill"
-              binderror="onImageError"
-              data-index="{{index}}"
-              data-id="{{item.id}}"
-            ></image>
+            <view class="item-image-wrapper">
+              <image 
+                class="item-image" 
+                src="{{item.image}}" 
+                mode="aspectFill"
+                binderror="onImageError"
+                data-index="{{index}}"
+                data-id="{{item.id}}"
+              ></image>
+              <view wx:if="{{!item.published}}" class="draft-badge">草稿</view>
+            </view>
             <view class="item-content">
-              <view class="item-title">{{item.title}}</view>
+              <view class="item-title">{{item.name}}</view>
+              <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
               <view class="item-info">
                 <text class="item-price">{{item.price}} EGP/月</text>
                 <text wx:if="{{item.rooms}}" class="item-meta">{{item.rooms}}室</text>

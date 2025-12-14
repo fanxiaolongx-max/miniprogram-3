@@ -82,69 +82,6 @@
         </view>
       </view>
 
-      <!-- 常用导航展开内容 -->
-      <view class="ios-card" wx:if="{{locationOpen}}" style="margin: 0 20px 16px;">
-        <view wx:if="{{locationLoading}}" class="loading-container">
-          <text class="loading-text">加载中...</text>
-        </view>
-        <block wx:else>
-          <view wx:if="{{locationList.length === 0}}" class="empty-container">
-            <text class="empty-text">暂无地点数据</text>
-          </view>
-          <view wx:for="{{locationList}}" wx:key="id" class="ios-sub-item" bindtap="openLocation" data-location="{{item}}">
-            <image class="ios-sub-item-image" src="{{item.image}}" mode="aspectFill" binderror="onImageError" data-index="{{index}}" data-type="location"></image>
-            <view class="ios-sub-item-content">
-              <view class="ios-sub-item-title">{{item.name}}</view>
-              <view class="ios-sub-item-desc">{{item.address}}</view>
-            </view>
-            <text class="ios-arrow-sub">></text>
-          </view>
-        </block>
-      </view>
-
-      <!-- 租房/酒店展开内容 -->
-      <view class="ios-card" wx:if="{{rentalOpen}}" style="margin: 0 20px 16px;">
-        <view wx:if="{{rentalLoading}}" class="loading-container">
-          <text class="loading-text">加载中...</text>
-        </view>
-        <block wx:else>
-          <view wx:if="{{rentalList.length === 0}}" class="empty-container">
-            <text class="empty-text">暂无租房信息</text>
-          </view>
-          <view wx:for="{{rentalList}}" wx:key="id" class="ios-sub-item" bindtap="viewRental" data-rental="{{item}}">
-            <image class="ios-sub-item-image" src="{{item.image}}" mode="aspectFill" binderror="onImageError" data-index="{{index}}" data-type="rental"></image>
-            <view class="ios-sub-item-content">
-              <view class="ios-sub-item-title">{{item.title}}</view>
-              <view class="ios-sub-item-desc">
-                <text class="rental-price-inline">{{item.price}} EGP/月</text>
-                <text class="rental-address-inline">· {{item.address}}</text>
-              </view>
-              <view class="ios-sub-item-tags">
-                <text wx:if="{{item.type}}" class="ios-tag">{{item.type}}</text>
-                <text wx:if="{{item.rooms}}" class="ios-tag">{{item.rooms}}室</text>
-                <text wx:if="{{item.area}}" class="ios-tag">{{item.area}}㎡</text>
-              </view>
-            </view>
-            <text class="ios-arrow-sub">></text>
-          </view>
-        </block>
-      </view>
-
-      <!-- 寻味中国展开内容（合并了常用菜单链接） -->
-      <view class="ios-card" wx:if="{{chineseFoodOpen}}" style="margin: 0 20px 16px;">
-        <view wx:if="{{menuLinksLoading}}" class="loading-container">
-          <text class="loading-text">加载中...</text>
-        </view>
-        <block wx:else>
-          <view wx:if="{{menuLinks.length === 0}}" class="empty-container">
-            <text class="empty-text">暂无菜单链接</text>
-          </view>
-          <navigator wx:for="{{menuLinks}}" wx:key="id" url="/packageComponent/pages/open/web-view/web-view?url={{item.url}}&title={{item.title}}" class="ios-sub-item">
-            <view class="ios-sub-item-text">{{item.name}}</view>
-            <text class="ios-arrow-sub">></text>
-          </navigator>
-        </block>
-      </view>
 
       <!-- 实用指南 -->
       <view class="section-group">
@@ -212,6 +149,11 @@
           </view>
         </view>
       </view>
+    </view>
+    
+    <!-- API域名切换按钮（不明显的底部按钮） -->
+    <view class="api-domain-switcher" bindtap="toggleApiDomain">
+      <text class="api-domain-switcher-text">{{currentApiDomain && currentApiDomain.includes('boba.app') ? 'DEV' : 'PROD'}}</text>
     </view>
   </view>
 </view>

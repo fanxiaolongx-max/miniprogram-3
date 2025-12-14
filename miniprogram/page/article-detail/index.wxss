@@ -63,10 +63,12 @@
   color: #333;
   line-height: 1.8;
   word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-/* 注意：rich-text组件在小程序中会自动处理HTML标签样式，这里只设置容器样式 */
-/* 如需自定义HTML标签样式，需要在返回的HTML内容中使用内联样式 */
+/* rich-text 组件中的图片样式 */
+/* 注意：rich-text组件对CSS支持有限，主要通过内联样式控制 */
+/* 已在JS中为所有图片添加内联样式，使其自适应屏幕宽度 */
 
 [data-weui-theme=dark] .container {
   background-color: #1F1F1F;

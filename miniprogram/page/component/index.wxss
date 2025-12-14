@@ -567,3 +567,34 @@
   border-radius: 12px; /* 圆角标签 */
   font-weight: 500;
 }
+
+/* API域名切换按钮（不明显的底部按钮） */
+.api-domain-switcher {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  transition: opacity 0.3s, background 0.3s;
+  z-index: 999;
+  backdrop-filter: blur(4px);
+}
+
+.api-domain-switcher:active {
+  opacity: 0.7;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.api-domain-switcher-text {
+  font-size: 10px;
+  color: #FFFFFF;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}

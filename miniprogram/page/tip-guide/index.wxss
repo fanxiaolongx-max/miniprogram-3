@@ -1,34 +1,75 @@
 .container {
-  padding: 20px;
+  padding: 0;
   background-color: #F5F7FA;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
-.guide-section {
-  max-width: 600px;
-  margin: 0 auto;
+.filter-section {
+  background: #fff;
+  padding: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.guide-title {
-  font-size: 20px;
-  font-weight: 600;
+.category-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.category-tag {
+  padding: 6px 16px;
+  background: #f5f5f5;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.category-tag.active {
+  background: #07c160;
+  color: #fff;
+}
+
+.search-box {
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 40px 0 16px;
+  background: #f5f5f5;
+  border-radius: 20px;
+  font-size: 14px;
   color: #333;
-  margin-bottom: 20px;
-  text-align: center;
 }
 
-/* 加载状态 */
-.loading-container {
-  text-align: center;
-  padding: 40px 20px;
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
 }
 
-.loading-text {
+.loading-container,
+.empty-container {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.loading-text,
+.empty-text {
   color: #999;
   font-size: 14px;
 }
 
-/* 错误状态 */
 .error-container {
   text-align: center;
   padding: 60px 20px;
@@ -44,7 +85,6 @@
 }
 
 .retry-btn {
-  margin-top: 10px;
   padding: 12px 32px;
   background-color: #07c160;
   color: #fff;
@@ -57,33 +97,161 @@
   border: none;
 }
 
-/* 内容 */
-.guide-content {
-  background-color: #fff;
+.waterfall-container {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.waterfall-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.waterfall-item {
+  background: #fff;
   border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  font-size: 16px;
-  line-height: 1.8;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.waterfall-item:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.item-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+}
+
+.item-image {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+
+.draft-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 152, 0, 0.9);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-weui-theme=dark] .draft-badge {
+  background: rgba(255, 152, 0, 0.95);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3);
+}
+
+.item-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item-title {
+  font-size: 15px;
+  font-weight: 600;
   color: #333;
-  white-space: pre-line;
-  word-break: break-word;
+  line-height: 1.4;
+}
+
+.item-description {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.4;
 }
 
 [data-weui-theme=dark] .container {
   background-color: #1F1F1F;
 }
 
-[data-weui-theme=dark] .guide-title {
+[data-weui-theme=dark] .filter-section {
+  background: #2C2C2C;
+}
+
+[data-weui-theme=dark] .category-tag {
+  background: #1F1F1F;
+  color: #ccc;
+}
+
+[data-weui-theme=dark] .search-input {
+  background: #1F1F1F;
   color: #fff;
 }
 
-[data-weui-theme=dark] .guide-content {
-  background-color: #2C2C2C;
+[data-weui-theme=dark] .waterfall-item {
+  background: #2C2C2C;
+}
+
+[data-weui-theme=dark] .item-title {
   color: #fff;
+}
+
+[data-weui-theme=dark] .item-description {
+  color: #ccc;
 }
 
 [data-weui-theme=dark] .error-text {
   color: #ff6b6b;
 }
 
+/* 加载更多按钮容器 */
+.load-more-container {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+/* 加载更多按钮 - 浅灰色、斜体、下划线 */
+.load-more-btn {
+  color: #999;
+  font-size: 26rpx;
+  font-style: italic;
+  text-decoration: underline;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.load-more-btn:active {
+  opacity: 0.6;
+}
+
+/* 加载中提示 */
+.loading-more {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+.loading-more .loading-text {
+  color: #999;
+  font-size: 26rpx;
+}
+
+/* 没有更多提示 */
+.no-more {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+.no-more-text {
+  color: #999;
+  font-size: 26rpx;
+}

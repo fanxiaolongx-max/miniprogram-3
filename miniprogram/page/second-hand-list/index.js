@@ -109,6 +109,11 @@ Page({
       },
       success: (res) => {
         console.log('获取二手集市数据响应', res)
+        
+        // 处理API响应数据，自动替换URL（开发环境：bobapro.life -> boba.app）
+        const envHelper = require('../../utils/envHelper.js')
+        res.data = envHelper.processApiResponse(res.data)
+        
         if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
           console.error('获取二手集市数据失败', res.statusCode, res.data)
           if (isLoadMore) {
@@ -203,13 +208,18 @@ Page({
           
           return {
             id: uniqueId,
+            name: item.name || item.title || '未知商品',
             title: item.title || item.name || '未知商品',
-            price: item.price || item.amount || '0',
             description: item.description || item.desc || '',
             image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
-            contact: item.contact || item.phone || '',
             category: item.category || item.type || '',
-            detailApi: item.detailApi || item.detailUrl || ''
+            htmlContent: item.htmlContent || '', // 添加 htmlContent 字段
+            detailApi: item.detailApi || item.detailUrl || '', // 保留用于向后兼容
+            meta: item.meta || item.date || item.updatedAt || '', // 添加 meta 字段
+            published: item.published !== false, // 添加 published 字段，默认为 true
+            // 保留原有字段用于兼容
+            price: item.price || item.amount || '0',
+            contact: item.contact || item.phone || ''
           }
         })
 
@@ -454,24 +464,22 @@ Page({
   viewDetail(e) {
     const item = e.currentTarget.dataset.item
     
-    // 如果有detailApi，调用API获取HTML内容并展示
-    if (item.detailApi) {
+    // 直接使用 htmlContent 字段，不再通过 detailApi 获取
+    if (item.htmlContent) {
+      const params = {
+        htmlContent: encodeURIComponent(item.htmlContent),
+        title: encodeURIComponent(item.title || item.name || '详情'),
+        meta: encodeURIComponent(item.meta || item.date || '')
+      }
       wx.navigateTo({
-        url: `/page/article-detail/index?apiUrl=${encodeURIComponent(item.detailApi)}`
+        url: `/page/article-detail/index?htmlContent=${params.htmlContent}&title=${params.title}&meta=${params.meta}`
       })
     } else {
-      // 如果没有detailApi，保持原来的逻辑（显示弹窗+联系卖家）
-      wx.showModal({
-        title: item.title,
-        content: `价格：${item.price} EGP\n${item.description ? `\n${item.description}\n` : ''}\n联系方式：${item.contact}`,
-        showCancel: true,
-        cancelText: '关闭',
-        confirmText: '联系',
-        success: (res) => {
-          if (res.confirm) {
-            this.contactSeller(item)
-          }
-        }
+      // 如果没有 htmlContent，提示用户
+      wx.showToast({
+        title: '暂无详情内容',
+        icon: 'none',
+        duration: 2000
       })
     }
   },
