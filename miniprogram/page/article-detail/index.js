@@ -21,7 +21,9 @@ Page({
     content: '',
     apiUrl: '',
     loading: false,
-    error: false
+    error: false,
+    links: [], // 存储从文章中提取的链接
+    images: [] // 存储从文章中提取的图片
   },
 
   onLoad(options) {
@@ -47,8 +49,14 @@ Page({
       // 如果直接提供了 htmlContent，直接使用，不需要请求API
       console.log('[article-detail] 使用直接传递的 htmlContent')
       
+      // 提取文章中的图片
+      const images = this.extractImages(htmlContent)
+      
       // 处理HTML内容，使图片自适应屏幕宽度
       const processedContent = this.processHtmlContent(htmlContent)
+      
+      // 提取文章中的链接
+      const links = this.extractLinks(htmlContent)
       
       // 设置导航栏标题
       if (title) {
@@ -61,6 +69,8 @@ Page({
         title: title,
         meta: meta,
         content: processedContent,
+        links: links,
+        images: images,
         loading: false,
         error: false
       })
@@ -166,6 +176,12 @@ Page({
           return
         }
 
+        // 提取文章中的图片（在处理内容之前提取，确保图片URL完整）
+        const images = this.extractImages(content)
+        
+        // 提取文章中的链接（在处理内容之前提取，确保链接完整）
+        const links = this.extractLinks(content)
+
         // 处理HTML内容，使图片自适应屏幕宽度
         content = this.processHtmlContent(content)
 
@@ -180,6 +196,8 @@ Page({
           title: title,
           meta: meta,
           content: content,
+          links: links,
+          images: images,
           loading: false,
           error: false
         })
@@ -277,5 +295,240 @@ Page({
       // 出错时返回原始内容
       return html
     }
+  },
+
+  /**
+   * 从HTML内容中提取所有图片
+   * @param {string} html - HTML内容
+   * @returns {Array} 图片URL数组
+   */
+  extractImages(html) {
+    if (!html || typeof html !== 'string') {
+      return []
+    }
+
+    try {
+      const images = []
+      // 匹配 <img> 标签，提取 src 属性
+      const imgRegex = /<img[^>]*src\s*=\s*["']([^"']+)["'][^>]*>/gi
+      
+      let match
+      const seenUrls = new Set() // 用于去重
+      
+      while ((match = imgRegex.exec(html)) !== null) {
+        const url = match[1].trim()
+        
+        // 只添加有效的图片URL，并去重
+        if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('//')) && !seenUrls.has(url)) {
+          seenUrls.add(url)
+          images.push(url)
+        }
+      }
+
+      // 也匹配 <image> 标签（小程序可能使用的标签）
+      const imageRegex = /<image[^>]*src\s*=\s*["']([^"']+)["'][^>]*>/gi
+      while ((match = imageRegex.exec(html)) !== null) {
+        const url = match[1].trim()
+        if (url && !seenUrls.has(url)) {
+          seenUrls.add(url)
+          images.push(url)
+        }
+      }
+
+      console.log('[extractImages] 提取到图片数量:', images.length)
+      return images
+    } catch (err) {
+      console.error('[extractImages] 提取图片时出错:', err)
+      return []
+    }
+  },
+
+  /**
+   * 从HTML内容中提取所有链接
+   * @param {string} html - HTML内容
+   * @returns {Array} 链接数组，每个元素包含 url 和 text
+   */
+  extractLinks(html) {
+    if (!html || typeof html !== 'string') {
+      return []
+    }
+
+    try {
+      const links = []
+      // 匹配 <a> 标签，提取 href 和文本内容
+      // 匹配格式：<a href="url">text</a> 或 <a href='url'>text</a>
+      const linkRegex = /<a\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*>(.*?)<\/a>/gi
+      
+      let match
+      const seenUrls = new Set() // 用于去重
+      
+      while ((match = linkRegex.exec(html)) !== null) {
+        const url = match[1].trim()
+        const text = match[2].replace(/<[^>]+>/g, '').trim() || url // 移除HTML标签，如果没有文本则使用URL
+        
+        // 只添加有效的HTTP/HTTPS链接，并去重
+        if (url && (url.startsWith('http://') || url.startsWith('https://')) && !seenUrls.has(url)) {
+          seenUrls.add(url)
+          links.push({
+            url: url,
+            text: text || url
+          })
+        }
+      }
+
+      console.log('[extractLinks] 提取到链接数量:', links.length)
+      return links
+    } catch (err) {
+      console.error('[extractLinks] 提取链接时出错:', err)
+      return []
+    }
+  },
+
+  /**
+   * 复制链接到剪贴板
+   * @param {Object} e - 事件对象
+   */
+  copyLink(e) {
+    const url = e.currentTarget.dataset.url
+    if (!url) {
+      return
+    }
+
+    wx.setClipboardData({
+      data: url,
+      success: () => {
+        // 先显示第一行提示
+        wx.showToast({
+          title: '链接已复制',
+          icon: 'success',
+          duration: 1500
+        })
+        
+        // 延迟显示第二行提示
+        setTimeout(() => {
+          wx.showToast({
+            title: '请粘贴到浏览器打开',
+            icon: 'none',
+            duration: 2000
+          })
+        }, 1600)
+      },
+      fail: () => {
+        wx.showToast({
+          title: '复制失败',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    })
+  },
+
+  /**
+   * 保存图片到相册
+   * @param {Object} e - 事件对象
+   */
+  saveImage(e) {
+    const imageUrl = e.currentTarget.dataset.url
+    if (!imageUrl) {
+      return
+    }
+
+    // 检查授权状态
+    wx.getSetting({
+      success: (res) => {
+        if (res.authSetting['scope.writePhotosAlbum']) {
+          // 已授权，直接保存
+          this.downloadAndSaveImage(imageUrl)
+        } else if (res.authSetting['scope.writePhotosAlbum'] === false) {
+          // 用户之前拒绝了授权，需要引导用户打开设置
+          wx.showModal({
+            title: '需要授权',
+            content: '需要您授权保存图片到相册',
+            confirmText: '去设置',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                wx.openSetting({
+                  success: (settingRes) => {
+                    if (settingRes.authSetting['scope.writePhotosAlbum']) {
+                      this.downloadAndSaveImage(imageUrl)
+                    }
+                  }
+                })
+              }
+            }
+          })
+        } else {
+          // 未授权，请求授权
+          wx.authorize({
+            scope: 'scope.writePhotosAlbum',
+            success: () => {
+              this.downloadAndSaveImage(imageUrl)
+            },
+            fail: () => {
+              wx.showToast({
+                title: '需要授权才能保存',
+                icon: 'none',
+                duration: 2000
+              })
+            }
+          })
+        }
+      }
+    })
+  },
+
+  /**
+   * 下载并保存图片
+   * @param {string} imageUrl - 图片URL
+   */
+  downloadAndSaveImage(imageUrl) {
+    wx.showLoading({
+      title: '保存中...',
+      mask: true
+    })
+
+    wx.downloadFile({
+      url: imageUrl,
+      success: (res) => {
+        if (res.statusCode === 200) {
+          wx.saveImageToPhotosAlbum({
+            filePath: res.tempFilePath,
+            success: () => {
+              wx.hideLoading()
+              wx.showToast({
+                title: '图片已保存',
+                icon: 'success',
+                duration: 2000
+              })
+            },
+            fail: (err) => {
+              wx.hideLoading()
+              console.error('保存图片失败', err)
+              wx.showToast({
+                title: '保存失败',
+                icon: 'none',
+                duration: 2000
+              })
+            }
+          })
+        } else {
+          wx.hideLoading()
+          wx.showToast({
+            title: '下载失败',
+            icon: 'none',
+            duration: 2000
+          })
+        }
+      },
+      fail: (err) => {
+        wx.hideLoading()
+        console.error('下载图片失败', err)
+        wx.showToast({
+          title: '下载失败',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    })
   }
 })

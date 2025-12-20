@@ -15,7 +15,45 @@
     <view wx:else class="article-container">
       <view wx:if="{{title}}" class="article-title">{{title}}</view>
       <view wx:if="{{meta}}" class="article-meta">{{meta}}</view>
-      <rich-text class="article-content" nodes="{{content}}"></rich-text>
+      <rich-text class="article-content" nodes="{{content}}" selectable="{{true}}"></rich-text>
+      
+      <!-- 文章图片区域（支持长按保存） -->
+      <view wx:if="{{images.length > 0}}" class="images-section">
+        <view class="images-title">文章图片</view>
+        <view class="images-container">
+          <image 
+            wx:for="{{images}}" 
+            wx:key="*this"
+            class="article-image"
+            src="{{item}}"
+            mode="widthFix"
+            bindlongpress="saveImage"
+            data-url="{{item}}"
+            show-menu-by-longpress="{{true}}"
+          ></image>
+        </view>
+      </view>
+      
+      <!-- 文章链接区域 -->
+      <view wx:if="{{links.length > 0}}" class="links-section">
+        <view class="links-title">文章链接</view>
+        <view class="links-container">
+          <view 
+            wx:for="{{links}}" 
+            wx:key="url" 
+            class="link-item"
+            bindtap="copyLink"
+            data-url="{{item.url}}"
+          >
+            <view class="link-icon">🔗</view>
+            <view class="link-content">
+              <view class="link-text">{{item.text}}</view>
+              <view class="link-url">{{item.url}}</view>
+            </view>
+            <view class="link-action">复制</view>
+          </view>
+        </view>
+      </view>
     </view>
   </view>
 </view>
