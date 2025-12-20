@@ -68,8 +68,15 @@
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
               <view class="item-footer">
                 <text class="item-price">{{item.price}} EGP</text>
-                <view class="contact-btn" bindtap="contactSeller" data-item="{{item}}" catchtap="true">
-                  <text class="contact-icon">💬</text>
+                <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="footer-buttons">
+                  <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
+                    <text class="location-icon">📍</text>
+                    <text class="location-text">导航</text>
+                  </view>
+                  <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
+                    <text class="phone-icon">📞</text>
+                    <text class="phone-text">呼叫</text>
+                  </view>
                 </view>
               </view>
             </view>
@@ -102,8 +109,15 @@
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
               <view class="item-footer">
                 <text class="item-price">{{item.price}} EGP</text>
-                <view class="contact-btn" bindtap="contactSeller" data-item="{{item}}" catchtap="true">
-                  <text class="contact-icon">💬</text>
+                <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="footer-buttons">
+                  <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
+                    <text class="location-icon">📍</text>
+                    <text class="location-text">导航</text>
+                  </view>
+                  <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
+                    <text class="phone-icon">📞</text>
+                    <text class="phone-text">呼叫</text>
+                  </view>
                 </view>
               </view>
             </view>

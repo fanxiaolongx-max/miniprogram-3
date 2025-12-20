@@ -224,9 +224,10 @@ Page({
           type: item.type || item.rentType || '整租',
           rooms: String(item.rooms || item.bedrooms || '1'),
           area: String(item.area || item.squareMeters || '0'),
-          latitude: parseFloat(item.latitude || item.lat || 30.0444),
-          longitude: parseFloat(item.longitude || item.lng || item.lon || 31.2357),
-            contact: item.contact || item.phone || '联系方式：请咨询'
+          latitude: item.latitude || item.lat ? parseFloat(item.latitude || item.lat) : null,
+          longitude: item.longitude || item.lng || item.lon ? parseFloat(item.longitude || item.lng || item.lon) : null,
+            contact: item.contact || item.phone || '联系方式：请咨询',
+            phone: item.phone || null
           }
         })
 
@@ -494,48 +495,108 @@ Page({
   },
 
   // 联系房东
-  contactOwner(e) {
-    const item = typeof e === 'object' && e.currentTarget ? e.currentTarget.dataset.item : e
-    const contact = item.contact || item.phone || ''
+  openLocation(e) {
+    e.stopPropagation && e.stopPropagation()
+    const item = e.currentTarget.dataset.item
     
-    if (contact.includes('微信') || contact.includes('微信')) {
-      wx.setClipboardData({
-        data: contact,
-        success: () => {
+    if (!item) {
           wx.showToast({
-            title: '联系方式已复制',
-            icon: 'success'
-          })
-        }
+        title: '位置信息不完整',
+        icon: 'none',
+        duration: 2000
       })
-    } else if (/^1[3-9]\d{9}$/.test(contact.replace(/\D/g, ''))) {
-      // 手机号
-      const phone = contact.replace(/\D/g, '')
-      wx.makePhoneCall({
-        phoneNumber: phone,
-        fail: () => {
-          wx.setClipboardData({
-            data: contact,
+      return
+    }
+    
+    // 提取并验证经纬度 - 优先使用已存储的值，如果没有则从原始字段提取
+    let latitude = item.latitude
+    let longitude = item.longitude
+    
+    // 如果存储的值是 null，尝试从原始字段提取
+    if (latitude === null || latitude === undefined) {
+      latitude = item.lat
+    }
+    if (longitude === null || longitude === undefined) {
+      longitude = item.lng || item.lon
+    }
+    
+    // 转换为数字类型
+    latitude = parseFloat(latitude)
+    longitude = parseFloat(longitude)
+    
+    // 验证经纬度是否为有效数字且在合理范围内
+    if (isNaN(latitude) || isNaN(longitude) || 
+        latitude < -90 || latitude > 90 || 
+        longitude < -180 || longitude > 180) {
+      wx.showToast({
+        title: '位置信息不完整',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    // 确保值是精确的数字类型，避免浮点数精度问题
+    const finalLatitude = parseFloat(latitude.toFixed(6))
+    const finalLongitude = parseFloat(longitude.toFixed(6))
+    
+    wx.openLocation({
+      latitude: finalLatitude,
+      longitude: finalLongitude,
+      name: item.name || item.title || '位置',
+      address: item.address || item.description || '',
+      scale: 18,
             success: () => {
+        console.log('[openLocation] 打开地图成功')
+      },
+      fail: (err) => {
+        console.error('[openLocation] 打开地图失败', err)
               wx.showToast({
-                title: '联系方式已复制',
-                icon: 'success'
+          title: err.errMsg || '打开地图失败',
+          icon: 'none',
+          duration: 2000
               })
             }
           })
-        }
+  },
+
+  makePhoneCall(e) {
+    e.stopPropagation && e.stopPropagation()
+    const item = e.currentTarget.dataset.item
+    const phone = item.phone || ''
+    
+    if (!phone) {
+      wx.showToast({
+        title: '电话号码不存在',
+        icon: 'none',
+        duration: 2000
       })
-    } else {
+      return
+    }
+    
+    // 清理电话号码，只保留数字和+号
+    const cleanPhone = phone.replace(/[^\d+]/g, '')
+    
+    wx.makePhoneCall({
+      phoneNumber: cleanPhone,
+      success: () => {
+        console.log('[makePhoneCall] 拨打电话成功', cleanPhone)
+      },
+      fail: (err) => {
+        console.error('[makePhoneCall] 拨打电话失败', err)
+        // 如果拨打失败，尝试复制到剪贴板
       wx.setClipboardData({
-        data: contact,
+          data: phone,
         success: () => {
           wx.showToast({
-            title: '联系方式已复制',
-            icon: 'success'
+              title: '电话号码已复制',
+              icon: 'success',
+              duration: 2000
           })
         }
       })
     }
+    })
   },
 
   // 处理图片加载错误

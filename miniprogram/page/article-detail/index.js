@@ -23,7 +23,9 @@ Page({
     loading: false,
     error: false,
     links: [], // 存储从文章中提取的链接
-    images: [] // 存储从文章中提取的图片
+    images: [], // 存储从文章中提取的图片
+    location: null, // 存储地址信息 { name, address, latitude, longitude }
+    mapMarkers: [] // 地图标记点
   },
 
   onLoad(options) {
@@ -58,6 +60,32 @@ Page({
       // 提取文章中的链接
       const links = this.extractLinks(htmlContent)
       
+      // 注意：直接传递 htmlContent 时，无法获取地址信息，因为地址信息在 JSON 返回中
+      // 如果需要支持地址，需要通过 options 传递地址参数
+      const locationData = options.latitude && options.longitude ? {
+        name: title || '位置',
+        address: options.address || '',
+        latitude: parseFloat(options.latitude),
+        longitude: parseFloat(options.longitude)
+      } : null
+
+      // 如果有地址信息，生成地图标记点
+      const mapMarkers = locationData ? [{
+        id: 1,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        title: locationData.name || '位置',
+        callout: {
+          content: locationData.name || '位置',
+          color: '#333',
+          fontSize: 14,
+          borderRadius: 4,
+          bgColor: '#fff',
+          padding: 8,
+          display: 'ALWAYS'
+        }
+      }] : []
+      
       // 设置导航栏标题
       if (title) {
         wx.setNavigationBarTitle({
@@ -71,6 +99,8 @@ Page({
         content: processedContent,
         links: links,
         images: images,
+        location: locationData,
+        mapMarkers: mapMarkers,
         loading: false,
         error: false
       })
@@ -131,39 +161,45 @@ Page({
         let content = ''
         let title = ''
         let meta = ''
+        let locationData = null // 存储地址信息
 
         // 格式0: 数组格式 [{ content: "HTML内容", title: "标题" }] - 取第一个元素
         if (Array.isArray(res.data) && res.data.length > 0) {
           const firstItem = res.data[0]
-          content = firstItem.content || firstItem.html || ''
+          content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
           title = firstItem.title || firstItem.name || ''
-          meta = firstItem.meta || firstItem.date || ''
+          meta = firstItem.meta || firstItem.date || firstItem.updatedAt || ''
+          locationData = this.extractLocation(firstItem)
         }
         // 格式1: { content: "HTML内容", title: "标题" }
-        else if (res.data.content) {
-          content = res.data.content
+        else if (res.data.content || res.data.html || res.data.htmlContent) {
+          content = res.data.content || res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
-          meta = res.data.meta || res.data.date || ''
+          meta = res.data.meta || res.data.date || res.data.updatedAt || ''
+          locationData = this.extractLocation(res.data)
         }
         // 格式2: { data: { content: "HTML内容", title: "标题" } }
         else if (res.data.data) {
           // 如果 data 是数组，取第一个元素
           if (Array.isArray(res.data.data) && res.data.data.length > 0) {
             const firstItem = res.data.data[0]
-            content = firstItem.content || firstItem.html || ''
+            content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
             title = firstItem.title || firstItem.name || ''
-            meta = firstItem.meta || firstItem.date || ''
+            meta = firstItem.meta || firstItem.date || firstItem.updatedAt || ''
+            locationData = this.extractLocation(firstItem)
           } else if (typeof res.data.data === 'object') {
-            content = res.data.data.content || res.data.data.html || ''
+            content = res.data.data.content || res.data.data.html || res.data.data.htmlContent || ''
             title = res.data.data.title || ''
-            meta = res.data.data.meta || res.data.data.date || ''
+            meta = res.data.data.meta || res.data.data.date || res.data.data.updatedAt || ''
+            locationData = this.extractLocation(res.data.data)
           }
         }
-        // 格式3: { html: "HTML内容", title: "标题" }
-        else if (res.data.html) {
-          content = res.data.html
+        // 格式3: { html: "HTML内容", title: "标题" } 或 { htmlContent: "HTML内容", title: "标题" }
+        else if (res.data.html || res.data.htmlContent) {
+          content = res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
-          meta = res.data.meta || res.data.date || ''
+          meta = res.data.meta || res.data.date || res.data.updatedAt || ''
+          locationData = this.extractLocation(res.data)
         }
         // 格式4: 直接字符串
         else if (typeof res.data === 'string') {
@@ -192,12 +228,31 @@ Page({
           })
         }
 
+        // 如果有地址信息，生成地图标记点
+        const mapMarkers = locationData ? [{
+          id: 1,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          title: locationData.name || '位置',
+          callout: {
+            content: locationData.name || '位置',
+            color: '#333',
+            fontSize: 14,
+            borderRadius: 4,
+            bgColor: '#fff',
+            padding: 8,
+            display: 'ALWAYS'
+          }
+        }] : []
+
         this.setData({
           title: title,
           meta: meta,
           content: content,
           links: links,
           images: images,
+          location: locationData,
+          mapMarkers: mapMarkers,
           loading: false,
           error: false
         })
@@ -294,6 +349,40 @@ Page({
       console.error('[processHtmlContent] 处理HTML内容时出错:', err)
       // 出错时返回原始内容
       return html
+    }
+  },
+
+  /**
+   * 从数据对象中提取地址信息
+   * @param {Object} data - 数据对象
+   * @returns {Object|null} 地址信息对象 { name, address, latitude, longitude } 或 null
+   */
+  extractLocation(data) {
+    if (!data || typeof data !== 'object') {
+      return null
+    }
+
+    try {
+      // 支持多种字段名：latitude/lat, longitude/lng/lon, address/location, name/title
+      const latitude = parseFloat(data.latitude || data.lat || 0)
+      const longitude = parseFloat(data.longitude || data.lng || data.lon || 0)
+      const address = data.address || data.location || ''
+      const name = data.name || data.title || '位置'
+
+      // 必须有有效的经纬度才返回地址信息
+      if (latitude && longitude && !isNaN(latitude) && !isNaN(longitude)) {
+        return {
+          name: name,
+          address: address,
+          latitude: latitude,
+          longitude: longitude
+        }
+      }
+
+      return null
+    } catch (err) {
+      console.error('[extractLocation] 提取地址信息时出错:', err)
+      return null
     }
   },
 
@@ -525,6 +614,35 @@ Page({
         console.error('下载图片失败', err)
         wx.showToast({
           title: '下载失败',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    })
+  },
+
+  /**
+   * 打开地图导航
+   */
+  openLocation() {
+    const location = this.data.location
+    if (!location) {
+      return
+    }
+
+    wx.openLocation({
+      latitude: location.latitude,
+      longitude: location.longitude,
+      name: location.name || '位置',
+      address: location.address || '',
+      scale: 18,
+      success: () => {
+        console.log('打开地图成功')
+      },
+      fail: (err) => {
+        console.error('打开地图失败', err)
+        wx.showToast({
+          title: '打开地图失败',
           icon: 'none',
           duration: 2000
         })

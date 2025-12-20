@@ -17,6 +17,25 @@
       <view wx:if="{{meta}}" class="article-meta">{{meta}}</view>
       <rich-text class="article-content" nodes="{{content}}" selectable="{{true}}"></rich-text>
       
+      <!-- 文章地址地图区域 -->
+      <view wx:if="{{location}}" class="location-section">
+        <view class="location-title">位置信息</view>
+        <view class="location-info">
+          <view wx:if="{{location.name}}" class="location-name">{{location.name}}</view>
+          <view wx:if="{{location.address}}" class="location-address">{{location.address}}</view>
+        </view>
+        <map
+          class="location-map"
+          longitude="{{location.longitude}}"
+          latitude="{{location.latitude}}"
+          scale="16"
+          markers="{{mapMarkers}}"
+          bindtap="openLocation"
+          show-location="{{true}}"
+        ></map>
+        <view class="location-tip">点击地图打开导航</view>
+      </view>
+      
       <!-- 文章图片区域（支持长按保存） -->
       <view wx:if="{{images.length > 0}}" class="images-section">
         <view class="images-title">文章图片</view>

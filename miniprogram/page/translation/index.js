@@ -14,7 +14,10 @@ Page({
     selectedCategory: 'all',
     error: false,
     showModal: false,
-    currentPhrase: {}
+    currentPhrase: {},
+    audioContext: null,
+    isPlaying: false,
+    playingLang: null // 'zh' | 'ar' | null
   },
 
   onLoad() {
@@ -31,8 +34,46 @@ Page({
       })
     }
 
+    // 初始化音频上下文
+    this.initAudioContext()
+
     // 加载翻译数据
     this.fetchTranslation()
+  },
+
+  onUnload() {
+    // 页面卸载时停止播放并销毁音频上下文
+    this.stopAudio()
+  },
+
+  // 初始化音频上下文
+  initAudioContext() {
+    const audioContext = wx.createInnerAudioContext()
+    audioContext.onPlay(() => {
+      this.setData({ isPlaying: true })
+    })
+    audioContext.onEnded(() => {
+      this.setData({ isPlaying: false, playingLang: null })
+    })
+    audioContext.onError((err) => {
+      console.error('音频播放失败', err)
+      this.setData({ isPlaying: false, playingLang: null })
+      wx.showToast({
+        title: '播放失败，请重试',
+        icon: 'none',
+        duration: 2000
+      })
+    })
+    this.setData({ audioContext })
+  },
+
+  // 停止音频播放
+  stopAudio() {
+    if (this.data.audioContext) {
+      this.data.audioContext.stop()
+      this.data.audioContext.destroy()
+      this.setData({ audioContext: null, isPlaying: false })
+    }
   },
 
   // 从 API 获取翻译数据
@@ -154,8 +195,17 @@ Page({
   // 隐藏弹窗
   hidePhrase() {
     this.setData({
-      showModal: false
+      showModal: false,
+      playingLang: null,
+      isPlaying: false
     })
+    // 停止音频播放
+    this.stopAudio()
+  },
+
+  // 阻止事件冒泡（用于 modal-content）
+  stopPropagation() {
+    // 空函数，仅用于阻止事件冒泡
   },
 
   // 复制阿拉伯文
@@ -183,6 +233,169 @@ Page({
           icon: 'success'
         })
       }
+    })
+  },
+
+  // 朗读中文
+  speakChinese(e) {
+    e.stopPropagation && e.stopPropagation()
+    const text = e.currentTarget.dataset.text || this.data.currentPhrase.chinese
+    if (!text) {
+      wx.showToast({
+        title: '文本为空',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    // 如果正在播放，先停止
+    if (this.data.isPlaying) {
+      this.stopAudio()
+      this.initAudioContext()
+    }
+    
+    this.setData({ playingLang: 'zh' })
+    this.playTTS(text, 'zh')
+  },
+
+  // 朗读阿拉伯语
+  speakArabic(e) {
+    e.stopPropagation && e.stopPropagation()
+    const text = e.currentTarget.dataset.text || this.data.currentPhrase.arabic
+    if (!text) {
+      wx.showToast({
+        title: '文本为空',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    // 如果正在播放，先停止
+    if (this.data.isPlaying) {
+      this.stopAudio()
+      this.initAudioContext()
+    }
+    
+    this.setData({ playingLang: 'ar' })
+    this.playTTS(text, 'ar')
+  },
+
+  // 播放TTS音频
+  playTTS(text, lang = 'zh') {
+    const config = require('../../config.js')
+    const ttsApiUrl = config.ttsApi || `${config.apiBaseDomain}/api/tts`
+    
+    // 微信小程序没有内置TTS功能，需要后端API支持
+    // 如果后端配置了TTS API，尝试调用；否则使用降级方案
+    
+    // 检查是否配置了TTS API
+    if (!ttsApiUrl || ttsApiUrl.includes('/api/tts') && !config.ttsApi) {
+      // 没有配置TTS API，直接使用降级方案
+      this.useClientTTS(text, lang)
+      return
+    }
+    
+    wx.showLoading({
+      title: '正在生成语音...',
+      mask: true
+    })
+    
+    // 尝试调用后端TTS API
+    wx.request({
+      url: ttsApiUrl,
+      method: 'POST',
+      header: {
+        'content-type': 'application/json'
+      },
+      data: {
+        text: text,
+        lang: lang,
+        format: 'mp3'  // 请求 MP3 格式音频（兼容性最好）
+      },
+      success: (res) => {
+        wx.hideLoading()
+        if (res.statusCode === 200 && res.data && res.data.audioUrl) {
+          const audioUrl = res.data.audioUrl
+          // 验证 audioUrl 是否为有效的 HTTPS URL（不能是 Base64）
+          if (typeof audioUrl === 'string' && audioUrl.startsWith('http')) {
+            // 后端返回音频URL，直接播放
+            this.playAudio(audioUrl)
+          } else {
+            console.error('TTS API返回的audioUrl格式不正确，必须是HTTPS URL', audioUrl)
+            wx.showToast({
+              title: '音频格式不支持',
+              icon: 'none',
+              duration: 2000
+            })
+            // 使用降级方案
+            this.useClientTTS(text, lang)
+          }
+        } else {
+          // 后端不支持，使用降级方案
+          this.useClientTTS(text, lang)
+        }
+      },
+      fail: (err) => {
+        wx.hideLoading()
+        console.log('TTS API调用失败，使用降级方案', err)
+        // 后端请求失败，使用降级方案
+        this.useClientTTS(text, lang)
+      }
+    })
+  },
+
+  // 使用客户端TTS（降级方案）
+  useClientTTS(text, lang) {
+    // 微信小程序没有内置TTS功能，需要后端API支持
+    // 降级方案：自动复制文本，提示用户使用系统朗读功能
+    
+    // 先复制文本
+    const copyText = lang === 'zh' 
+      ? this.data.currentPhrase.chinese 
+      : this.data.currentPhrase.arabic
+    
+    wx.setClipboardData({
+      data: copyText,
+      success: () => {
+        wx.showModal({
+          title: '语音朗读',
+          content: lang === 'zh' 
+            ? '文本已复制到剪贴板。\n\n请使用手机自带的语音朗读功能：\n• iOS：设置 > 辅助功能 > 朗读内容 > 朗读所选项\n• Android：长按文本后选择"朗读"'
+            : '文本已复制到剪贴板。\n\n请使用手机自带的语音朗读功能：\n• iOS：设置 > 辅助功能 > 朗读内容 > 朗读所选项\n• Android：长按文本后选择"朗读"',
+          showCancel: false,
+          confirmText: '知道了',
+          success: () => {
+            this.setData({ playingLang: null })
+          }
+        })
+      },
+      fail: () => {
+        wx.showToast({
+          title: '复制失败，请重试',
+          icon: 'none',
+          duration: 2000
+        })
+        this.setData({ playingLang: null })
+      }
+    })
+  },
+
+  // 播放音频
+  playAudio(audioUrl) {
+    if (!this.data.audioContext) {
+      this.initAudioContext()
+    }
+
+    const audioContext = this.data.audioContext
+    audioContext.src = audioUrl
+    audioContext.play()
+
+    wx.showToast({
+      title: '正在播放...',
+      icon: 'none',
+      duration: 1000
     })
   }
 })

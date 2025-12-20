@@ -111,6 +111,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .waterfall-item {
@@ -119,6 +120,8 @@
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s, box-shadow 0.2s;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .waterfall-item:active {
@@ -164,6 +167,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .item-title {
@@ -171,12 +176,26 @@
   font-weight: 600;
   color: #333;
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  max-height: 2.8em;
 }
 
 .item-description {
   font-size: 12px;
   color: #999;
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  max-height: 2.8em;
 }
 
 [data-weui-theme=dark] .container {
@@ -199,6 +218,63 @@
 
 [data-weui-theme=dark] .waterfall-item {
   background: #2C2C2C;
+}
+
+/* 导航按钮 */
+.item-footer {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.location-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #07c160;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #fff;
+}
+
+.location-btn:active {
+  background: #06ad56;
+  transform: scale(0.95);
+}
+
+.location-icon {
+  font-size: 14px;
+}
+
+.location-text {
+  font-size: 12px;
+}
+
+/* 电话按钮 */
+.phone-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #07c160;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #fff;
+  margin-left: 8px;
+}
+
+.phone-btn:active {
+  background: #06ad56;
+  transform: scale(0.95);
+}
+
+.phone-icon {
+  font-size: 14px;
+}
+
+.phone-text {
+  font-size: 12px;
 }
 
 [data-weui-theme=dark] .item-title {

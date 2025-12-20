@@ -6,7 +6,7 @@ require('./miniprogram_npm/miniprogram-recycle-view/index.js')
 
 const themeListeners = []
 // 默认使用生产环境，如需开发环境请手动切换
-// global.isDemo = true
+global.isDemo = true
 App({
   
   onLaunch(opts, data) {

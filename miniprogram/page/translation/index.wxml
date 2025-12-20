@@ -48,13 +48,22 @@
 
     <!-- 全屏显示弹窗 -->
     <view wx:if="{{showModal}}" class="phrase-modal" bindtap="hidePhrase">
-      <view class="modal-content" catchtap="true">
+      <view class="modal-content" catchtap="stopPropagation">
         <view class="modal-header">
           <text class="modal-title">{{currentPhrase.chinese}}</text>
           <text class="modal-close" bindtap="hidePhrase">✕</text>
         </view>
         <view class="modal-body">
-          <view class="modal-arabic">{{currentPhrase.arabic}}</view>
+          <view class="modal-text-container">
+            <view class="modal-chinese {{playingLang === 'zh' && isPlaying ? 'playing' : ''}}" bindtap="speakChinese" data-text="{{currentPhrase.chinese}}">
+              <text class="text-content">{{currentPhrase.chinese}}</text>
+              <text class="speak-icon">{{playingLang === 'zh' && isPlaying ? '⏸️' : '🔊'}}</text>
+            </view>
+            <view class="modal-arabic {{playingLang === 'ar' && isPlaying ? 'playing' : ''}}" bindtap="speakArabic" data-text="{{currentPhrase.arabic}}">
+              <text class="text-content">{{currentPhrase.arabic}}</text>
+              <text class="speak-icon">{{playingLang === 'ar' && isPlaying ? '⏸️' : '🔊'}}</text>
+            </view>
+          </view>
           <view class="modal-actions">
             <button class="action-btn" bindtap="copyArabic" data-text="{{currentPhrase.arabic}}">复制阿语</button>
             <button class="action-btn" bindtap="copyChinese" data-text="{{currentPhrase.chinese}}">复制中文</button>

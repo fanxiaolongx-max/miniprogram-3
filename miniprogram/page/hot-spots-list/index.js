@@ -216,8 +216,10 @@ Page({
             meta: item.meta || item.date || item.updatedAt || '', // 添加 meta 字段
             published: item.published !== false, // 添加 published 字段，默认为 true
             // 保留原有字段用于兼容
-          latitude: parseFloat(item.latitude || item.lat || 30.0444),
-            longitude: parseFloat(item.longitude || item.lng || item.lon || 31.2357)
+          latitude: item.latitude || item.lat ? parseFloat(item.latitude || item.lat) : null,
+            longitude: item.longitude || item.lng || item.lon ? parseFloat(item.longitude || item.lng || item.lon) : null,
+            // 电话信息（可选）
+            phone: item.phone || null
           }
         })
 
@@ -482,17 +484,104 @@ Page({
   },
 
   openLocation(e) {
-    const item = typeof e === 'object' && e.currentTarget ? e.currentTarget.dataset.item : e
+    e.stopPropagation && e.stopPropagation()
+    const item = e.currentTarget.dataset.item
+    
+    if (!item) {
+      wx.showToast({
+        title: '位置信息不完整',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    // 提取并验证经纬度 - 优先使用已存储的值，如果没有则从原始字段提取
+    let latitude = item.latitude
+    let longitude = item.longitude
+    
+    // 如果存储的值是 null，尝试从原始字段提取
+    if (latitude === null || latitude === undefined) {
+      latitude = item.lat
+    }
+    if (longitude === null || longitude === undefined) {
+      longitude = item.lng || item.lon
+    }
+    
+    // 转换为数字类型
+    latitude = parseFloat(latitude)
+    longitude = parseFloat(longitude)
+    
+    // 验证经纬度是否为有效数字且在合理范围内
+    if (isNaN(latitude) || isNaN(longitude) || 
+        latitude < -90 || latitude > 90 || 
+        longitude < -180 || longitude > 180) {
+      wx.showToast({
+        title: '位置信息不完整',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    // 确保值是精确的数字类型，避免浮点数精度问题
+    const finalLatitude = parseFloat(latitude.toFixed(6))
+    const finalLongitude = parseFloat(longitude.toFixed(6))
+    
     wx.openLocation({
-      latitude: item.latitude,
-      longitude: item.longitude,
-      name: item.name,
-      address: item.description || '',
+      latitude: finalLatitude,
+      longitude: finalLongitude,
+      name: item.name || item.title || '位置',
+      address: item.address || item.description || '',
+      scale: 18,
+      success: () => {
+        console.log('[openLocation] 打开地图成功')
+      },
       fail: (err) => {
-        console.error('打开地图失败', err)
+        console.error('[openLocation] 打开地图失败', err)
         wx.showToast({
-          title: '打开地图失败',
-          icon: 'none'
+          title: err.errMsg || '打开地图失败',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    })
+  },
+
+  makePhoneCall(e) {
+    e.stopPropagation && e.stopPropagation()
+    const item = e.currentTarget.dataset.item
+    const phone = item.phone || ''
+    
+    if (!phone) {
+      wx.showToast({
+        title: '电话号码不存在',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    // 清理电话号码，只保留数字和+号
+    const cleanPhone = phone.replace(/[^\d+]/g, '')
+    
+    wx.makePhoneCall({
+      phoneNumber: cleanPhone,
+      success: () => {
+        console.log('[makePhoneCall] 拨打电话成功', cleanPhone)
+      },
+      fail: (err) => {
+        console.error('[makePhoneCall] 拨打电话失败', err)
+        // 如果拨打失败，尝试复制到剪贴板
+        wx.setClipboardData({
+          data: phone,
+          success: () => {
+            wx.showToast({
+              title: '电话号码已复制',
+              icon: 'success',
+              duration: 2000
+            })
+          }
         })
       }
     })

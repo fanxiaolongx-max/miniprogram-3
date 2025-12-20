@@ -856,6 +856,26 @@ const config = {
   translationApi: `${apiBaseDomain}/api/custom/translation`,
 
   /**
+   * TTS语音合成 API（可选）
+   * 如果后端支持TTS，可以配置此API
+   * 请求方式: POST
+   * 请求参数: { 
+   *   text: string,           // 要朗读的文本
+   *   lang: 'zh' | 'ar',     // 语言：zh=中文，ar=阿拉伯语
+   *   format: 'mp3' | 'aac'  // 音频格式：mp3 或 aac（推荐 mp3，兼容性最好）
+   * }
+   * 返回格式: { 
+   *   audioUrl: string        // 音频文件的完整URL（必须是可访问的HTTPS URL，不能是Base64）
+   * }
+   * 注意事项:
+   *   1. 音频格式必须为 MP3 或 AAC (m4a)，不能使用 Base64 字符串
+   *   2. audioUrl 必须是完整的 HTTPS URL，微信小程序才能正常播放
+   *   3. 音频文件需要支持跨域访问（CORS）
+   *   4. 音频文件域名需要在微信公众平台配置 downloadFile 合法域名
+   */
+  ttsApi: `${apiBaseDomain}/api/tts`,
+
+  /**
    * 话费助手 API
    * 请求方式: GET
    * 返回格式:
