@@ -152,8 +152,8 @@
     </view>
     
     <!-- API域名切换按钮（不明显的底部按钮） -->
-    <view class="api-domain-switcher" bindtap="toggleApiDomain">
+    <!-- <view class="api-domain-switcher" bindtap="toggleApiDomain">
       <text class="api-domain-switcher-text">{{currentApiDomain && currentApiDomain.includes('boba.app') ? 'DEV' : 'PROD'}}</text>
-    </view>
+    </view> -->
   </view>
 </view>
