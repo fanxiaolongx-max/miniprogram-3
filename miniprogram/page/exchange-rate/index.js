@@ -560,7 +560,7 @@ Page({
         console.log('[fetchExchangeRate] 获取汇率响应', res)
         console.log('[fetchExchangeRate] res.data:', res.data, 'res.data类型:', typeof res.data)
         
-        // 处理API响应数据，自动替换URL（开发环境：bobapro.life -> boba.app）
+        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
         const envHelper = require('../../utils/envHelper.js')
         res.data = envHelper.processApiResponse(res.data)
         

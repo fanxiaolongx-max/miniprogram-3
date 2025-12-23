@@ -32,20 +32,14 @@ Page({
     theme: 'light',
     exchangeRate: 6.7, // 汇率
     weather: '晴朗 28°C', // 天气
-    hotActivity: '查看', // 热门活动
-    currentApiDomain: '' // 当前API域名
+    hotActivity: '查看' // 热门活动
   },
 
   onLoad() {
     const systemInfo = require('../../utils/systemInfo.js')
-    const envHelper = require('../../utils/envHelper.js')
-    
-    // 获取当前API域名
-    const currentDomain = envHelper.getApiBaseDomain()
     
     this.setData({
-      theme: systemInfo.getTheme(),
-      currentApiDomain: currentDomain
+      theme: systemInfo.getTheme()
     })
 
     if (wx.onThemeChange) {
@@ -161,7 +155,7 @@ Page({
         'content-type': 'application/json'
       },
       success: (res) => {
-        // 处理API响应数据，自动替换URL（开发环境：bobapro.life -> boba.app）
+        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
         const envHelper = require('../../utils/envHelper.js')
         res.data = envHelper.processApiResponse(res.data)
         
@@ -386,7 +380,7 @@ Page({
         'content-type': 'application/json'
       },
       success: (res) => {
-        // 处理API响应数据，自动替换URL（开发环境：bobapro.life -> boba.app）
+        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
         const envHelper = require('../../utils/envHelper.js')
         res.data = envHelper.processApiResponse(res.data)
         
@@ -420,43 +414,4 @@ Page({
     })
   },
 
-  // 切换API域名
-  toggleApiDomain() {
-    const envHelper = require('../../utils/envHelper.js')
-    const currentDomain = this.data.currentApiDomain || envHelper.getApiBaseDomain()
-    const newDomain = currentDomain === 'https://boba.app' ? 'https://bobapro.life' : 'https://boba.app'
-    
-    // 切换域名
-    envHelper.setManualDomain(newDomain)
-    
-    this.setData({
-      currentApiDomain: newDomain
-    })
-    
-    const envName = newDomain === 'https://boba.app' ? '开发环境' : '生产环境'
-        wx.showToast({
-      title: `已切换到${envName}`,
-      icon: 'success',
-      duration: 2000
-    })
-    
-    // 提示需要刷新页面
-    setTimeout(() => {
-        wx.showModal({
-        title: '提示',
-        content: `域名已切换到 ${newDomain === 'https://boba.app' ? '开发' : '生产'} 环境，需要刷新页面才能生效。是否立即刷新？`,
-      showCancel: true,
-        cancelText: '稍后',
-        confirmText: '刷新',
-      success: (res) => {
-          if (res.confirm) {
-            // 重新加载页面
-            wx.reLaunch({
-              url: '/page/component/index'
-          })
-        }
-      }
-    })
-    }, 2000)
-      },
 })

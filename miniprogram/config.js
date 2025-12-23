@@ -5,15 +5,13 @@
 // 引入环境检测工具
 const envHelper = require('./utils/envHelper.js')
 
-// 获取当前环境对应的API基础域名
+// 获取API基础域名（固定使用生产环境）
 const apiBaseDomain = envHelper.getApiBaseDomain()
-const isDev = envHelper.isDevelopment()
 
-console.log(`[config] 环境检测完成，当前环境: ${isDev ? '开发环境' : '生产环境'}，API域名: ${apiBaseDomain}`)
+console.log(`[config] API域名: ${apiBaseDomain}`)
 
 const config = {
-  // 环境信息
-  isDevelopment: isDev,
+  // API基础域名（固定使用生产环境）
   apiBaseDomain: apiBaseDomain,
   
   // 测试的请求地址，用于测试会话（根据环境自动选择）
