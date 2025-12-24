@@ -15,7 +15,73 @@
     <view wx:else class="article-container">
       <view wx:if="{{title}}" class="article-title">{{title}}</view>
       <view wx:if="{{meta}}" class="article-meta">{{meta}}</view>
-      <rich-text class="article-content" nodes="{{content}}" selectable="{{true}}"></rich-text>
+      
+      <!-- 使用解析后的节点数组进行内联渲染 -->
+      <view wx:if="{{parsedContent.length > 0}}" class="article-content-parsed">
+        <block wx:for="{{parsedContent}}" wx:key="index" wx:for-index="nodeIndex" wx:for-item="node">
+          <!-- 文本节点 -->
+          <rich-text wx:if="{{node.type === 'text'}}" class="article-text-node" nodes="{{node.content}}" selectable="{{true}}"></rich-text>
+          
+          <!-- 图片节点 -->
+          <view wx:elif="{{node.type === 'image'}}" class="article-image-node">
+            <image 
+              class="article-inline-image"
+              src="{{node.url}}"
+              mode="widthFix"
+              bindtap="previewImageFromNode"
+              bindlongpress="saveImageFromNode"
+              data-url="{{node.url}}"
+              data-index="{{nodeIndex}}"
+              show-menu-by-longpress="{{true}}"
+            ></image>
+          </view>
+          
+          <!-- 视频节点 -->
+          <view wx:elif="{{node.type === 'video'}}" class="article-video-node">
+            <block wx:if="{{node.poster}}">
+              <video 
+                class="article-inline-video"
+                src="{{node.src}}"
+                poster="{{node.poster}}"
+                controls="{{true}}"
+                show-center-play-btn="{{true}}"
+                enable-play-gesture="{{true}}"
+                object-fit="contain"
+                lazy-load="{{true}}"
+                initial-time="{{0}}"
+                binderror="onVideoError"
+                data-index="{{nodeIndex}}"
+              ></video>
+            </block>
+            <block wx:else>
+              <video 
+                class="article-inline-video"
+                src="{{node.src}}"
+                controls="{{true}}"
+                show-center-play-btn="{{true}}"
+                enable-play-gesture="{{true}}"
+                object-fit="contain"
+                lazy-load="{{true}}"
+                initial-time="{{0}}"
+                binderror="onVideoError"
+                data-index="{{nodeIndex}}"
+              ></video>
+            </block>
+          </view>
+          
+          <!-- 链接节点 -->
+          <view wx:elif="{{node.type === 'link'}}" class="article-link-node">
+            <view class="inline-link-item" bindtap="copyLink" data-url="{{node.url}}">
+              <text class="inline-link-icon">🔗</text>
+              <text class="inline-link-text">{{node.text}}</text>
+              <text class="inline-link-hint">点击复制</text>
+            </view>
+          </view>
+        </block>
+      </view>
+      
+      <!-- 向后兼容：如果没有解析后的内容，使用原来的 rich-text -->
+      <rich-text wx:else class="article-content" nodes="{{content}}" selectable="{{true}}"></rich-text>
       
       <!-- 文章地址地图区域 -->
       <view wx:if="{{location}}" class="location-section">
@@ -36,25 +102,66 @@
         <view class="location-tip">点击地图打开导航</view>
       </view>
       
-      <!-- 文章图片区域（支持长按保存） -->
-      <view wx:if="{{images.length > 0}}" class="images-section">
+      <!-- 文章图片区域（缩略图网格，支持点击查看大图和长按保存）- 仅在未使用内联渲染时显示 -->
+      <view wx:if="{{images.length > 0 && parsedContent.length === 0}}" class="images-section">
         <view class="images-title">文章图片</view>
         <view class="images-container">
           <image 
             wx:for="{{images}}" 
             wx:key="*this"
-            class="article-image"
+            wx:for-index="index"
+            class="article-image-thumbnail"
             src="{{item}}"
-            mode="widthFix"
+            mode="aspectFill"
+            bindtap="previewImage"
             bindlongpress="saveImage"
             data-url="{{item}}"
+            data-index="{{index}}"
             show-menu-by-longpress="{{true}}"
           ></image>
         </view>
       </view>
       
-      <!-- 文章链接区域 -->
-      <view wx:if="{{links.length > 0}}" class="links-section">
+      <!-- 文章视频区域 - 仅在未使用内联渲染时显示 -->
+      <view wx:if="{{videos.length > 0 && parsedContent.length === 0}}" class="videos-section">
+        <view class="videos-title">文章视频</view>
+        <view class="videos-container">
+          <block wx:for="{{videos}}" wx:key="src" wx:for-index="index">
+            <!-- 有 poster 的视频 -->
+            <video 
+              wx:if="{{item.poster}}"
+              class="article-video"
+              src="{{item.src}}"
+              poster="{{item.poster}}"
+              controls="{{true}}"
+              show-center-play-btn="{{true}}"
+              enable-play-gesture="{{true}}"
+              object-fit="contain"
+              lazy-load="{{true}}"
+              initial-time="{{0}}"
+              binderror="onVideoError"
+              data-index="{{index}}"
+            ></video>
+            <!-- 没有 poster 的视频 -->
+            <video 
+              wx:else
+              class="article-video"
+              src="{{item.src}}"
+              controls="{{true}}"
+              show-center-play-btn="{{true}}"
+              enable-play-gesture="{{true}}"
+              object-fit="contain"
+              lazy-load="{{true}}"
+              initial-time="{{0}}"
+              binderror="onVideoError"
+              data-index="{{index}}"
+            ></video>
+          </block>
+        </view>
+      </view>
+      
+      <!-- 文章链接区域 - 仅在未使用内联渲染时显示 -->
+      <view wx:if="{{links.length > 0 && parsedContent.length === 0}}" class="links-section">
         <view class="links-title">文章链接</view>
         <view class="links-container">
           <view 
