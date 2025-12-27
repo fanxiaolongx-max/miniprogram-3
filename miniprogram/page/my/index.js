@@ -700,18 +700,18 @@ Page({
       return
     }
 
-    const pin = this.data.pin.trim()
-    if (!pin || pin.length !== 4) {
-      wx.showToast({
-        title: '请输入4位PIN码',
-        icon: 'none'
-      })
-      return
-    }
+    // const pin = this.data.pin.trim()
+    // if (!pin || pin.length !== 4) {
+    //   wx.showToast({
+    //     title: '请输入4位PIN码',
+    //     icon: 'none'
+    //   })
+    //   return
+    // }
     
-    console.log('[loginWithCode] 输入验证通过 - 手机号:', phone, '验证码:', code, '验证码长度:', code.length, 'PIN码:', pin, 'PIN长度:', pin.length)
+    console.log('[loginWithCode] 输入验证通过 - 手机号:', phone, '验证码:', code, '验证码长度:', code.length)
 
-    // 验证码+PIN码登录（根据API文档，验证码登录需要PIN码）
+    // 验证码+PIN码登录（根据API文档，验证码登录需要PIN码）- 现在不需要PIN码2025 年 12 月 27 日
     // 如果用户没有输入昵称，先尝试登录，如果服务器返回了name就不需要随机生成
     // 只有在服务器没有返回name且用户也没有输入name时，才生成随机名字
     let nameToSend = name || undefined
@@ -723,9 +723,9 @@ Page({
     try {
       // 登录验证时使用0开头的原始格式，不格式化
       // 发送验证码时不改变前缀
-      console.log('[loginWithCode] 开始登录，手机号（原始格式）:', phone, '验证码长度:', code.length, 'PIN码:', pin, 'PIN长度:', pin.length, '昵称:', nameToSend || '未输入')
-      // 验证码+PIN码登录（根据API文档，需要PIN码）
-      const result = await authApi.loginWithCode(phone, code, pin, nameToSend)
+      console.log('[loginWithCode] 开始登录，手机号（原始格式）:', phone, '验证码长度:', code.length, '昵称:', nameToSend || '未输入')
+      // 验证码+PIN码登录（根据API文档，需要PIN码）- 现在不需要PIN码2025 年 12 月 27 日
+      const result = await authApi.loginWithCode(phone, code, nameToSend)
       console.log('[loginWithCode] 登录成功:', result)
       
       // 检查服务器返回的用户信息中是否有name

@@ -58,8 +58,8 @@
       },
       {
         "pagePath": "page/discover/index",
-        "iconPath": "@iconPathCloud",
-        "selectedIconPath": "@selectedIconPathCloud",
+        "iconPath": "image/icon_API.png",
+        "selectedIconPath": "image/icon_API_HL.png",
         "text": "发现"
       },
       {

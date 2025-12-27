@@ -1,4 +1,10 @@
 Component({
+  // ---在这里添加 options 配置---
+  options: {
+    styleIsolation: 'shared'  // 允许组件样式与全局样式相互影响，解决属性选择器报错
+  },
+  // -------------------------
+  
   properties: {
     // 是否显示键盘
     show: {
