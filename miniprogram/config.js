@@ -1464,6 +1464,20 @@ const config = {
   // 云开发-存储 示例文件的文件 ID
   demoImageFileId: 'cloud://release-b86096.7265-release-b86096-1258211818/demo.jpg',
   demoVideoFileId: 'cloud://release-b86096.7265-release-b86096/demo.mp4',
+
+  // ==================== 博客管理 API 配置 ====================
+  /**
+   * 博客管理 API 基础路径
+   * 用于文章、分类、标签的增删改查
+   */
+  blogAdminApiBaseUrl: `${apiBaseDomain}/api/blog-admin`,
+
+  /**
+   * 博客管理 API Token
+   * 用于API认证，应该从安全的地方获取（如云函数、配置中心）
+   * 注意：实际使用时应该避免硬编码，可以通过云函数或后端代理来保护Token
+   */
+  blogAdminApiToken: '210311199405041819'
 }
 
 module.exports = config

@@ -1,6 +1,6 @@
 <view class="page" data-weui-theme="light" style="width: 100%; overflow-x: hidden;">
   <view class="container">
-    <!-- 搜索和筛选区域 -->
+    <!-- 搜索区域 -->
     <view class="filter-section">
       <view class="search-box">
         <input 
@@ -10,17 +10,6 @@
           bindinput="onSearchInput"
         />
         <text class="search-icon">🔍</text>
-      </view>
-      <view class="category-tags">
-        <view 
-          wx:for="{{categories}}" 
-          wx:key="*this"
-          class="category-tag {{selectedCategory === (item === '全部' ? '' : item) ? 'active' : ''}}"
-          bindtap="selectCategory"
-          data-category="{{item}}"
-        >
-          {{item}}
-        </view>
       </view>
     </view>
 

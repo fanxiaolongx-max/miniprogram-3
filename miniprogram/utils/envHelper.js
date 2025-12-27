@@ -80,23 +80,25 @@ function replaceUrlsInData(data, depth = 0) {
  * @returns {any} 处理后的数据
  */
 function processApiResponse(responseData) {
-  const processed = replaceUrlsInData(responseData)
-    
-    // 如果数据被修改了，打印提示
-    try {
-      const originalStr = JSON.stringify(responseData)
-      const processedStr = JSON.stringify(processed)
-      if (originalStr !== processedStr) {
-        console.log('[envHelper] ✅ API响应数据已处理，URL已从 boba.app 替换为 bobapro.life')
-        // 统计替换的数量
-        const originalMatches = (originalStr.match(/https:\/\/boba\.app/g) || []).length
-        if (originalMatches > 0) {
-          console.log(`[envHelper] 替换统计: 发现 ${originalMatches} 个 boba.app URL，已全部替换为 bobapro.life`)
-        }
-    }
-  } catch (e) {
-    console.log('[envHelper] API响应数据已处理（无法比较差异，可能包含循环引用）')
+  // 如果数据为空或简单类型，直接返回
+  if (responseData == null || typeof responseData !== 'object') {
+    return responseData
   }
+  
+  // 快速检查是否包含需要替换的URL
+  const dataStr = JSON.stringify(responseData)
+  if (!dataStr.includes('boba.app')) {
+    // 不包含需要替换的URL，直接返回
+    return responseData
+  }
+  
+  // 对于大数组，限制处理深度和数量，避免阻塞
+  if (Array.isArray(responseData) && responseData.length > 1000) {
+    console.warn('[envHelper] 数据量较大，跳过URL替换处理')
+    return responseData
+  }
+  
+  const processed = replaceUrlsInData(responseData)
   
   return processed
 }

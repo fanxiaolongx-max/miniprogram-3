@@ -4,7 +4,51 @@
   min-height: 100vh;
   width: 100%;
   overflow-x: hidden;
-  /* 移除 overflow-y: auto，让页面本身可以滚动，这样才能触发 onReachBottom */
+}
+
+/* 顶部操作栏 */
+.header-section {
+  background: #fff;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.add-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background: #07c160;
+  color: #fff;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.add-btn:active {
+  background: #06ad56;
+  transform: scale(0.95);
+}
+
+.add-icon {
+  font-size: 16px;
+}
+
+.add-text {
+  font-size: 14px;
 }
 
 /* 搜索和筛选区域 */
@@ -40,10 +84,24 @@
   font-size: 18px;
 }
 
+/* 分类标签容器 - 支持横向滚动，限制2行 */
+.category-tags-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  max-height: 72px; /* 限制为2行高度（每行约36px，包含gap） */
+  position: relative;
+}
+
 .category-tags {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
+  width: 100%;
+  min-width: 100%; /* 确保至少占满容器宽度 */
+  padding-bottom: 4px; /* 底部留一点空间 */
 }
 
 .category-tag {
@@ -53,11 +111,23 @@
   font-size: 13px;
   color: #666;
   transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 28px;
+  line-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .category-tag.active {
   background: #07c160;
   color: #fff;
+}
+
+.category-tag:active {
+  opacity: 0.8;
+  transform: scale(0.95);
 }
 
 /* 加载和错误状态 */
@@ -71,6 +141,23 @@
 .empty-text {
   color: #999;
   font-size: 14px;
+}
+
+.empty-action {
+  margin-top: 20px;
+}
+
+.create-btn {
+  padding: 12px 32px;
+  background-color: #07c160;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 16px;
+  border: none;
+}
+
+.create-btn::after {
+  border: none;
 }
 
 .error-container {
@@ -160,12 +247,6 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-[data-weui-theme=dark] .draft-badge {
-  background: rgba(255, 152, 0, 0.95);
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3);
-}
-
 .item-content {
   padding: 12px;
   display: flex;
@@ -202,82 +283,113 @@
   max-height: 3em;
 }
 
-.item-price-section {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
+.item-category {
+  font-size: 12px;
+  color: #07c160;
+  padding: 2px 8px;
+  background: #f0f9f4;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
 }
 
-.item-price {
-  font-size: 18px;
-  font-weight: 700;
-  color: #07c160;
-  line-height: 1.4;
+.item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.item-date {
+  font-size: 12px;
+  color: #999;
 }
 
 .item-actions {
   display: flex;
-  align-items: center;
   gap: 8px;
-  margin-top: 10px;
-  flex-wrap: wrap;
 }
 
 .action-btn {
-  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  transition: all 0.2s;
-  flex: 1;
-  min-width: 0;
-  box-sizing: border-box;
-}
-
-.location-btn {
-  background: linear-gradient(135deg, #07c160 0%, #06ad56 100%);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(7, 193, 96, 0.3);
-}
-
-.location-btn:active {
-  background: linear-gradient(135deg, #06ad56 0%, #059a4d 100%);
-  transform: scale(0.96);
-  box-shadow: 0 1px 4px rgba(7, 193, 96, 0.2);
-}
-
-.phone-btn {
-  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
-}
-
-.phone-btn:active {
-  background: linear-gradient(135deg, #096dd9 0%, #0050b3 100%);
-  transform: scale(0.96);
-  box-shadow: 0 1px 4px rgba(24, 144, 255, 0.2);
-}
-
-.action-icon {
+  border-radius: 50%;
   font-size: 16px;
-  line-height: 1;
+  transition: all 0.2s;
 }
 
-.action-text {
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1;
+.edit-btn {
+  background: #f0f9f4;
+}
+
+.edit-btn:active {
+  background: #07c160;
+  transform: scale(0.9);
+}
+
+.delete-btn {
+  background: #fff5f5;
+}
+
+.delete-btn:active {
+  background: #ff3b30;
+  transform: scale(0.9);
+}
+
+/* 加载更多按钮容器 */
+.load-more-container {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+.load-more-btn {
+  color: #999;
+  font-size: 26rpx;
+  font-style: italic;
+  text-decoration: underline;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.load-more-btn:active {
+  opacity: 0.6;
+}
+
+.loading-more {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+.loading-more .loading-text {
+  color: #999;
+  font-size: 26rpx;
+}
+
+.no-more {
+  padding: 40rpx 0;
+  text-align: center;
+}
+
+.no-more-text {
+  color: #999;
+  font-size: 26rpx;
 }
 
 [data-weui-theme=dark] .container {
   background-color: #1F1F1F;
 }
 
+[data-weui-theme=dark] .header-section,
 [data-weui-theme=dark] .filter-section {
   background: #2C2C2C;
+}
+
+[data-weui-theme=dark] .header-title {
+  color: #fff;
 }
 
 [data-weui-theme=dark] .search-input {
@@ -302,58 +414,7 @@
   color: #ccc;
 }
 
-[data-weui-theme=dark] .item-price-section {
-  border-top-color: #333;
-}
-
-[data-weui-theme=dark] .item-price {
-  color: #4ade80;
-}
-
 [data-weui-theme=dark] .error-text {
   color: #ff6b6b;
-}
-
-/* 加载更多按钮容器 */
-.load-more-container {
-  padding: 40rpx 0;
-  text-align: center;
-}
-
-/* 加载更多按钮 - 浅灰色、斜体、下划线 */
-.load-more-btn {
-  color: #999;
-  font-size: 26rpx;
-  font-style: italic;
-  text-decoration: underline;
-  cursor: pointer;
-  user-select: none;
-  transition: opacity 0.2s;
-}
-
-.load-more-btn:active {
-  opacity: 0.6;
-}
-
-/* 加载中提示 */
-.loading-more {
-  padding: 40rpx 0;
-  text-align: center;
-}
-
-.loading-more .loading-text {
-  color: #999;
-  font-size: 26rpx;
-}
-
-/* 没有更多提示 */
-.no-more {
-  padding: 40rpx 0;
-  text-align: center;
-}
-
-.no-more-text {
-  color: #999;
-  font-size: 26rpx;
 }
 

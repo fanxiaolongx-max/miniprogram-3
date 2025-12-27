@@ -1,0 +1,29 @@
+// 提取分类名称中的中文部分
+// 支持格式：中文/English、中文(English)、中文 - English、中文 English、纯中文
+function extractChineseName(name) {
+  if (!name || typeof name !== 'string') {
+    return name || ''
+  }
+  
+  // 先尝试匹配开头的连续中文字符（最常见的情况）
+  var chineseMatch = name.match(getRegExp('^[\\u4e00-\\u9fa5]+'))
+  
+  if (chineseMatch && chineseMatch[0]) {
+    return chineseMatch[0]
+  }
+  
+  // 如果没有匹配到开头的中文，尝试提取所有中文字符（处理中间有中文的情况）
+  var allChineseMatch = name.match(getRegExp('[\\u4e00-\\u9fa5]+', 'g'))
+  if (allChineseMatch && allChineseMatch.length > 0) {
+    // 返回第一个中文片段
+    return allChineseMatch[0]
+  }
+  
+  // 如果完全没有中文，返回原名称（可能是纯英文分类）
+  return name
+}
+
+module.exports = {
+  extractChineseName: extractChineseName
+}
+

@@ -1,11 +1,22 @@
 <view class="page" data-weui-theme="light" style="width: 100%; overflow-x: hidden;">
   <view class="container">
+    <!-- 顶部操作栏 -->
+    <view class="header-section">
+      <view class="header-title">文章管理</view>
+      <view class="header-actions">
+        <view class="add-btn" bindtap="createArticle">
+          <text class="add-icon">➕</text>
+          <text class="add-text">新建</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 搜索区域 -->
     <view class="filter-section">
       <view class="search-box">
         <input 
           class="search-input"
-          placeholder="搜索打卡地..."
+          placeholder="搜索文章..."
           value="{{searchKeyword}}"
           bindinput="onSearchInput"
         />
@@ -20,14 +31,17 @@
 
     <!-- 错误状态 -->
     <view wx:elif="{{error}}" class="error-container">
-      <text class="error-text">获取数据失败，请稍后重试</text>
+      <text class="error-text">{{errorMessage || '获取数据失败，请稍后重试'}}</text>
       <button class="retry-btn" bindtap="retry">重试</button>
     </view>
 
     <!-- 瀑布流列表 -->
     <block wx:else>
       <view wx:if="{{filteredItems.length === 0}}" class="empty-container">
-        <text class="empty-text">暂无打卡地信息</text>
+        <text class="empty-text">暂无文章</text>
+        <view class="empty-action">
+          <button class="create-btn" bindtap="createArticle">创建第一篇文章</button>
+        </view>
       </view>
       <view wx:else class="waterfall-container">
         <view class="waterfall-column">
@@ -38,8 +52,6 @@
             wx:for-index="index"
             wx:if="{{index % 2 === 0}}"
             class="waterfall-item"
-            bindtap="viewDetail"
-            data-item="{{item}}"
           >
             <view class="item-image-wrapper">
               <image 
@@ -47,22 +59,24 @@
                 src="{{item.image}}" 
                 mode="aspectFill"
                 binderror="onImageError"
-                data-index="{{index}}"
-                data-id="{{item.id}}"
+                bindtap="viewDetail"
+                data-item="{{item}}"
               ></image>
               <view wx:if="{{!item.published}}" class="draft-badge">草稿</view>
             </view>
             <view class="item-content">
-              <view class="item-title">{{item.name}}</view>
+              <view class="item-title" bindtap="viewDetail" data-item="{{item}}">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
-              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-footer">
-                <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
-                  <text class="location-icon">📍</text>
-                  <text class="location-text">导航</text>
-                </view>
-                <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                  <text class="phone-icon">📞</text>
-                  <text class="phone-text">呼叫</text>
+              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
+              <view class="item-footer">
+                <text class="item-date">{{item.createdAt}}</text>
+                <view class="item-actions">
+                  <view class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
+                    <text>✏️</text>
+                  </view>
+                  <view class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
+                    <text>🗑️</text>
+                  </view>
                 </view>
               </view>
             </view>
@@ -76,8 +90,6 @@
             wx:for-index="index"
             wx:if="{{index % 2 === 1}}"
             class="waterfall-item"
-            bindtap="viewDetail"
-            data-item="{{item}}"
           >
             <view class="item-image-wrapper">
               <image 
@@ -85,22 +97,24 @@
                 src="{{item.image}}" 
                 mode="aspectFill"
                 binderror="onImageError"
-                data-index="{{index}}"
-                data-id="{{item.id}}"
+                bindtap="viewDetail"
+                data-item="{{item}}"
               ></image>
               <view wx:if="{{!item.published}}" class="draft-badge">草稿</view>
             </view>
             <view class="item-content">
-              <view class="item-title">{{item.name}}</view>
+              <view class="item-title" bindtap="viewDetail" data-item="{{item}}">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
-              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-footer">
-                <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
-                  <text class="location-icon">📍</text>
-                  <text class="location-text">导航</text>
-                </view>
-                <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                  <text class="phone-icon">📞</text>
-                  <text class="phone-text">呼叫</text>
+              <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
+              <view class="item-footer">
+                <text class="item-date">{{item.createdAt}}</text>
+                <view class="item-actions">
+                  <view class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
+                    <text>✏️</text>
+                  </view>
+                  <view class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
+                    <text>🗑️</text>
+                  </view>
                 </view>
               </view>
             </view>

@@ -1,17 +1,48 @@
+const { formatTimestamp } = require('../../util/util.js')
+
 Page({
   onShareAppMessage() {
+    // 获取转发图片：优先使用封面图片，其次使用文章内容中的第一张图片
+    let imageUrl = ''
+    if (this.data.coverImage) {
+      imageUrl = this.data.coverImage
+    } else if (this.data.images && this.data.images.length > 0) {
+      imageUrl = this.data.images[0]
+    }
+    
+    // 如果使用文章ID，分享时使用ID
+    if (this.data.articleId) {
+      const shareConfig = {
+        title: this.data.title || '详情',
+        path: `page/article-detail/index?id=${encodeURIComponent(this.data.articleId)}`
+      }
+      if (imageUrl) {
+        shareConfig.imageUrl = imageUrl
+      }
+      return shareConfig
+    }
+    
     // 如果使用 htmlContent，分享时使用标题
     if (this.data.content && !this.data.apiUrl) {
-      return {
+      const shareConfig = {
         title: this.data.title || '详情',
         path: `page/article-detail/index?htmlContent=${encodeURIComponent(this.data.content)}&title=${encodeURIComponent(this.data.title || '')}&meta=${encodeURIComponent(this.data.meta || '')}`
       }
+      if (imageUrl) {
+        shareConfig.imageUrl = imageUrl
+      }
+      return shareConfig
     }
+    
     // 兼容旧的 apiUrl 方式
-    return {
+    const shareConfig = {
       title: this.data.title || '详情',
       path: `page/article-detail/index?apiUrl=${encodeURIComponent(this.data.apiUrl || '')}`
     }
+    if (imageUrl) {
+      shareConfig.imageUrl = imageUrl
+    }
+    return shareConfig
   },
 
   data: {
@@ -27,7 +58,9 @@ Page({
     images: [], // 存储从文章中提取的图片（保留用于底部显示，可选）
     videos: [], // 存储从文章中提取的视频（保留用于底部显示，可选）
     location: null, // 存储地址信息 { name, address, latitude, longitude }
-    mapMarkers: [] // 地图标记点
+    mapMarkers: [], // 地图标记点
+    coverImage: '', // 文章封面图片（优先用于转发）
+    articleId: '' // 文章ID（用于转发时构建路径）
   },
 
   onLoad(options) {
@@ -44,7 +77,15 @@ Page({
       })
     }
 
-    // 优先使用直接传递的 htmlContent
+    // 优先检查是否有文章ID（列表API不再返回htmlContent，统一通过ID获取）
+    const articleId = options.id || options.articleId || ''
+    if (articleId) {
+      // 通过文章ID获取详情（推荐方式）
+      this.fetchArticleById(articleId)
+      return
+    }
+    
+    // 向后兼容：如果直接传递了htmlContent（旧版本或其他页面可能使用）
     const htmlContent = options.htmlContent ? decodeURIComponent(options.htmlContent) : ''
     const title = options.title ? decodeURIComponent(options.title) : ''
     const meta = options.meta ? decodeURIComponent(options.meta) : ''
@@ -117,15 +158,109 @@ Page({
       return
     }
     
-    // 如果没有 htmlContent，则使用原来的 API 方式（向后兼容）
+    // 如果没有 htmlContent 也没有 ID，则使用原来的 API 方式（向后兼容）
     const apiUrl = options.apiUrl || ''
     if (!apiUrl) {
-      this.showError('缺少参数')
+      this.showError('缺少参数：请提供文章ID或文章内容')
       return
     }
 
     this.setData({ apiUrl })
     this.fetchArticleDetail()
+  },
+
+  // 通过文章ID获取详情（列表API不再返回htmlContent，统一通过此方法获取）
+  async fetchArticleById(articleId) {
+    console.log('[article-detail] 通过文章ID获取详情:', articleId)
+    
+    this.setData({
+      loading: true,
+      error: false
+    })
+
+    try {
+      const blogApi = require('../../utils/blogApi.js')
+      const result = await blogApi.articleApi.getDetail(articleId)
+      
+      if (result.success && result.data) {
+        const article = result.data
+        const htmlContent = article.htmlContent || ''
+        const title = article.title || article.name || ''
+        const meta = formatTimestamp(article.createdAt || article.updatedAt || '')
+        
+        if (!htmlContent) {
+          this.showError('文章内容为空')
+          return
+        }
+        
+        console.log('[article-detail] 获取到文章详情，标题:', title, '内容长度:', htmlContent.length)
+        
+        // 提取文章中的图片、视频、链接
+        const images = this.extractImages(htmlContent)
+        const videos = this.extractVideos(htmlContent)
+        const links = this.extractLinks(htmlContent)
+        
+        // 解析HTML为节点数组
+        const parsedContent = this.parseHtmlToNodes(htmlContent)
+        
+        // 处理HTML内容
+        const processedContent = this.processHtmlContent(htmlContent)
+        
+        // 处理地址信息
+        const locationData = (article.latitude && article.longitude) ? {
+          name: title || '位置',
+          address: article.address || '',
+          latitude: parseFloat(article.latitude),
+          longitude: parseFloat(article.longitude)
+        } : null
+        
+        // 生成地图标记点
+        const mapMarkers = locationData ? [{
+          id: 1,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          title: locationData.name || '位置',
+          callout: {
+            content: locationData.name || '位置',
+            color: '#333',
+            fontSize: 14,
+            borderRadius: 4,
+            bgColor: '#fff',
+            padding: 8,
+            display: 'ALWAYS'
+          }
+        }] : []
+        
+        // 设置导航栏标题
+        if (title) {
+          wx.setNavigationBarTitle({
+            title: title
+          })
+        }
+        
+        this.setData({
+          title: title,
+          meta: meta,
+          content: processedContent,
+          parsedContent: parsedContent,
+          links: links,
+          images: images,
+          videos: videos,
+          location: locationData,
+          mapMarkers: mapMarkers,
+          coverImage: article.image || '', // 保存封面图片
+          articleId: articleId, // 保存文章ID用于转发
+          loading: false,
+          error: false
+        })
+      } else {
+        console.error('[article-detail] API返回失败:', result)
+        this.showError('获取文章详情失败')
+      }
+    } catch (error) {
+      console.error('[article-detail] 获取文章详情异常:', error)
+      this.showError(error.message || '获取文章详情失败，请稍后重试')
+    }
   },
 
   // 从API获取文章详情
@@ -172,21 +307,24 @@ Page({
         let title = ''
         let meta = ''
         let locationData = null // 存储地址信息
+        let coverImage = '' // 存储封面图片
 
         // 格式0: 数组格式 [{ content: "HTML内容", title: "标题" }] - 取第一个元素
         if (Array.isArray(res.data) && res.data.length > 0) {
           const firstItem = res.data[0]
           content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
           title = firstItem.title || firstItem.name || ''
-          meta = firstItem.meta || firstItem.date || firstItem.updatedAt || ''
+          meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || '')
           locationData = this.extractLocation(firstItem)
+          coverImage = firstItem.image || ''
         }
         // 格式1: { content: "HTML内容", title: "标题" }
         else if (res.data.content || res.data.html || res.data.htmlContent) {
           content = res.data.content || res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
-          meta = res.data.meta || res.data.date || res.data.updatedAt || ''
+          meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || '')
           locationData = this.extractLocation(res.data)
+          coverImage = res.data.image || ''
         }
         // 格式2: { data: { content: "HTML内容", title: "标题" } }
         else if (res.data.data) {
@@ -195,21 +333,24 @@ Page({
             const firstItem = res.data.data[0]
             content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
             title = firstItem.title || firstItem.name || ''
-            meta = firstItem.meta || firstItem.date || firstItem.updatedAt || ''
+            meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || '')
             locationData = this.extractLocation(firstItem)
+            coverImage = firstItem.image || ''
           } else if (typeof res.data.data === 'object') {
             content = res.data.data.content || res.data.data.html || res.data.data.htmlContent || ''
             title = res.data.data.title || ''
-            meta = res.data.data.meta || res.data.data.date || res.data.data.updatedAt || ''
+            meta = formatTimestamp(res.data.data.meta || res.data.data.date || res.data.data.updatedAt || '')
             locationData = this.extractLocation(res.data.data)
+            coverImage = res.data.data.image || ''
           }
         }
         // 格式3: { html: "HTML内容", title: "标题" } 或 { htmlContent: "HTML内容", title: "标题" }
         else if (res.data.html || res.data.htmlContent) {
           content = res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
-          meta = res.data.meta || res.data.date || res.data.updatedAt || ''
+          meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || '')
           locationData = this.extractLocation(res.data)
+          coverImage = res.data.image || ''
         }
         // 格式4: 直接字符串
         else if (typeof res.data === 'string') {
@@ -271,6 +412,7 @@ Page({
           videos: videos,
           location: locationData,
           mapMarkers: mapMarkers,
+          coverImage: coverImage, // 保存封面图片
           loading: false,
           error: false
         })

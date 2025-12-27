@@ -2,68 +2,203 @@
   <view class="container">
     <!-- 用户信息区域 -->
     <view class="user-section">
-      <block wx:if="{{hasUserInfo === true}}">
-        <image class="userinfo-avatar" src="{{userInfo.avatarUrl}}"></image>
-        <text class="userinfo-nickname">{{userInfo.nickName}}</text>
+      <block wx:if="{{isLoggedIn && user}}">
+        <view class="user-avatar-wrapper">
+          <view class="user-avatar">
+            <text class="user-avatar-emoji">{{avatarEmoji}}</text>
+          </view>
+        </view>
+        <view class="user-info">
+          <text class="user-name">{{user.name || user.phone || '用户'}}</text>
+          <text class="user-phone" wx:if="{{user.phone}}">{{user.phone}}</text>
+        </view>
+        <button class="logout-btn" bindtap="logout" size="mini" plain>退出登录</button>
       </block>
       <block wx:else>
-        <view class="user-placeholder">
-          <text class="user-placeholder-text">未登录</text>
+        <view class="welcome-section">
+          <view class="welcome-icon">👤</view>
+          <text class="welcome-text">欢迎使用</text>
+          <text class="welcome-desc">请登录以使用完整功能</text>
         </view>
       </block>
     </view>
 
-    <!-- 获取用户信息按钮区域 -->
-    <view class="btn-section">
-      <block wx:if="{{hasUserInfo === false}}">
-        <button wx:if="{{canIUseGetUserProfile}}" type="primary" bindtap="handleGetUserProfile">登录</button>
-        <button wx:else type="primary" open-type="getUserInfo" bindgetuserinfo="getUserInfo">登录</button>
-      </block>
-      <block wx:else>
-        <text class="status-text">已获取用户信息</text>
-      </block>
+    <!-- 登录区域 -->
+    <view wx:if="{{!isLoggedIn}}" class="login-section">
+      <view class="login-card">
+        <!-- 登录方式切换 -->
+        <view class="login-mode-tabs">
+          <view 
+            class="login-mode-tab {{loginMode === 'pin' ? 'active' : ''}}"
+            bindtap="switchLoginMode"
+            data-mode="pin"
+          >
+            PIN码登录
+          </view>
+          <view 
+            class="login-mode-tab {{loginMode === 'code' ? 'active' : ''}}"
+            bindtap="switchLoginMode"
+            data-mode="code"
+          >
+            验证码登录
+          </view>
+        </view>
+
+        <!-- 登录表单 -->
+        <view class="login-form">
+          <!-- 手机号输入 -->
+          <view class="form-group">
+            <view class="form-label">手机号</view>
+            <view class="input-wrapper">
+              <input 
+                class="form-input"
+                type="number"
+                placeholder="请输入0开头的埃及手机号"
+                value="{{phone}}"
+                bindinput="onPhoneInput"
+                maxlength="11"
+                placeholder-class="input-placeholder"
+              />
+            </view>
+          </view>
+
+          <!-- 昵称输入（可选） -->
+          <view class="form-group">
+            <view class="form-label">
+              昵称<text class="form-label-optional">（可选）</text>
+            </view>
+            <view class="input-wrapper">
+              <input 
+                class="form-input"
+                placeholder="新用户注册时使用"
+                value="{{name}}"
+                bindinput="onNameInput"
+                maxlength="50"
+                placeholder-class="input-placeholder"
+              />
+            </view>
+          </view>
+
+          <!-- 验证码登录：验证码输入 -->
+          <view wx:if="{{loginMode === 'code'}}" class="form-group">
+            <view class="form-label">验证码</view>
+            <view class="input-wrapper input-wrapper-with-btn">
+              <input 
+                class="form-input"
+                type="number"
+                placeholder="请输入6位验证码"
+                value="{{code}}"
+                bindinput="onCodeInput"
+                maxlength="6"
+                placeholder-class="input-placeholder"
+              />
+              <button 
+                class="code-btn {{codeCountdown > 0 || sendingCode ? 'disabled' : ''}}"
+                bindtap="sendCode"
+                disabled="{{codeCountdown > 0 || sendingCode}}"
+                size="mini"
+                plain
+              >
+                {{codeCountdown > 0 ? codeCountdown + 's' : (sendingCode ? '发送中' : '获取验证码')}}
+              </button>
+            </view>
+          </view>
+
+          <!-- PIN码输入 - 4位数字密码框（两种登录方式都需要） -->
+          <view wx:if="{{loginMode === 'pin'}}" class="form-group">
+            <view class="form-label">PIN码</view>
+            <view class="pin-input-wrapper">
+              <!-- 隐藏的输入框，完全透明，不显示系统键盘 -->
+              <!-- 由于输入框被 pin-boxes 覆盖，不会获得焦点，系统键盘不会弹出 -->
+              <input 
+                class="pin-input"
+                type="digit"
+                placeholder=""
+                value="{{pin}}"
+                maxlength="4"
+                cursor-spacing="0"
+                cursor="{{pinCursor}}"
+                disabled="{{true}}"
+              />
+              <!-- 显示4个输入框样式，点击时显示自定义键盘 -->
+              <view class="pin-boxes" bindtap="onPinBoxTap">
+                <view class="pin-box {{pin.length >= 1 ? 'filled' : ''}} {{pinFocused && pin.length === 0 ? 'focus' : ''}}">
+                  <text wx:if="{{pin.length >= 1}}">●</text>
+                </view>
+                <view class="pin-box {{pin.length >= 2 ? 'filled' : ''}} {{pinFocused && pin.length === 1 ? 'focus' : ''}}">
+                  <text wx:if="{{pin.length >= 2}}">●</text>
+                </view>
+                <view class="pin-box {{pin.length >= 3 ? 'filled' : ''}} {{pinFocused && pin.length === 2 ? 'focus' : ''}}">
+                  <text wx:if="{{pin.length >= 3}}">●</text>
+                </view>
+                <view class="pin-box {{pin.length >= 4 ? 'filled' : ''}} {{pinFocused && pin.length === 3 ? 'focus' : ''}}">
+                  <text wx:if="{{pin.length >= 4}}">●</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 登录按钮 -->
+          <button 
+            class="login-btn {{loggingIn ? 'loading' : ''}}"
+            bindtap="{{loginMode === 'pin' ? 'loginWithPin' : 'loginWithCode'}}"
+            disabled="{{loggingIn}}"
+            loading="{{loggingIn}}"
+            type="primary"
+          >
+            {{loggingIn ? '登录中...' : '登录'}}
+          </button>
+        </view>
+      </view>
     </view>
 
     <!-- 反馈建议区域 -->
     <view class="feedback-section">
-      <view class="feedback-title">📝 反馈建议</view>
+      <view class="section-header">
+        <text class="section-title">反馈建议</text>
+      </view>
       <view class="feedback-card">
         <view class="feedback-form">
           <!-- 功能分类选择 -->
-          <view class="form-item">
-            <view class="form-label">功能分类（可选）</view>
+          <view class="form-group">
+            <view class="form-label">功能分类</view>
             <picker 
               mode="selector" 
-              range="{{feedbackCategories}}" 
+              range="{{feedbackCategories || []}}" 
               range-key="label"
               value="{{feedbackCategoryIndex}}"
               bindchange="onCategoryChange"
             >
-              <view class="picker-view">
-                {{feedbackCategory || '请选择功能分类'}}
-                <text class="picker-arrow">▼</text>
+              <view class="picker-wrapper">
+                <text class="picker-text {{feedbackCategory ? '' : 'placeholder'}}">
+                  {{feedbackCategory || '请选择功能分类'}}
+                </text>
+                <text class="picker-arrow">›</text>
               </view>
             </picker>
           </view>
 
           <!-- 反馈内容输入 -->
-          <view class="form-item">
+          <view class="form-group">
             <view class="form-label">反馈内容</view>
-            <textarea 
-              class="feedback-textarea"
-              placeholder="请输入您的反馈、建议或需求（5-500字）"
-              value="{{feedbackContent}}"
-              bindinput="onFeedbackInput"
-              maxlength="500"
-              show-confirm-bar="{{false}}"
-            ></textarea>
-            <view class="char-count">{{feedbackContent.length}}/500</view>
+            <view class="textarea-wrapper">
+              <textarea 
+                class="feedback-textarea"
+                placeholder="请输入您的反馈、建议或需求（5-500字）"
+                value="{{feedbackContent}}"
+                bindinput="onFeedbackInput"
+                maxlength="500"
+                show-confirm-bar="{{false}}"
+                placeholder-class="textarea-placeholder"
+              ></textarea>
+              <view class="char-count">{{feedbackContent.length}}/500</view>
+            </view>
           </view>
 
           <!-- 提交按钮 -->
           <button 
-            class="submit-btn" 
-            type="primary" 
+            class="submit-btn {{submitting ? 'loading' : ''}}"
+            type="primary"
             bindtap="submitFeedback"
             disabled="{{submitting}}"
             loading="{{submitting}}"
@@ -73,6 +208,18 @@
         </view>
       </view>
     </view>
-  </view>
-</view>
 
+    <!-- 调试工具（开发环境） -->
+    <view class="debug-section">
+      <button class="debug-btn" bindtap="testApiConnection" size="mini" plain>测试API连接</button>
+    </view>
+  </view>
+
+  <!-- 自定义数字键盘 -->
+  <number-keyboard 
+    show="{{showKeyboard}}"
+    bindinput="onKeyboardInput"
+    binddelete="onKeyboardDelete"
+    bindclose="hideKeyboard"
+  />
+</view>

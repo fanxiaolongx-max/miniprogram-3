@@ -1,0 +1,275 @@
+<view class="page {{theme === 'dark' ? 'dark-theme' : ''}}" data-weui-theme="{{theme}}">
+  <view class="container">
+    <!-- 顶部操作栏 -->
+    <view class="header-section">
+      <view class="cancel-btn" bindtap="cancel">取消</view>
+      <view class="header-title">{{mode === 'create' ? '发布文章' : '编辑文章'}}</view>
+      <view class="save-btn" bindtap="saveArticle">
+        <text wx:if="{{saving}}">发布中</text>
+        <text wx:else>发布</text>
+      </view>
+    </view>
+
+    <!-- 主编辑区 -->
+    <scroll-view class="editor-container" scroll-y scroll-into-view="{{scrollIntoView}}">
+      <!-- 标题输入区 -->
+      <view class="title-section">
+        <input 
+          class="title-input {{errors.name ? 'error' : ''}}"
+          placeholder="请输入标题"
+          placeholder-style="color: #999;"
+          value="{{name}}"
+          data-field="name"
+          bindinput="onInput"
+          bindfocus="onTitleFocus"
+          bindblur="onTitleBlur"
+          style="color: #333;"
+          maxlength="100"
+        />
+        <view wx:if="{{errors.name}}" class="error-text">{{errors.name}}</view>
+      </view>
+
+      <!-- 分类选择（简化显示） -->
+      <view class="category-section" bindtap="showCategoryPicker">
+        <text class="category-label">分类</text>
+        <text wx:if="{{apiName}}" class="category-value">{{apiName}}</text>
+        <text wx:else class="category-placeholder">请选择分类</text>
+        <text class="category-arrow">›</text>
+      </view>
+      <view wx:if="{{errors.apiName}}" class="error-text">{{errors.apiName}}</view>
+
+      <!-- 联系方式区域（所有分类都支持，二手市场分类必填，特定分类隐藏） -->
+      <view wx:if="{{!hideContactFields}}" id="contact-section" class="contact-section">
+        <!-- 手机号输入 -->
+        <view class="contact-item {{errors.phone ? 'error' : ''}}">
+          <text class="contact-label">
+            <text>手机号</text>
+            <text wx:if="{{isSecondHand}}" class="required-mark">*</text>
+          </text>
+          <view class="contact-input-wrapper">
+            <input 
+              class="contact-input"
+              placeholder="请输入手机号"
+              placeholder-style="color: #999;"
+              value="{{phone}}"
+              type="number"
+              bindinput="onPhoneInput"
+              maxlength="20"
+            />
+          </view>
+        </view>
+        <view wx:if="{{errors.phone}}" class="error-text">{{errors.phone}}</view>
+
+        <!-- 分割线 -->
+        <view class="contact-divider"></view>
+
+        <!-- 地图定位选择 -->
+        <view class="contact-item {{errors.address ? 'error' : ''}}" bindtap="chooseLocation">
+          <text class="contact-label">
+            <text>地图定位</text>
+            <text wx:if="{{isSecondHand}}" class="required-mark">*</text>
+          </text>
+          <view class="contact-value-wrapper">
+            <text wx:if="{{address}}" class="contact-value">{{address}}</text>
+            <text wx:else class="contact-placeholder">请选择地图定位</text>
+            <text class="contact-arrow">›</text>
+          </view>
+        </view>
+        <view wx:if="{{errors.address}}" class="error-text">{{errors.address}}</view>
+      </view>
+
+      <!-- 价格输入区域（二手市场分类） -->
+      <view wx:if="{{isSecondHand}}" class="contact-section">
+        <view class="contact-item">
+          <text class="contact-label">价格（EGP）</text>
+          <view class="contact-input-wrapper">
+            <input 
+              class="contact-input"
+              placeholder="请输入价格"
+              placeholder-style="color: #999;"
+              value="{{price}}"
+              type="digit"
+              bindinput="onPriceInput"
+              maxlength="20"
+            />
+          </view>
+        </view>
+      </view>
+
+      <!-- 价格、房间数、面积输入区域（租房酒店分类） -->
+      <view wx:if="{{isRental}}" class="contact-section">
+        <!-- 价格 -->
+        <view class="contact-item">
+          <text class="contact-label">价格（EGP）</text>
+          <view class="contact-input-wrapper">
+            <input 
+              class="contact-input"
+              placeholder="请输入价格"
+              placeholder-style="color: #999;"
+              value="{{price}}"
+              type="digit"
+              bindinput="onPriceInput"
+              maxlength="20"
+            />
+          </view>
+        </view>
+        
+        <!-- 分割线 -->
+        <view class="contact-divider"></view>
+        
+        <!-- 房间数 -->
+        <view class="contact-item">
+          <text class="contact-label">房间数</text>
+          <view class="contact-input-wrapper">
+            <input 
+              class="contact-input"
+              placeholder="请输入房间数"
+              placeholder-style="color: #999;"
+              value="{{rooms}}"
+              type="number"
+              bindinput="onRoomsInput"
+              maxlength="10"
+            />
+          </view>
+        </view>
+        
+        <!-- 分割线 -->
+        <view class="contact-divider"></view>
+        
+        <!-- 面积 -->
+        <view class="contact-item">
+          <text class="contact-label">面积</text>
+          <view class="contact-input-wrapper">
+            <input 
+              class="contact-input"
+              placeholder="请输入面积（平方米）"
+              placeholder-style="color: #999;"
+              value="{{area}}"
+              type="digit"
+              bindinput="onAreaInput"
+              maxlength="20"
+            />
+          </view>
+        </view>
+      </view>
+
+      <!-- 内容输入区 -->
+      <view class="content-section">
+        <editor
+          id="content-editor"
+          class="content-editor"
+          placeholder="想说点什么..."
+          bindready="onEditorReady"
+          bindinput="onEditorInput"
+          bindstatuschange="onEditorStatusChange"
+          show-img-size="{{false}}"
+          show-img-toolbar="{{false}}"
+          show-img-resize="{{false}}"
+        />
+      </view>
+
+      <!-- 底部间距，避免被工具栏遮挡 -->
+      <view class="bottom-spacer" style="height: {{toolbarHeight + 20}}px;"></view>
+    </scroll-view>
+
+    <!-- 底部工具栏 -->
+    <view class="toolbar-section" style="height: {{toolbarHeight}}px;">
+      <view class="toolbar-content">
+        <!-- 左侧：媒体工具 -->
+        <view class="toolbar-left">
+          <view class="toolbar-btn" bindtap="insertImage">
+            <text class="toolbar-icon">📷</text>
+          </view>
+          <view class="toolbar-btn" bindtap="insertVideo">
+            <text class="toolbar-icon">🎬</text>
+          </view>
+          <view class="toolbar-btn" bindtap="insertCover">
+            <text class="toolbar-icon">🖼️</text>
+          </view>
+        </view>
+
+        <!-- 中间：格式工具 -->
+        <view class="toolbar-center">
+          <view class="toolbar-btn" bindtap="showFontOptions">
+            <text class="toolbar-icon">Aa</text>
+          </view>
+        </view>
+
+        <!-- 右侧：编辑工具 -->
+        <view class="toolbar-right">
+          <view class="toolbar-btn {{canUndo ? '' : 'disabled'}}" bindtap="undo" disabled="{{!canUndo}}">
+            <text class="toolbar-icon">↶</text>
+          </view>
+          <view class="toolbar-btn {{canRedo ? '' : 'disabled'}}" bindtap="redo" disabled="{{!canRedo}}">
+            <text class="toolbar-icon">↷</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 分类选择弹窗 -->
+    <view wx:if="{{showCategoryModal}}" class="modal-mask" bindtap="hideCategoryPicker">
+      <view class="modal-content" catchtap="stopPropagation">
+        <view class="modal-header">
+          <text class="modal-title">选择分类</text>
+          <text class="modal-close" bindtap="hideCategoryPicker">×</text>
+        </view>
+        <scroll-view class="modal-body" scroll-y>
+          <view 
+            wx:for="{{apiList}}" 
+            wx:key="*this"
+            class="category-option {{apiName === item ? 'selected' : ''}}"
+            bindtap="selectCategory"
+            data-category="{{item}}"
+          >
+            <text>{{item}}</text>
+            <text wx:if="{{apiName === item}}" class="check-icon">✓</text>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 字体选项弹窗 -->
+    <view wx:if="{{showFontModal}}" class="modal-mask" bindtap="hideFontOptions">
+      <view class="modal-content font-modal" catchtap="stopPropagation">
+        <view class="font-options">
+          <view class="font-option" bindtap="formatText" data-format="bold">
+            <text class="font-icon">B</text>
+            <text class="font-label">粗体</text>
+          </view>
+          <view class="font-option" bindtap="formatText" data-format="italic">
+            <text class="font-icon">I</text>
+            <text class="font-label">斜体</text>
+          </view>
+          <view class="font-option" bindtap="formatText" data-format="h2">
+            <text class="font-icon">H</text>
+            <text class="font-label">标题</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+
+    <!-- 上传进度提示 -->
+    <view wx:if="{{showUploadProgress}}" class="upload-progress-mask">
+      <view class="upload-progress-container">
+        <view class="upload-progress-icon">
+          <text wx:if="{{uploadType === 'cover'}}">🖼️</text>
+          <text wx:elif="{{uploadType === 'image'}}">📷</text>
+          <text wx:elif="{{uploadType === 'video'}}">🎬</text>
+          <text wx:else>📤</text>
+        </view>
+        <view class="upload-progress-text">
+          <text wx:if="{{uploadType === 'cover'}}">上传封面中...</text>
+          <text wx:elif="{{uploadType === 'image'}}">上传图片中... ({{uploadCurrent}}/{{uploadTotal}})</text>
+          <text wx:elif="{{uploadType === 'video'}}">上传视频中...</text>
+          <text wx:else>上传中...</text>
+        </view>
+        <view class="upload-progress-bar">
+          <view class="upload-progress-fill" style="width: {{uploadProgress}}%"></view>
+        </view>
+        <view class="upload-progress-percent">{{uploadProgress}}%</view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -3,6 +3,8 @@ const config = require('./config')
 require('./util/util.js')
 // 引用 recycle-view，避免主包未使用警告
 require('./miniprogram_npm/miniprogram-recycle-view/index.js')
+// 引用登录状态管理工具
+const authHelper = require('./utils/authHelper.js')
 
 const themeListeners = []
 // 默认使用生产环境，如需开发环境请手动切换
@@ -24,6 +26,16 @@ App({
         traceUser: true,
       })
     }
+    
+    // 初始化登录状态（从本地存储恢复）
+    authHelper.initLoginStatus(this)
+    
+    // 静默验证服务器端登录状态（不阻塞启动）
+    setTimeout(() => {
+      authHelper.checkAndUpdateLoginStatus(this).catch(err => {
+        console.error('[App.onLaunch] 验证登录状态失败:', err)
+      })
+    }, 1000)
   },
 
   
@@ -61,6 +73,8 @@ App({
       }
     })(),
     hasLogin: false,
+    isLoggedIn: false,
+    user: null,
     openid: null,
     iconTabbar: '/page/weui/example/images/icon_tabbar.png',
     // 汇率数据缓存

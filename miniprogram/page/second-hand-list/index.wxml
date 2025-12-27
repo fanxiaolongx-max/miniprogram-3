@@ -1,6 +1,6 @@
 <view class="page" data-weui-theme="light" style="width: 100%; overflow-x: hidden;">
   <view class="container">
-    <!-- 搜索和筛选区域 -->
+    <!-- 搜索区域 -->
     <view class="filter-section">
       <view class="search-box">
         <input 
@@ -10,17 +10,6 @@
           bindinput="onSearchInput"
         />
         <text class="search-icon">🔍</text>
-      </view>
-      <view class="category-tags">
-        <view 
-          wx:for="{{categories}}" 
-          wx:key="*this"
-          class="category-tag {{selectedCategory === (item === '全部' ? '' : item) ? 'active' : ''}}"
-          bindtap="selectCategory"
-          data-category="{{item}}"
-        >
-          {{item}}
-        </view>
       </view>
     </view>
 
@@ -66,17 +55,17 @@
             <view class="item-content">
               <view class="item-title">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
-              <view class="item-footer">
+              <view class="item-price-section">
                 <text class="item-price">{{item.price}} EGP</text>
-                <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="footer-buttons">
-                  <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
-                    <text class="location-icon">📍</text>
-                    <text class="location-text">导航</text>
                   </view>
-                  <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                    <text class="phone-icon">📞</text>
-                    <text class="phone-text">呼叫</text>
+              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-actions">
+                <view wx:if="{{item.latitude && item.longitude}}" class="action-btn location-btn" catchtap="openLocation" data-item="{{item}}">
+                  <text class="action-icon">📍</text>
+                  <text class="action-text">导航</text>
                   </view>
+                <view wx:if="{{item.phone}}" class="action-btn phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
+                  <text class="action-icon">📞</text>
+                  <text class="action-text">呼叫</text>
                 </view>
               </view>
             </view>
@@ -107,17 +96,17 @@
             <view class="item-content">
               <view class="item-title">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
-              <view class="item-footer">
+              <view class="item-price-section">
                 <text class="item-price">{{item.price}} EGP</text>
-                <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="footer-buttons">
-                  <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
-                    <text class="location-icon">📍</text>
-                    <text class="location-text">导航</text>
                   </view>
-                  <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                    <text class="phone-icon">📞</text>
-                    <text class="phone-text">呼叫</text>
+              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-actions">
+                <view wx:if="{{item.latitude && item.longitude}}" class="action-btn location-btn" catchtap="openLocation" data-item="{{item}}">
+                  <text class="action-icon">📍</text>
+                  <text class="action-text">导航</text>
                   </view>
+                <view wx:if="{{item.phone}}" class="action-btn phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
+                  <text class="action-icon">📞</text>
+                  <text class="action-text">呼叫</text>
                 </view>
               </view>
             </view>

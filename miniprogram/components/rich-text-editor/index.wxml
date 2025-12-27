@@ -1,0 +1,73 @@
+<view class="rich-text-editor">
+  <!-- 工具栏 -->
+  <view wx:if="{{showToolbar}}" class="editor-toolbar">
+    <view class="toolbar-group">
+      <view class="toolbar-btn" data-name="bold" bindtap="format">
+        <text class="icon">B</text>
+      </view>
+      <view class="toolbar-btn" data-name="italic" bindtap="format">
+        <text class="icon">I</text>
+      </view>
+      <view class="toolbar-btn" data-name="underline" bindtap="format">
+        <text class="icon">U</text>
+      </view>
+    </view>
+    
+    <view class="toolbar-group">
+      <view class="toolbar-btn" data-name="header" data-value="1" bindtap="format">
+        <text class="icon">H1</text>
+      </view>
+      <view class="toolbar-btn" data-name="header" data-value="2" bindtap="format">
+        <text class="icon">H2</text>
+      </view>
+      <view class="toolbar-btn" data-name="header" data-value="3" bindtap="format">
+        <text class="icon">H3</text>
+      </view>
+    </view>
+    
+    <view class="toolbar-group">
+      <view class="toolbar-btn" data-name="align" data-value="left" bindtap="format">
+        <text class="icon">左</text>
+      </view>
+      <view class="toolbar-btn" data-name="align" data-value="center" bindtap="format">
+        <text class="icon">中</text>
+      </view>
+      <view class="toolbar-btn" data-name="align" data-value="right" bindtap="format">
+        <text class="icon">右</text>
+      </view>
+    </view>
+    
+    <view class="toolbar-group">
+      <view class="toolbar-btn" data-name="list" data-value="bullet" bindtap="format">
+        <text class="icon">•</text>
+      </view>
+      <view class="toolbar-btn" data-name="list" data-value="ordered" bindtap="format">
+        <text class="icon">1.</text>
+      </view>
+      <view class="toolbar-btn" bindtap="insertImage">
+        <text class="icon">📷</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 编辑器 -->
+  <view class="editor-container">
+    <editor
+      id="editor"
+      class="editor"
+      placeholder="{{placeholder}}"
+      bindready="onEditorReady"
+      bindinput="onEditorInput"
+      bindstatuschange="onStatusChange"
+      show-img-size="{{false}}"
+      show-img-toolbar="{{false}}"
+      show-img-resize="{{false}}"
+    ></editor>
+  </view>
+
+  <!-- 提示信息 -->
+  <view class="editor-tips">
+    <text class="tips-text">💡 提示：支持基础HTML标签，可直接输入HTML代码或使用工具栏格式化</text>
+  </view>
+</view>
+

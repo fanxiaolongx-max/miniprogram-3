@@ -1,0 +1,28 @@
+<view class="number-keyboard {{show ? 'show' : ''}}" catchtouchmove="preventMove">
+  <view class="keyboard-mask" bindtap="onMaskTap"></view>
+  <view class="keyboard-content" catchtap="preventClose">
+    <view class="keyboard-row">
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="1">1</view>
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="2">2</view>
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="3">3</view>
+    </view>
+    <view class="keyboard-row">
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="4">4</view>
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="5">5</view>
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="6">6</view>
+    </view>
+    <view class="keyboard-row">
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="7">7</view>
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="8">8</view>
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="9">9</view>
+    </view>
+    <view class="keyboard-row">
+      <view class="keyboard-key keyboard-key-empty"></view>
+      <view class="keyboard-key" bindtap="onKeyTap" data-key="0">0</view>
+      <view class="keyboard-key keyboard-key-delete" bindtap="onDeleteTap">
+        <text class="delete-icon">⌫</text>
+      </view>
+    </view>
+  </view>
+</view>
+

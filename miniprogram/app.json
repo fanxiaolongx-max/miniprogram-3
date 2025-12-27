@@ -1,6 +1,7 @@
 {
   "pages": [
     "page/component/index",
+    "page/discover/index",
     "page/my/index",
     "page/exchange-rate/index",
     "page/translation/index",
@@ -17,7 +18,9 @@
     "page/location-list/index",
     "page/nile-hot/index",
     "page/emergency/index",
-    "page/article-detail/index"
+    "page/article-detail/index",
+    "page/article-admin/index",
+    "page/article-edit/index"
   ],
   "subpackages": [
     {
@@ -54,6 +57,12 @@
         "text": "首页"
       },
       {
+        "pagePath": "page/discover/index",
+        "iconPath": "@iconPathCloud",
+        "selectedIconPath": "@selectedIconPathCloud",
+        "text": "发现"
+      },
+      {
         "pagePath": "page/my/index",
         "iconPath": "@iconPathCloud",
         "selectedIconPath": "@selectedIconPathCloud",
@@ -86,5 +95,9 @@
   "frameset": true,
   "requiredBackgroundModes": ["audio", "location"],
   "embeddedAppIdList": ["wxfdcee92a299bcaf1"],
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "requiredPrivateInfos": [
+    "chooseLocation",
+    "getLocation"
+  ]
 }

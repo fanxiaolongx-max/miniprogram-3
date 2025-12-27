@@ -1,0 +1,122 @@
+.number-keyboard {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: none;
+}
+
+.number-keyboard.show {
+  display: block;
+}
+
+.keyboard-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+}
+
+.keyboard-content {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #f5f5f5;
+  padding: 20rpx 0 40rpx;
+  border-top: 1rpx solid #e0e0e0;
+  z-index: 1002;
+}
+
+.keyboard-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.keyboard-row:last-child {
+  margin-bottom: 0;
+}
+
+.keyboard-key {
+  flex: 1;
+  height: 100rpx;
+  margin: 0 10rpx;
+  background: #ffffff;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  font-weight: 500;
+  color: #333333;
+  box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.keyboard-key:active {
+  background: #e0e0e0;
+  transform: scale(0.95);
+}
+
+.keyboard-key-empty {
+  background: transparent;
+  box-shadow: none;
+}
+
+.keyboard-key-empty:active {
+  background: transparent;
+  transform: none;
+}
+
+.keyboard-key-delete {
+  background: #ffffff;
+}
+
+.keyboard-key-delete:active {
+  background: #e0e0e0;
+}
+
+.delete-icon {
+  font-size: 40rpx;
+  color: #333333;
+}
+
+/* 暗色主题 */
+[data-weui-theme=dark] .keyboard-content {
+  background: #1a1a1a;
+  border-top-color: #333333;
+}
+
+[data-weui-theme=dark] .keyboard-key {
+  background: #2a2a2a;
+  color: #ffffff;
+}
+
+[data-weui-theme=dark] .keyboard-key:active {
+  background: #3a3a3a;
+}
+
+[data-weui-theme=dark] .keyboard-key-empty {
+  background: transparent;
+}
+
+[data-weui-theme=dark] .keyboard-key-delete {
+  background: #2a2a2a;
+}
+
+[data-weui-theme=dark] .keyboard-key-delete:active {
+  background: #3a3a3a;
+}
+
+[data-weui-theme=dark] .delete-icon {
+  color: #ffffff;
+}
+
