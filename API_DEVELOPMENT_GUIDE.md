@@ -9,7 +9,7 @@
 - [API 接口列表](#api-接口列表)
   - [1. 常用地点导航 API](#1-常用地点导航-api)
   - [2. 菜单链接 API（寻味中国）](#2-菜单链接-api寻味中国)
-  - [3. 热门打卡地 API](#3-热门打卡地-api)
+  - [3. 热门打卡 API](#3-热门打卡-api)
   - [4. 租房信息 API](#4-租房信息-api)
   - [5. 汇率 API](#5-汇率-api)
   - [6. 出行风向标 API（天气）](#6-出行风向标-api天气)
@@ -235,7 +235,7 @@ GET /api/custom/menu-links?page=1&pageSize=20&category=中餐厅
 
 ---
 
-### 3. 热门打卡地 API
+### 3. 热门打卡 API
 
 **端点**：`/api/custom/hot-spots`
 

@@ -106,8 +106,8 @@ App({
               callback(null, self.globalData.openid)
             },
             fail: err => {
-              console.log('拉取用户openid失败，将无法正常使用开放接口等服务', res)
-              callback(res)
+              console.log('拉取用户openid失败，将无法正常使用开放接口等服务', err)
+              callback(err)
             }
           })
         },

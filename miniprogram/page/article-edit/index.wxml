@@ -183,8 +183,8 @@
           <view class="toolbar-btn" bindtap="insertVideo">
             <text class="toolbar-icon">🎬</text>
           </view>
-          <view class="toolbar-btn" bindtap="insertCover">
-            <text class="toolbar-icon">🖼️</text>
+          <view class="toolbar-btn toolbar-btn-text" bindtap="insertCover">
+            <text class="toolbar-text">封面</text>
           </view>
         </view>
 
@@ -215,15 +215,20 @@
           <text class="modal-close" bindtap="hideCategoryPicker">×</text>
         </view>
         <scroll-view class="modal-body" scroll-y>
-          <view 
-            wx:for="{{apiList}}" 
-            wx:key="*this"
-            class="category-option {{apiName === item ? 'selected' : ''}}"
-            bindtap="selectCategory"
-            data-category="{{item}}"
-          >
-            <text>{{item}}</text>
-            <text wx:if="{{apiName === item}}" class="check-icon">✓</text>
+          <block wx:if="{{apiList && apiList.length > 0}}">
+            <view 
+              wx:for="{{apiList}}" 
+              wx:key="*this"
+              class="category-option {{apiName === item ? 'selected' : ''}}"
+              bindtap="selectCategory"
+              data-category="{{item}}"
+            >
+              <text>{{item}}</text>
+              <text wx:if="{{apiName === item}}" class="check-icon">✓</text>
+            </view>
+          </block>
+          <view wx:else class="empty-category">
+            <text>暂无分类</text>
           </view>
         </scroll-view>
       </view>

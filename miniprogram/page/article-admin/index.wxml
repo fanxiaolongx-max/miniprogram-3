@@ -71,10 +71,10 @@
               <view class="item-footer">
                 <text class="item-date">{{item.createdAt}}</text>
                 <view class="item-actions">
-                  <view class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
+                  <view wx:if="{{item.canEdit}}" class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
                     <text>✏️</text>
                   </view>
-                  <view class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
+                  <view wx:if="{{item.canDelete}}" class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
                     <text>🗑️</text>
                   </view>
                 </view>
@@ -109,10 +109,10 @@
               <view class="item-footer">
                 <text class="item-date">{{item.createdAt}}</text>
                 <view class="item-actions">
-                  <view class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
+                  <view wx:if="{{item.canEdit}}" class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
                     <text>✏️</text>
                   </view>
-                  <view class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
+                  <view wx:if="{{item.canDelete}}" class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
                     <text>🗑️</text>
                   </view>
                 </view>

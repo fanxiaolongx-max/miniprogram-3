@@ -120,7 +120,7 @@ Page({
       { value: '紧急求助', label: '紧急求助' },
       { value: '签证攻略', label: '签证攻略' },
       { value: '小费指南', label: '小费指南' },
-      { value: '热门打卡地', label: '热门打卡地' },
+      { value: '热门打卡', label: '热门打卡' },
       { value: '汇率转换', label: '汇率转换' },
       { value: '天气预警', label: '天气预警' },
       { value: '热门活动', label: '热门活动' },

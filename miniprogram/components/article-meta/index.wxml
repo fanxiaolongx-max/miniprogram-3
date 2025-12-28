@@ -1,0 +1,12 @@
+<!-- 浏览量和发布者信息组件（紧凑显示） -->
+<view wx:if="{{formattedViews || authorInfo}}" class="article-meta-compact">
+  <view wx:if="{{formattedViews}}" class="meta-views-compact">
+    <text class="meta-icon">👁️</text>
+    <text class="meta-text">{{formattedViews}}</text>
+  </view>
+  <view wx:if="{{authorInfo && authorInfo.nickname}}" class="meta-author-compact">
+    <text class="meta-icon">👤</text>
+    <text class="meta-text">{{authorInfo.nickname}}</text>
+  </view>
+</view>
+

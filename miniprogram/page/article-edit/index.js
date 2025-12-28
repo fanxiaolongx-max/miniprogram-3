@@ -1,6 +1,8 @@
 const blogApi = require('../../utils/blogApi.js')
 const config = require('../../config.js')
 const { extractChineseName } = require('../../util/util.js')
+const authHelper = require('../../utils/authHelper.js')
+const systemInfo = require('../../utils/systemInfo.js')
 
 Page({
   data: {
@@ -57,7 +59,22 @@ Page({
   },
 
   onLoad(options) {
-    const systemInfo = require('../../utils/systemInfo.js')
+    const app = getApp()
+    
+    // 检查登录状态
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
     
     this.setData({
       theme: systemInfo.getTheme(),
@@ -201,6 +218,62 @@ Page({
       if (result.success && result.data) {
         const article = result.data
         console.log('[loadArticle] 文章数据:', article)
+        
+        // 检查编辑权限：判断当前登录用户是否和文章的编辑者一致（通过deviceId判断）
+        const currentUser = authHelper.getLoginInfo()
+        if (!currentUser || !currentUser.phone) {
+          wx.hideLoading()
+          wx.showToast({
+            title: '请先登录',
+            icon: 'none',
+            duration: 2000
+          })
+          setTimeout(() => {
+            wx.navigateBack()
+          }, 1500)
+          return
+        }
+        
+        // 获取当前用户的deviceId（优先使用phone作为deviceId，与保存文章时的逻辑一致）
+        const currentDeviceId = currentUser.phone ? currentUser.phone.trim() : null
+        
+        // 提取文章的编辑者deviceId（从custom_fields或直接字段）
+        let articleDeviceId = null
+        if (article.custom_fields) {
+          try {
+            const customFields = typeof article.custom_fields === 'string' 
+              ? JSON.parse(article.custom_fields) 
+              : article.custom_fields
+            if (customFields && customFields.deviceId) {
+              articleDeviceId = customFields.deviceId
+            }
+          } catch (e) {
+            console.warn('[loadArticle] 解析custom_fields失败:', e)
+          }
+        }
+        
+        // 如果没有从custom_fields获取到，尝试直接从文章对象获取
+        if (!articleDeviceId && article.deviceId) {
+          articleDeviceId = article.deviceId
+        }
+        
+        // 清理deviceId后比较
+        const articleDeviceIdNormalized = articleDeviceId ? articleDeviceId.trim() : null
+        
+        // 如果文章有deviceId且与当前用户不一致，不允许编辑
+        if (articleDeviceId && articleDeviceIdNormalized && currentDeviceId !== articleDeviceIdNormalized) {
+          wx.hideLoading()
+          wx.showModal({
+            title: '无编辑权限',
+            content: '您不是此文章的编辑者，无权编辑此文章',
+            showCancel: false,
+            confirmText: '知道了',
+            success: () => {
+              wx.navigateBack()
+            }
+          })
+          return
+        }
         
         // 获取分类：优先使用apiName，如果没有则使用category
         const apiName = article.apiName || article.category || ''
@@ -649,7 +722,7 @@ Page({
 
   // 保存到历史记录
   saveToHistory() {
-    const history = [...this.data.history]
+    const history = Array.isArray(this.data.history) ? [...this.data.history] : []
     const currentState = {
       name: this.data.name,
       htmlContent: this.data.htmlContent
@@ -847,7 +920,7 @@ Page({
           const imageUrls = await Promise.all(uploadPromises)
           
           // 添加到媒体列表
-          const mediaList = [...that.data.mediaList]
+          const mediaList = Array.isArray(that.data.mediaList) ? [...that.data.mediaList] : []
           imageUrls.forEach(url => {
             mediaList.push({
               type: 'image',
@@ -957,7 +1030,7 @@ Page({
           })
           
           // 添加到媒体列表
-          const mediaList = [...that.data.mediaList]
+          const mediaList = Array.isArray(that.data.mediaList) ? [...that.data.mediaList] : []
           mediaList.push({
             type: 'video',
             url: videoUrl
@@ -1093,7 +1166,7 @@ Page({
   // 删除媒体
   removeMedia(e) {
     const index = e.currentTarget.dataset.index
-    const mediaList = [...this.data.mediaList]
+    const mediaList = Array.isArray(this.data.mediaList) ? [...this.data.mediaList] : []
     const removedMedia = mediaList[index]
     
     // 从内容中移除对应的HTML标签
@@ -1733,8 +1806,69 @@ Page({
     return Object.keys(errors).length === 0
   },
 
+  // 获取设备信息
+  getDeviceInfo() {
+    const app = getApp()
+    const deviceInfo = {
+      nickname: null,
+      deviceModel: null,
+      deviceId: null,
+      deviceIp: null // 不提供，由服务器自动获取
+    }
+    
+    try {
+      // 获取用户信息（手机号和昵称）
+      const user = authHelper.getLoginInfo() || app.globalData.user
+      if (user) {
+        // 昵称：优先使用 name，其次使用 nickname
+        deviceInfo.nickname = user.name || user.nickname || null
+        
+        // 设备ID：使用手机号作为设备ID（如果手机号存在）
+        if (user.phone) {
+          deviceInfo.deviceId = user.phone
+        }
+      }
+      
+      // 获取设备型号
+      try {
+        const deviceData = systemInfo.getDeviceInfo()
+        if (deviceData && deviceData.model) {
+          deviceInfo.deviceModel = deviceData.model
+        } else {
+          // 兼容旧版本API
+          const systemData = wx.getSystemInfoSync()
+          if (systemData && systemData.model) {
+            deviceInfo.deviceModel = systemData.model
+          }
+        }
+      } catch (e) {
+        console.warn('[getDeviceInfo] 获取设备型号失败:', e)
+      }
+    } catch (error) {
+      console.error('[getDeviceInfo] 获取设备信息异常:', error)
+    }
+    
+    return deviceInfo
+  },
+
   // 保存文章
   async saveArticle() {
+    // 检查登录状态
+    const app = getApp()
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     if (!this.validate()) {
       wx.showToast({
         title: '请检查表单',
@@ -1758,6 +1892,9 @@ Page({
     }
 
     this.setData({ saving: true })
+    
+    // 获取设备信息
+    const deviceInfo = await this.getDeviceInfo()
 
     // 如果没有封面图，尝试从内容中提取第一张图片
     let coverImage = this.data.image || ''
@@ -1773,7 +1910,12 @@ Page({
       name: this.data.name.trim(),
       apiName: this.data.apiName.trim(),
       htmlContent: htmlContent,
-      published: true
+      published: true,
+      // 添加新字段
+      nickname: deviceInfo.nickname || null,
+      deviceModel: deviceInfo.deviceModel || null,
+      deviceId: deviceInfo.deviceId || null,
+      deviceIp: deviceInfo.deviceIp || null // 不提供，由服务器自动获取
     }
 
     if (coverImage) {

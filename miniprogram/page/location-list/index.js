@@ -1,3 +1,6 @@
+const blogApi = require('../../utils/blogApi.js')
+const { formatTimestamp } = require('../../util/util.js')
+
 Page({
   onShareAppMessage() {
     return {
@@ -21,7 +24,9 @@ Page({
     hasMore: true, // 是否还有更多数据
     loadingMore: false, // 是否正在加载更多
     preloading: false, // 是否正在预加载
-    preloadTriggered: false // 是否已触发预加载（防止重复触发）
+    preloadTriggered: false, // 是否已触发预加载（防止重复触发）
+    // 页面分类（用于API过滤）
+    pageCategory: '常用导航' // 固定分类，用于统一API请求
   },
 
   onLoad() {
@@ -49,19 +54,17 @@ Page({
     this.fetchLocationList()
   },
 
+  // 从 API 获取常用导航数据（统一使用blogApi.blogPostApi.getList）
   fetchLocationList(isLoadMore = false, isPreload = false) {
-    const config = require('../../config.js')
-    const apiUrl = config.locationsApi || `${config.apiBaseUrl}/locations`
-    
     // 如果是加载更多，设置 loadingMore；否则设置 loading
     if (isLoadMore) {
       if (isPreload) {
         // 预加载时不显示 loadingMore，避免影响用户体验
         console.log('[fetchLocationList] 预加载模式，不显示加载提示')
       } else {
-      this.setData({
-        loadingMore: true
-      })
+        this.setData({
+          loadingMore: true
+        })
       }
     } else {
       this.setData({
@@ -78,265 +81,244 @@ Page({
     const requestPage = isLoadMore ? (currentPage + 1) : 1
     const pageSize = this.data.pageSize
     
-    // 获取过滤条件（两个独立的过滤条件，可以单独使用或组合使用）
-    // category: 分类过滤（精确匹配 category 字段）
-    // keyword: 全文搜索（搜索 name、address 等多个字段）
-    const category = this.data.selectedCategory || ''
+    // 获取过滤条件
+    // 固定使用页面分类（常用导航），同时支持子分类和搜索关键词
+    const pageCategory = this.data.pageCategory || '常用导航'
+    const subCategory = this.data.selectedCategory || ''
     const keyword = (this.data.searchKeyword || '').trim()
     
-    // 构建URL参数
-    const params = [`page=${requestPage}`, `pageSize=${pageSize}`]
-    // 分类过滤：只传有值的分类
-    if (category) {
-      params.push(`category=${encodeURIComponent(category)}`)
-    }
-    // 关键词搜索：只传有值的关键词
-    if (keyword) {
-      params.push(`keyword=${encodeURIComponent(keyword)}`)
-    }
-    // 注意：如果两个条件都有值，会同时传递，后端会组合过滤
+    // 确定最终使用的分类：如果有子分类则使用子分类，否则使用页面分类
+    const finalCategory = subCategory || pageCategory
     
-    const url = `${apiUrl}?${params.join('&')}`
-    
-    console.log(`[fetchLocationList] 请求参数：isLoadMore=${isLoadMore}, currentPage=${currentPage}, requestPage=${requestPage}, pageSize=${pageSize}, category=${category || '无'}, keyword=${keyword || '无'}`)
-
-    wx.request({
-      url: url,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        console.log('获取地点列表响应', res)
-        
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
-        
-        if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取地点列表失败', res.statusCode, res.data)
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
-        }
-
-        if (!res.data) {
-          console.error('获取地点列表失败：返回数据为空')
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
-        }
-
-        let items = []
-        let total = 0
-        let hasMore = false
-
-        // 处理分页返回格式（默认）：{ data: [...], total: 100, hasMore: true }
-        if (res.data.data && Array.isArray(res.data.data)) {
-          items = res.data.data
-          total = res.data.total || 0
-          hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
-          console.log(`[fetchLocationList] 分页数据：请求页 ${requestPage}，返回 ${items.length} 条，总计 ${total}，还有更多：${hasMore}`)
-        }
-        // 处理数组格式（format=array 时）：[...]
-        else if (Array.isArray(res.data)) {
-          items = res.data
-          hasMore = items.length >= pageSize
-          console.log(`[fetchLocationList] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
-        }
-        // 兼容旧格式：{ locations: [...] }
-        else if (res.data.locations && Array.isArray(res.data.locations)) {
-          items = res.data.locations
-          total = res.data.total || items.length
-          hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
-        }
-
-        if (!Array.isArray(items)) {
-          console.error('获取地点列表失败：返回格式不正确')
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
-        }
-
-        // 如果没有数据且不是首次加载，说明没有更多了
-        if (items.length === 0 && isLoadMore) {
-          this.setData({
-            loadingMore: false,
-            hasMore: false
-          })
-          wx.showToast({
-            title: '没有更多数据了',
-            icon: 'none',
-            duration: 1500
-          })
-          return
-        }
-
-        // 生成唯一ID，确保不会重复
-        const existingItems = isLoadMore ? (this.data.items || []) : []
-        const existingIds = new Set(existingItems.map(item => String(item.id)))
-        
-        const newItems = items.map((item, index) => {
-          // 优先使用API返回的id
-          let uniqueId = String(item.id || item._id || '')
-          
-          // 如果id为空，生成唯一id
-          if (!uniqueId) {
-            // 使用请求页码、索引、时间戳和随机数生成唯一id
-            uniqueId = `item_${requestPage}_${index}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-          }
-          
-          // 如果id已存在，也生成新的唯一id（避免重复）
-          if (existingIds.has(uniqueId)) {
-            console.warn(`[fetchLocationList] 发现重复id: ${uniqueId}，生成新id`)
-            uniqueId = `item_${requestPage}_${index}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-          }
-          
-          // 添加到已存在id集合，避免同批次数据重复
-          existingIds.add(uniqueId)
-          
-          return {
-            id: uniqueId,
-          name: item.name || item.title || '未知地点',
-            title: item.title || item.name || '未知地点', // 添加 title 字段
-            description: item.description || item.desc || '',
-            image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
-            category: item.category || '',
-            htmlContent: item.htmlContent || '', // 添加 htmlContent 字段
-            detailApi: item.detailApi || item.detailUrl || '', // 保留用于向后兼容
-            meta: item.meta || item.date || item.updatedAt || '', // 添加 meta 字段
-            published: item.published !== false, // 添加 published 字段，默认为 true
-            // 保留原有字段用于兼容
-          address: item.address || item.location || '',
-          latitude: item.latitude || item.lat ? parseFloat(item.latitude || item.lat) : null,
-            longitude: item.longitude || item.lng || item.lon ? parseFloat(item.longitude || item.lng || item.lon) : null,
-            // 电话信息（可选）
-            phone: item.phone || null
-          }
-        })
-
-        // 合并数据（加载更多时追加，首次加载时替换）
-        // 再次过滤：确保新数据的id不在已存在的数据中
-        const uniqueNewItems = isLoadMore 
-          ? newItems.filter(item => {
-              const exists = existingItems.some(existing => String(existing.id) === String(item.id))
-              if (exists) {
-                console.warn(`[fetchLocationList] 过滤重复项: id=${item.id}`)
-              }
-              return !exists
-            })
-          : newItems
-        
-        const allItems = isLoadMore 
-          ? [...existingItems, ...uniqueNewItems]
-          : uniqueNewItems
-        
-        // 最终去重：使用Map确保id唯一（双重保险）
-        const uniqueItemsMap = new Map()
-        allItems.forEach(item => {
-          const itemId = String(item.id)
-          if (!uniqueItemsMap.has(itemId)) {
-            uniqueItemsMap.set(itemId, item)
-          } else {
-            console.warn(`[fetchLocationList] 最终去重：发现重复id: ${itemId}，已跳过`)
-          }
-        })
-        const finalItems = Array.from(uniqueItemsMap.values())
-        
-        console.log(`[fetchLocationList] 数据处理：API返回 ${items.length} 条，处理后 ${newItems.length} 条，过滤重复后 ${uniqueNewItems.length} 条，合并后 ${allItems.length} 条，最终去重后 ${finalItems.length} 条`)
-
-        // 从所有数据中提取分类（只在首次加载时更新分类）
-        let categories = this.data.categories
-        if (!isLoadMore) {
-          const categorySet = new Set()
-          finalItems.forEach(item => {
-            if (item.category) {
-              categorySet.add(item.category)
-            }
-          })
-          categories = ['全部', ...Array.from(categorySet).sort()]
-        }
-
-        // 更新页码：加载更多时页码+1，首次加载时重置为1
-        const nextPage = isLoadMore ? requestPage : 1
-        console.log(`[fetchLocationList] 准备更新数据，请求页: ${requestPage}，更新后页码: ${nextPage}，isLoadMore: ${isLoadMore}`)
-        
-        // 更新数据
-        // 注意：由于后端已处理过滤，返回的数据已经是过滤后的结果
-        const updateData = {
-          items: finalItems,
-          filteredItems: finalItems, // 后端已过滤，直接使用返回的数据
-          categories: categories,
-          loading: false,
-          error: false,
-          hasMore: hasMore,
-          page: nextPage
-        }
-
-        // 根据加载类型设置不同的状态
-        if (isPreload) {
-          // 预加载完成，重置预加载状态
-          updateData.preloading = false
-          console.log(`[fetchLocationList] 预加载完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${finalItems.length}（新增 ${newItems.length} 条）`)
-        } else if (isLoadMore) {
-          // 正常加载更多完成
-          updateData.loadingMore = false
-          updateData.preloadTriggered = false // 重置预加载标记，允许下次预加载
-          console.log(`[fetchLocationList] 加载更多完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${finalItems.length}（新增 ${newItems.length} 条，原有 ${existingItems.length} 条）`)
-        } else {
-          // 首次加载完成
-          updateData.preloadTriggered = false // 重置预加载标记
-          console.log(`[fetchLocationList] 首次加载完成，请求页: ${requestPage}，更新后页码: ${nextPage}，hasMore: ${hasMore}，items数量: ${finalItems.length}`)
-        }
-
-        this.setData(updateData, () => {
-          // 如果是加载更多（非预加载），恢复滚动位置
-          if (isLoadMore && !isPreload && this._savedScrollTop !== undefined && this._savedScrollTop > 0) {
-            // 延迟恢复，确保DOM已更新
-            setTimeout(() => {
-              wx.pageScrollTo({
-                scrollTop: this._savedScrollTop,
-                duration: 0 // 立即滚动，无动画
-              })
-              console.log(`[fetchLocationList] 恢复滚动位置到: ${this._savedScrollTop}px`)
-              // 重置保存的滚动位置
-              this._savedScrollTop = 0
-            }, 100)
-          }
-        })
-      },
-      fail: (err) => {
-        console.error('获取地点列表失败', err)
-        if (isLoadMore) {
-          if (isPreload) {
-            // 预加载失败，重置预加载状态
-            this.setData({ 
-              preloading: false,
-              preloadTriggered: false 
-            })
-            console.error('[fetchLocationList] 预加载失败，已重置预加载状态')
-          } else {
-          this.setData({ loadingMore: false })
-          wx.showToast({
-            title: '加载失败，请重试',
-            icon: 'none',
-            duration: 2000
-          })
-          }
-        } else {
-          this.showError()
-        }
-      }
+    console.log('[fetchLocationList] 请求参数:', {
+      page: requestPage,
+      pageSize: pageSize,
+      category: finalCategory || '无',
+      search: keyword || '无',
+      isLoadMore: isLoadMore,
+      isPreload: isPreload
     })
+    
+    // 使用统一的 blogApi.blogPostApi.getList API
+    return blogApi.blogPostApi.getList({
+      page: requestPage,
+      pageSize: pageSize,
+      category: finalCategory || undefined,
+      search: keyword || undefined,
+      published: 'true' // 只返回已发布的文章
+    }).then((result) => {
+      console.log('[fetchLocationList] API响应:', result)
+      
+      let items = []
+      let total = 0
+      let hasMore = false
+
+      // 处理新的API返回格式：{ success: true, data: [...], pagination: {...} }
+      if (result && result.success && result.data && Array.isArray(result.data)) {
+        items = result.data
+        
+        // 从 pagination 对象中提取分页信息
+        if (result.pagination) {
+          total = result.pagination.total || 0
+          const currentPage = result.pagination.currentPage || requestPage
+          const totalPages = result.pagination.totalPages || 0
+          hasMore = currentPage < totalPages
+        } else {
+          // 如果没有 pagination 对象，使用旧逻辑
+          total = result.total || items.length
+          hasMore = result.hasMore !== undefined ? result.hasMore : (items.length >= pageSize)
+        }
+      } else if (result && result.data && Array.isArray(result.data)) {
+        // 兼容没有 success 字段的格式
+        items = result.data
+        if (result.pagination) {
+          total = result.pagination.total || 0
+          const currentPage = result.pagination.currentPage || requestPage
+          const totalPages = result.pagination.totalPages || 0
+          hasMore = currentPage < totalPages
+        } else {
+          total = result.total || 0
+          hasMore = result.hasMore !== undefined ? result.hasMore : (items.length >= pageSize)
+        }
+      } else if (Array.isArray(result)) {
+        // 兼容直接返回数组的格式
+        items = result
+        hasMore = items.length >= pageSize
+      } else {
+        console.warn('[fetchLocationList] 未识别的响应格式:', result)
+        items = []
+        hasMore = false
+      }
+
+      // 如果没有数据且不是首次加载，说明没有更多了
+      if (items.length === 0 && isLoadMore) {
+        this.setData({
+          loadingMore: false,
+          hasMore: false
+        })
+        wx.showToast({
+          title: '没有更多数据了',
+          icon: 'none',
+          duration: 1500
+        })
+        return Promise.resolve()
+      }
+
+      // 标准化数据格式：将 title 字段映射为 name（如果存在）
+      items = items.map(item => {
+        // 如果API返回的是 title 而不是 name，进行映射
+        if (!item.name && item.title) {
+          item.name = item.title
+        }
+        return item
+      })
+
+      // 格式化时间戳并确保字段兼容性，并提取浏览量和发布者信息
+      items = items.map(item => {
+        // 提取浏览量
+        const views = item.views || 0
+        const formattedViews = this.formatViews(views)
+        
+        // 提取发布者信息（从custom_fields中获取）
+        let authorInfo = null
+        if (item.custom_fields) {
+          try {
+            const customFields = typeof item.custom_fields === 'string' 
+              ? JSON.parse(item.custom_fields) 
+              : item.custom_fields
+            
+            if (customFields && (customFields.nickname || customFields.phone || customFields.deviceModel)) {
+              authorInfo = {
+                nickname: customFields.nickname || null,
+                phone: customFields.phone || null,
+                deviceModel: customFields.deviceModel || null
+              }
+            }
+          } catch (e) {
+            console.warn('[fetchLocationList] 解析custom_fields失败:', e)
+          }
+        }
+        
+        // 如果没有从custom_fields获取到，尝试直接从文章对象获取（向后兼容）
+        if (!authorInfo && (item.nickname || item.phone || item.deviceModel)) {
+          authorInfo = {
+            nickname: item.nickname || null,
+            phone: item.phone || null,
+            deviceModel: item.deviceModel || null
+          }
+        }
+        
+        return {
+          ...item,
+          createdAt: formatTimestamp(item.createdAt),
+          updatedAt: formatTimestamp(item.updatedAt),
+          // 确保字段兼容性
+          name: item.name || item.title || '未知地点',
+          title: item.title || item.name || '未知地点',
+          description: item.description || item.desc || '',
+          image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
+          category: item.category || item.apiName || '',
+          htmlContent: item.htmlContent || '',
+          meta: item.meta || item.date || item.createdAt || '',
+          published: item.published !== false,
+          // 保留原有字段用于兼容
+          address: item.address || item.location || '',
+          latitude: (item.latitude !== undefined && item.latitude !== null) ? parseFloat(item.latitude) : null,
+          longitude: (item.longitude !== undefined && item.longitude !== null) ? parseFloat(item.longitude) : null,
+          phone: item.phone || null,
+          // 浏览量和发布者信息
+          views: views,
+          formattedViews: formattedViews,
+          authorInfo: authorInfo
+        }
+      })
+
+      if (isLoadMore) {
+        const existingItems = Array.isArray(this.data.items) ? this.data.items : []
+        this.setData({
+          items: Array.isArray(items) ? [...existingItems, ...items] : existingItems,
+          page: requestPage,
+          hasMore: hasMore,
+          loadingMore: false,
+          preloading: false
+        })
+      } else {
+        this.setData({
+          items: Array.isArray(items) ? items : [],
+          page: requestPage,
+          hasMore: hasMore,
+          loading: false,
+          error: false
+        })
+      }
+
+      // 应用过滤（主要是客户端搜索过滤）
+      this.applyFilters()
+      return Promise.resolve()
+    }).catch((error) => {
+      console.error('[fetchLocationList] 失败:', error)
+      
+      if (isLoadMore) {
+        this.setData({ 
+          loadingMore: false, 
+          preloading: false 
+        })
+        wx.showToast({
+          title: '加载失败，请重试',
+          icon: 'none',
+          duration: 2000
+        })
+      } else {
+        this.setData({
+          loading: false,
+          error: true,
+          errorMessage: error.message || '获取数据失败'
+        })
+        wx.showToast({
+          title: error.message || '加载失败',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+      return Promise.reject(error)
+    })
+  },
+
+  // 应用过滤（客户端搜索过滤）
+  applyFilters() {
+    const { items, searchKeyword } = this.data
+    // 确保items是数组
+    const safeItems = Array.isArray(items) ? items : []
+    let filtered = [...safeItems]
+
+    // 注意：分类过滤已经在API层面完成（通过 category 参数），不需要客户端再次过滤
+    // 只需要处理搜索关键词的客户端过滤（如果API的搜索功能不够完善，可以在这里补充）
+    if (searchKeyword && searchKeyword.trim()) {
+      const keyword = searchKeyword.toLowerCase()
+      filtered = filtered.filter(item => {
+        const name = (item.name || '').toLowerCase()
+        const description = (item.description || '').toLowerCase()
+        return name.includes(keyword) || description.includes(keyword)
+      })
+    }
+
+    this.setData({
+      filteredItems: Array.isArray(filtered) ? filtered : []
+    })
+  },
+
+  // 格式化浏览量
+  formatViews(views) {
+    if (!views || views === 0) {
+      return '0'
+    }
+    if (views < 1000) {
+      return String(views)
+    } else if (views < 10000) {
+      return (views / 1000).toFixed(1) + 'k'
+    } else {
+      return (views / 10000).toFixed(1) + 'w'
+    }
   },
 
   // 滚动到底部 - 已禁用自动加载，仅保留日志
@@ -568,25 +550,16 @@ Page({
 
   viewDetail(e) {
     const item = e.currentTarget.dataset.item
+    if (!item || !item.id) return
+
+    const title = item.title || item.name || ''
     
-    // 直接使用 htmlContent 字段，不再通过 detailApi 获取
-    if (item.htmlContent) {
-      const params = {
-        htmlContent: encodeURIComponent(item.htmlContent),
-        title: encodeURIComponent(item.title || item.name || '详情'),
-        meta: encodeURIComponent(item.meta || item.date || '')
-      }
-      wx.navigateTo({
-        url: `/page/article-detail/index?htmlContent=${params.htmlContent}&title=${params.title}&meta=${params.meta}`
-      })
-    } else {
-      // 如果没有 htmlContent，提示用户
-        wx.showToast({
-        title: '暂无详情内容',
-        icon: 'none',
-        duration: 2000
-        })
-      }
+    // 统一使用文章ID跳转，与发现页保持一致
+    // 列表API不再返回htmlContent，统一通过文章ID获取详情
+    // 这样可以减少列表API响应体积，提升加载速度，并获取完整信息（浏览量、作者信息等）
+    wx.navigateTo({
+      url: `/page/article-detail/index?id=${encodeURIComponent(item.id)}&title=${encodeURIComponent(title)}`
+    })
   },
 
   onImageError(e) {

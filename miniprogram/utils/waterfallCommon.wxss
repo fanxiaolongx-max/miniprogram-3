@@ -1,0 +1,32 @@
+/**
+ * 瀑布流页面公共样式
+ * 用于复用浏览量和发布者信息的样式
+ */
+
+/* 浏览量和发布者信息（紧凑显示） */
+.item-meta-compact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.meta-views-compact,
+.meta-author-compact {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-icon {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.meta-text {
+  font-size: 11px;
+  color: #999;
+  line-height: 1.2;
+}
+

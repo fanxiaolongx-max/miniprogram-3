@@ -11,17 +11,19 @@
         />
         <text class="search-icon">🔍</text>
       </view>
-      <view wx:if="{{showCategories}}" class="category-tags-container category-tags-fade-in">
+      <view wx:if="{{showCategories && categories && categories.length > 0}}" class="category-tags-container category-tags-fade-in">
         <view class="category-tags">
-          <view 
-            wx:for="{{categories}}" 
-            wx:key="*this"
-            class="category-tag {{selectedCategory === (item === '全部' ? '' : item) ? 'active' : ''}}"
-            bindtap="selectCategory"
-            data-category="{{item}}"
-          >
-            {{item}}
-          </view>
+          <block wx:if="{{categories}}">
+            <view 
+              wx:for="{{categories}}" 
+              wx:key="*this"
+              class="category-tag {{selectedCategory === (item === '全部' ? '' : item) ? 'active' : ''}}"
+              bindtap="selectCategory"
+              data-category="{{item}}"
+            >
+              {{item}}
+            </view>
+          </block>
         </view>
       </view>
     </view>
@@ -44,22 +46,23 @@
 
     <!-- 瀑布流列表 -->
     <block wx:else>
-      <view wx:if="{{filteredItems.length === 0}}" class="empty-container">
+      <view wx:if="{{!filteredItems || filteredItems.length === 0}}" class="empty-container">
         <text class="empty-text">暂无文章</text>
         <view class="empty-action">
           <button class="create-btn" bindtap="createArticle">创建第一篇文章</button>
         </view>
       </view>
-      <view wx:else class="waterfall-container">
+      <view wx:elif="{{filteredItems && filteredItems.length > 0}}" class="waterfall-container">
         <view class="waterfall-column">
-          <view 
-            wx:for="{{filteredItems}}" 
-            wx:key="id"
-            wx:for-item="item"
-            wx:for-index="index"
-            wx:if="{{index % 2 === 0}}"
-            class="waterfall-item"
-          >
+          <block wx:if="{{filteredItems}}">
+            <view 
+              wx:for="{{filteredItems}}" 
+              wx:key="id"
+              wx:for-item="item"
+              wx:for-index="index"
+              wx:if="{{index % 2 === 0}}"
+              class="waterfall-item"
+            >
             <view class="item-image-wrapper">
               <image 
                 class="item-image" 
@@ -75,29 +78,42 @@
               <view class="item-title" bindtap="viewDetail" data-item="{{item}}">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
               <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
+              <!-- 浏览量和发布者信息（紧凑显示） -->
+              <view wx:if="{{item.formattedViews || item.authorInfo}}" class="item-meta-compact">
+                <view wx:if="{{item.formattedViews}}" class="meta-views-compact">
+                  <text class="meta-icon">👁️</text>
+                  <text class="meta-text">{{item.formattedViews}}</text>
+                </view>
+                <view wx:if="{{item.authorInfo && item.authorInfo.nickname}}" class="meta-author-compact">
+                  <text class="meta-icon">👤</text>
+                  <text class="meta-text">{{item.authorInfo.nickname}}</text>
+                </view>
+              </view>
               <view class="item-footer">
                 <text class="item-date">{{item.createdAt}}</text>
                 <view class="item-actions">
-                  <view class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
+                  <view wx:if="{{item.canEdit}}" class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
                     <text>✏️</text>
                   </view>
-                  <view class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
+                  <view wx:if="{{item.canDelete}}" class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
                     <text>🗑️</text>
                   </view>
                 </view>
               </view>
             </view>
           </view>
+          </block>
         </view>
         <view class="waterfall-column">
-          <view 
-            wx:for="{{filteredItems}}" 
-            wx:key="id"
-            wx:for-item="item"
-            wx:for-index="index"
-            wx:if="{{index % 2 === 1}}"
-            class="waterfall-item"
-          >
+          <block wx:if="{{filteredItems}}">
+            <view 
+              wx:for="{{filteredItems}}" 
+              wx:key="id"
+              wx:for-item="item"
+              wx:for-index="index"
+              wx:if="{{index % 2 === 1}}"
+              class="waterfall-item"
+            >
             <view class="item-image-wrapper">
               <image 
                 class="item-image" 
@@ -113,19 +129,31 @@
               <view class="item-title" bindtap="viewDetail" data-item="{{item}}">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
               <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
+              <!-- 浏览量和发布者信息（紧凑显示） -->
+              <view wx:if="{{item.formattedViews || item.authorInfo}}" class="item-meta-compact">
+                <view wx:if="{{item.formattedViews}}" class="meta-views-compact">
+                  <text class="meta-icon">👁️</text>
+                  <text class="meta-text">{{item.formattedViews}}</text>
+                </view>
+                <view wx:if="{{item.authorInfo && item.authorInfo.nickname}}" class="meta-author-compact">
+                  <text class="meta-icon">👤</text>
+                  <text class="meta-text">{{item.authorInfo.nickname}}</text>
+                </view>
+              </view>
               <view class="item-footer">
                 <text class="item-date">{{item.createdAt}}</text>
                 <view class="item-actions">
-                  <view class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
+                  <view wx:if="{{item.canEdit}}" class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
                     <text>✏️</text>
                   </view>
-                  <view class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
+                  <view wx:if="{{item.canDelete}}" class="action-btn delete-btn" catchtap="deleteArticle" data-item="{{item}}">
                     <text>🗑️</text>
                   </view>
                 </view>
               </view>
             </view>
           </view>
+          </block>
         </view>
       </view>
       <!-- 加载更多按钮 -->
@@ -137,7 +165,7 @@
         <text class="loading-text">加载中...</text>
       </view>
       <!-- 没有更多提示 -->
-      <view wx:if="{{!hasMore && items.length > 0}}" class="no-more">
+      <view wx:if="{{!hasMore && items && items.length > 0}}" class="no-more">
         <text class="no-more-text">没有更多数据了</text>
       </view>
     </block>

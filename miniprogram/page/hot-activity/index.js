@@ -188,28 +188,67 @@ Page({
           return
         }
 
-        const newItems = items.map(item => ({
-          id: item.id || item._id || Math.random(),
-          name: item.name || item.title || '活动',
-          title: item.title || item.name || '活动',
-          description: item.description || item.desc || '',
-          image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
-          category: item.category || '',
-          htmlContent: item.htmlContent || '', // 添加 htmlContent 字段
-          detailApi: item.detailApi || item.detailUrl || '', // 保留用于向后兼容
-          meta: item.meta || item.date || item.updatedAt || '', // 添加 meta 字段
-          published: item.published !== false, // 添加 published 字段，默认为 true
-          // 地址信息（可选）- 统一使用 parseFloat 提取，支持多种字段名
-          latitude: (item.latitude !== undefined && item.latitude !== null) || (item.lat !== undefined && item.lat !== null)
-            ? parseFloat((item.latitude !== undefined && item.latitude !== null) ? item.latitude : item.lat)
-            : null,
-          longitude: (item.longitude !== undefined && item.longitude !== null) || (item.lng !== undefined && item.lng !== null) || (item.lon !== undefined && item.lon !== null)
-            ? parseFloat((item.longitude !== undefined && item.longitude !== null) ? item.longitude : ((item.lng !== undefined && item.lng !== null) ? item.lng : item.lon))
-            : null,
-          address: item.address || item.location || '',
-          // 电话信息（可选）
-          phone: item.phone || null
-        }))
+        const newItems = items.map(item => {
+          // 提取浏览量
+          const views = item.views || 0
+          const formattedViews = this.formatViews(views)
+          
+          // 提取发布者信息（从custom_fields中获取）
+          let authorInfo = null
+          if (item.custom_fields) {
+            try {
+              const customFields = typeof item.custom_fields === 'string' 
+                ? JSON.parse(item.custom_fields) 
+                : item.custom_fields
+              
+              if (customFields && (customFields.nickname || customFields.phone || customFields.deviceModel)) {
+                authorInfo = {
+                  nickname: customFields.nickname || null,
+                  phone: customFields.phone || null,
+                  deviceModel: customFields.deviceModel || null
+                }
+              }
+            } catch (e) {
+              console.warn('[fetchHotActivity] 解析custom_fields失败:', e)
+            }
+          }
+          
+          // 如果没有从custom_fields获取到，尝试直接从文章对象获取（向后兼容）
+          if (!authorInfo && (item.nickname || item.phone || item.deviceModel)) {
+            authorInfo = {
+              nickname: item.nickname || null,
+              phone: item.phone || null,
+              deviceModel: item.deviceModel || null
+            }
+          }
+          
+          return {
+            id: item.id || item._id || Math.random(),
+            name: item.name || item.title || '活动',
+            title: item.title || item.name || '活动',
+            description: item.description || item.desc || '',
+            image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
+            category: item.category || '',
+            htmlContent: item.htmlContent || '', // 添加 htmlContent 字段
+            detailApi: item.detailApi || item.detailUrl || '', // 保留用于向后兼容
+            meta: item.meta || item.date || item.updatedAt || '', // 添加 meta 字段
+            published: item.published !== false, // 添加 published 字段，默认为 true
+            // 地址信息（可选）- 统一使用 parseFloat 提取，支持多种字段名
+            latitude: (item.latitude !== undefined && item.latitude !== null) || (item.lat !== undefined && item.lat !== null)
+              ? parseFloat((item.latitude !== undefined && item.latitude !== null) ? item.latitude : item.lat)
+              : null,
+            longitude: (item.longitude !== undefined && item.longitude !== null) || (item.lng !== undefined && item.lng !== null) || (item.lon !== undefined && item.lon !== null)
+              ? parseFloat((item.longitude !== undefined && item.longitude !== null) ? item.longitude : ((item.lng !== undefined && item.lng !== null) ? item.lng : item.lon))
+              : null,
+            address: item.address || item.location || '',
+            // 电话信息（可选）
+            phone: item.phone || null,
+            // 浏览量和发布者信息
+            views: views,
+            formattedViews: formattedViews,
+            authorInfo: authorInfo
+          }
+        })
 
         // 合并数据（加载更多时追加，首次加载时替换）
         const allItems = isLoadMore ? [...this.data.items, ...newItems] : newItems
@@ -392,27 +431,32 @@ Page({
     }
   },
 
+  // 格式化浏览量
+  formatViews(views) {
+    if (!views || views === 0) {
+      return '0'
+    }
+    if (views < 1000) {
+      return String(views)
+    } else if (views < 10000) {
+      return (views / 1000).toFixed(1) + 'k'
+    } else {
+      return (views / 10000).toFixed(1) + 'w'
+    }
+  },
+
   viewDetail(e) {
     const item = e.currentTarget.dataset.item
+    if (!item || !item.id) return
 
-    // 直接使用 htmlContent 字段，不再通过 detailApi 获取
-    if (item.htmlContent) {
-      const params = {
-        htmlContent: encodeURIComponent(item.htmlContent),
-        title: encodeURIComponent(item.title || item.name || '详情'),
-        meta: encodeURIComponent(item.meta || item.date || '')
-      }
-      wx.navigateTo({
-        url: `/page/article-detail/index?htmlContent=${params.htmlContent}&title=${params.title}&meta=${params.meta}`
-      })
-    } else {
-      // 如果没有 htmlContent，提示用户
-      wx.showToast({
-        title: '暂无详情内容',
-        icon: 'none',
-        duration: 2000
-      })
-    }
+    const title = item.title || item.name || ''
+    
+    // 统一使用文章ID跳转，与发现页保持一致
+    // 列表API不再返回htmlContent，统一通过文章ID获取详情
+    // 这样可以减少列表API响应体积，提升加载速度，并获取完整信息（浏览量、作者信息等）
+    wx.navigateTo({
+      url: `/page/article-detail/index?id=${encodeURIComponent(item.id)}&title=${encodeURIComponent(title)}`
+    })
   },
 
   onImageError(e) {

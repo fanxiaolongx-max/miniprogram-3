@@ -1,6 +1,7 @@
 // 发现页面 - 显示文章管理内容
 const blogApi = require('../../utils/blogApi.js')
 const { formatTimestamp } = require('../../util/util.js')
+const authHelper = require('../../utils/authHelper.js')
 
 Page({
   onShareAppMessage() {
@@ -166,7 +167,7 @@ Page({
       const result = await blogApi.apiConfigApi.getList()
       if (result.success && result.data) {
         this.setData({
-          apiList: result.data
+          apiList: Array.isArray(result.data) ? result.data : []
         })
       }
       return Promise.resolve()
@@ -192,7 +193,7 @@ Page({
         
         // 立即显示分类区域
         this.setData({
-          categories: categories,
+          categories: Array.isArray(categories) ? categories : ['全部'],
           showCategories: true // 立即显示分类区域
         })
         
@@ -440,17 +441,79 @@ Page({
         console.warn('[fetchArticles] 警告：过滤后没有有效数据！')
       }
 
-      // 格式化时间戳
-      items = items.map(item => ({
-        ...item,
-        createdAt: formatTimestamp(item.createdAt),
-        updatedAt: formatTimestamp(item.updatedAt)
-      }))
+      // 获取当前登录用户信息
+      const currentUser = authHelper.getLoginInfo()
+      // 获取当前用户的deviceId（优先使用phone作为deviceId，与保存文章时的逻辑一致）
+      const currentDeviceId = currentUser && currentUser.phone ? currentUser.phone.trim() : null
+      
+      // 格式化时间戳，并提取浏览量和发布者信息，同时检查编辑权限
+      items = items.map(item => {
+        // 提取浏览量
+        const views = item.views || 0
+        const formattedViews = this.formatViews(views)
+        
+        // 提取发布者信息（从custom_fields中获取）
+        let authorInfo = null
+        let articleDeviceId = null
+        if (item.custom_fields) {
+          try {
+            // custom_fields可能是JSON字符串或对象
+            const customFields = typeof item.custom_fields === 'string' 
+              ? JSON.parse(item.custom_fields) 
+              : item.custom_fields
+            
+            if (customFields && (customFields.nickname || customFields.phone || customFields.deviceModel)) {
+              authorInfo = {
+                nickname: customFields.nickname || null,
+                phone: customFields.phone || null,
+                deviceModel: customFields.deviceModel || null
+              }
+            }
+            // 提取deviceId
+            if (customFields && customFields.deviceId) {
+              articleDeviceId = customFields.deviceId
+            }
+          } catch (e) {
+            console.warn('[fetchArticles] 解析custom_fields失败:', e)
+          }
+        }
+        
+        // 如果没有从custom_fields获取到，尝试直接从文章对象获取（向后兼容）
+        if (!authorInfo && (item.nickname || item.phone || item.deviceModel)) {
+          authorInfo = {
+            nickname: item.nickname || null,
+            phone: item.phone || null,
+            deviceModel: item.deviceModel || null
+          }
+        }
+        // 提取deviceId（从直接字段）
+        if (!articleDeviceId && item.deviceId) {
+          articleDeviceId = item.deviceId
+        }
+        
+        // 清理deviceId后比较
+        const articleDeviceIdNormalized = articleDeviceId ? articleDeviceId.trim() : null
+        
+        // 判断是否允许编辑和删除：当前用户deviceId与文章编辑者deviceId一致
+        const canEdit = currentDeviceId && articleDeviceIdNormalized && currentDeviceId === articleDeviceIdNormalized
+        const canDelete = canEdit // 删除权限与编辑权限一致
+        
+        return {
+          ...item,
+          createdAt: formatTimestamp(item.createdAt),
+          updatedAt: formatTimestamp(item.updatedAt),
+          views: views,
+          formattedViews: formattedViews,
+          authorInfo: authorInfo,
+          canEdit: canEdit,
+          canDelete: canDelete
+        }
+      })
 
       if (isLoadMore) {
-        const existingItems = this.data.items || []
+        const existingItems = Array.isArray(this.data.items) ? this.data.items : []
         this.setData({
-          items: [...existingItems, ...items],
+          items: Array.isArray(items) ? [...existingItems, ...items] : existingItems,
           page: requestPage,
           hasMore: hasMore,
           loadingMore: false,
@@ -458,7 +521,7 @@ Page({
         })
       } else {
         this.setData({
-          items: items,
+          items: Array.isArray(items) ? items : [],
           page: requestPage,
           hasMore: hasMore,
           loading: false,
@@ -510,12 +573,14 @@ Page({
 
   applyFilters() {
     const { items, searchKeyword } = this.data
-    let filtered = [...items]
+    // 确保items是数组
+    const safeItems = Array.isArray(items) ? items : []
+    let filtered = [...safeItems]
 
     // 注意：分类过滤已经在API层面完成（通过 category 参数），不需要客户端再次过滤
     // 只需要处理搜索关键词的客户端过滤（如果API的搜索功能不够完善，可以在这里补充）
 
-    if (searchKeyword.trim()) {
+    if (searchKeyword && searchKeyword.trim()) {
       const keyword = searchKeyword.toLowerCase()
       filtered = filtered.filter(item => {
         const name = (item.name || '').toLowerCase()
@@ -526,8 +591,22 @@ Page({
     }
 
     this.setData({
-      filteredItems: filtered
+      filteredItems: Array.isArray(filtered) ? filtered : []
     })
+  },
+
+  // 格式化浏览量
+  formatViews(views) {
+    if (!views || views === 0) {
+      return '0'
+    }
+    if (views < 1000) {
+      return String(views)
+    } else if (views < 10000) {
+      return (views / 1000).toFixed(1) + 'k'
+    } else {
+      return (views / 10000).toFixed(1) + 'w'
+    }
   },
 
   onSearchInput(e) {
@@ -590,6 +669,21 @@ Page({
   },
 
   deleteArticle(e) {
+    // 检查登录状态
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     const item = e.currentTarget.dataset.item
     if (!item || !item.id) return
 
@@ -607,6 +701,21 @@ Page({
   },
 
   async performDelete(id) {
+    // 再次检查登录状态（防止绕过前端检查）
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     wx.showLoading({
       title: '删除中...',
       mask: true

@@ -14,11 +14,28 @@
     <!-- 内容展示 -->
     <view wx:else class="article-container">
       <view wx:if="{{title}}" class="article-title">{{title}}</view>
-      <view wx:if="{{meta}}" class="article-meta">{{meta}}</view>
+      
+      <!-- 文章元信息区域 -->
+      <view wx:if="{{meta || views > 0 || authorInfo}}" class="article-meta">
+        <!-- 第一行：时间和浏览量 -->
+        <view wx:if="{{meta || views > 0}}" class="meta-row-1">
+          <text wx:if="{{meta}}" class="meta-time">{{meta}}</text>
+          <text wx:if="{{meta && views > 0}}" class="meta-separator"> · </text>
+          <text wx:if="{{views > 0}}" class="meta-views">{{formattedViews}} 浏览</text>
+        </view>
+        
+        <!-- 第二行：发布者信息和设备信息 -->
+        <view wx:if="{{authorInfo && (authorInfo.nickname || authorInfo.phone || authorInfo.deviceModel)}}" class="meta-row-2">
+          <text wx:if="{{authorInfo.nickname}}" class="author-nickname">🧔🏻 {{authorInfo.nickname}}</text>
+          <text wx:if="{{authorInfo.nickname && authorInfo.phone}}" class="author-separator"> </text>
+          <text wx:if="{{authorInfo.phone}}" class="author-phone" bindtap="makePhoneCall" data-phone="{{authorInfo.phone}}">☎️ ({{authorInfo.phone}})</text>
+          <text wx:if="{{authorInfo.deviceModel}}" class="device-tag">📱 {{authorInfo.deviceModel}}</text>
+        </view>
+      </view>
       
       <!-- 使用解析后的节点数组进行内联渲染 -->
-      <view wx:if="{{parsedContent.length > 0}}" class="article-content-parsed">
-        <block wx:for="{{parsedContent}}" wx:key="index" wx:for-index="nodeIndex" wx:for-item="node">
+      <view wx:if="{{parsedContent && parsedContent.length > 0}}" class="article-content-parsed">
+        <block wx:if="{{parsedContent}}" wx:for="{{parsedContent}}" wx:key="index" wx:for-index="nodeIndex" wx:for-item="node">
           <!-- 文本节点 -->
           <rich-text wx:if="{{node.type === 'text'}}" class="article-text-node" nodes="{{node.content}}" selectable="{{true}}"></rich-text>
           
@@ -102,13 +119,14 @@
       </view>
       
       <!-- 文章图片区域（缩略图网格，支持点击查看大图和长按保存）- 仅在未使用内联渲染时显示 -->
-      <view wx:if="{{images.length > 0 && parsedContent.length === 0}}" class="images-section">
+      <view wx:if="{{images && images.length > 0 && (!parsedContent || parsedContent.length === 0)}}" class="images-section">
         <view class="images-title">文章图片</view>
         <view class="images-container">
-          <image 
-            wx:for="{{images}}" 
-            wx:key="*this"
-            wx:for-index="index"
+          <block wx:if="{{images}}">
+            <image 
+              wx:for="{{images}}" 
+              wx:key="*this"
+              wx:for-index="index"
             class="article-image-thumbnail"
             src="{{item}}"
             mode="aspectFill"
@@ -117,14 +135,15 @@
             data-index="{{index}}"
             show-menu-by-longpress="{{true}}"
           ></image>
+          </block>
         </view>
       </view>
       
       <!-- 文章视频区域 - 仅在未使用内联渲染时显示 -->
-      <view wx:if="{{videos.length > 0 && parsedContent.length === 0}}" class="videos-section">
+      <view wx:if="{{videos && videos.length > 0 && (!parsedContent || parsedContent.length === 0)}}" class="videos-section">
         <view class="videos-title">文章视频</view>
         <view class="videos-container">
-          <block wx:for="{{videos}}" wx:key="src" wx:for-index="index">
+          <block wx:if="{{videos}}" wx:for="{{videos}}" wx:key="src" wx:for-index="index">
             <!-- 有 poster 的视频 -->
             <video 
               wx:if="{{item.poster}}"
@@ -159,13 +178,14 @@
       </view>
       
       <!-- 文章链接区域 - 仅在未使用内联渲染时显示 -->
-      <view wx:if="{{links.length > 0 && parsedContent.length === 0}}" class="links-section">
+      <view wx:if="{{links && links.length > 0 && (!parsedContent || parsedContent.length === 0)}}" class="links-section">
         <view class="links-title">文章链接</view>
         <view class="links-container">
-          <view 
-            wx:for="{{links}}" 
-            wx:key="url" 
-            class="link-item"
+          <block wx:if="{{links}}">
+            <view 
+              wx:for="{{links}}" 
+              wx:key="url" 
+              class="link-item"
             bindtap="copyLink"
             data-url="{{item.url}}"
           >
@@ -176,6 +196,7 @@
             </view>
             <view class="link-action">复制</view>
           </view>
+          </block>
         </view>
       </view>
     </view>

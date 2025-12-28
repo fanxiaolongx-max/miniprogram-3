@@ -62,6 +62,17 @@
               </view>
               <view class="item-title">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <!-- 浏览量和发布者信息（紧凑显示） -->
+              <view wx:if="{{item.formattedViews || item.authorInfo}}" class="item-meta-compact">
+                <view wx:if="{{item.formattedViews}}" class="meta-views-compact">
+                  <text class="meta-icon">👁️</text>
+                  <text class="meta-text">{{item.formattedViews}}</text>
+                </view>
+                <view wx:if="{{item.authorInfo && item.authorInfo.nickname}}" class="meta-author-compact">
+                  <text class="meta-icon">👤</text>
+                  <text class="meta-text">{{item.authorInfo.nickname}}</text>
+                </view>
+              </view>
               <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-footer">
                 <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
                   <text class="location-icon">📍</text>
@@ -107,6 +118,17 @@
             </view>
               <view class="item-title">{{item.name}}</view>
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
+              <!-- 浏览量和发布者信息（紧凑显示） -->
+              <view wx:if="{{item.formattedViews || item.authorInfo}}" class="item-meta-compact">
+                <view wx:if="{{item.formattedViews}}" class="meta-views-compact">
+                  <text class="meta-icon">👁️</text>
+                  <text class="meta-text">{{item.formattedViews}}</text>
+                </view>
+                <view wx:if="{{item.authorInfo && item.authorInfo.nickname}}" class="meta-author-compact">
+                  <text class="meta-icon">👤</text>
+                  <text class="meta-text">{{item.authorInfo.nickname}}</text>
+                </view>
+              </view>
               <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-footer">
                 <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
                   <text class="location-icon">📍</text>

@@ -219,7 +219,7 @@ const config = {
   menuLinksApi: `${apiBaseDomain}/api/custom/menu-links`,
 
   /**
-   * 热门打卡地 API
+   * 热门打卡 API
    * 请求方式: GET
    * 请求参数（支持分页和过滤）:
    *   - page: 页码（必填，数字，从1开始，默认1）
@@ -262,7 +262,7 @@ const config = {
    *     注意：htmlContent应该是完整的HTML字符串，用于直接显示在详情页面，不再需要通过detailApi获取
    *   - detailApi: 详情API地址（已废弃，保留用于向后兼容，但不再使用）
    * 扩展字段（各API特有字段）:
-   *   热门打卡地:
+   *   热门打卡:
    *     - latitude: 纬度（可选，数字，用于地图导航）
    *     - longitude: 经度（可选，数字，用于地图导航）
    *   租房信息:

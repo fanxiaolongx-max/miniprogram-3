@@ -344,6 +344,18 @@
   font-weight: 400;
 }
 
+.toolbar-btn-text {
+  width: auto;
+  padding: 0 12px;
+}
+
+.toolbar-text {
+  font-size: 17px;
+  color: #333;
+  font-weight: 400;
+  line-height: 1;
+}
+
 /* 底部间距 - 只保留必要的空间避免被工具栏遮挡 */
 .bottom-spacer {
   flex-shrink: 0;
@@ -566,6 +578,10 @@
 }
 
 .dark-theme .toolbar-icon {
+  color: #fff;
+}
+
+.dark-theme .toolbar-text {
   color: #fff;
 }
 

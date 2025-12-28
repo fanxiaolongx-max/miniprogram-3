@@ -142,7 +142,7 @@
                 <text class="ios-icon">📸</text>
               </view>
               <view class="ios-item-content">
-                <view class="ios-item-title">热门打卡地</view>
+                <view class="ios-item-title">热门打卡</view>
               </view>
             </view>
             <text class="ios-arrow">></text>

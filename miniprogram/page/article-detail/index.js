@@ -60,7 +60,8 @@ Page({
     location: null, // 存储地址信息 { name, address, latitude, longitude }
     mapMarkers: [], // 地图标记点
     coverImage: '', // 文章封面图片（优先用于转发）
-    articleId: '' // 文章ID（用于转发时构建路径）
+    articleId: '', // 文章ID（用于转发时构建路径）
+    authorInfo: null // 发布者信息 { nickname, phone, deviceModel }
   },
 
   onLoad(options) {
@@ -124,6 +125,8 @@ Page({
         latitude: locationData.latitude,
         longitude: locationData.longitude,
         title: locationData.name || '位置',
+        width: 30,
+        height: 30,
         callout: {
           content: locationData.name || '位置',
           color: '#333',
@@ -146,12 +149,12 @@ Page({
         title: title,
         meta: meta,
         content: processedContent,
-        parsedContent: parsedContent, // 解析后的节点数组
-        links: links,
-        images: images,
-        videos: videos,
+        parsedContent: Array.isArray(parsedContent) ? parsedContent : [],
+        links: Array.isArray(links) ? links : [],
+        images: Array.isArray(images) ? images : [],
+        videos: Array.isArray(videos) ? videos : [],
         location: locationData,
-        mapMarkers: mapMarkers,
+        mapMarkers: Array.isArray(mapMarkers) ? mapMarkers : [],
         loading: false,
         error: false
       })
@@ -187,6 +190,7 @@ Page({
         const htmlContent = article.htmlContent || ''
         const title = article.title || article.name || ''
         const meta = formatTimestamp(article.createdAt || article.updatedAt || '')
+        const views = article.views || 0 // 浏览量
         
         if (!htmlContent) {
           this.showError('文章内容为空')
@@ -220,6 +224,8 @@ Page({
           latitude: locationData.latitude,
           longitude: locationData.longitude,
           title: locationData.name || '位置',
+          width: 30,
+          height: 30,
           callout: {
             content: locationData.name || '位置',
             color: '#333',
@@ -231,6 +237,39 @@ Page({
           }
         }] : []
         
+        // 提取发布者信息（从custom_fields中获取）
+        let authorInfo = null
+        if (article.custom_fields) {
+          try {
+            // custom_fields可能是JSON字符串或对象
+            const customFields = typeof article.custom_fields === 'string' 
+              ? JSON.parse(article.custom_fields) 
+              : article.custom_fields
+            
+            if (customFields && (customFields.nickname || customFields.phone || customFields.deviceModel)) {
+              authorInfo = {
+                nickname: customFields.nickname || null,
+                phone: customFields.phone || null,
+                deviceModel: customFields.deviceModel || null
+              }
+            }
+          } catch (e) {
+            console.warn('[article-detail] 解析custom_fields失败:', e)
+          }
+        }
+        
+        // 如果没有从custom_fields获取到，尝试直接从文章对象获取（向后兼容）
+        if (!authorInfo && (article.nickname || article.phone || article.deviceModel)) {
+          authorInfo = {
+            nickname: article.nickname || null,
+            phone: article.phone || null,
+            deviceModel: article.deviceModel || null
+          }
+        }
+        
+        // 格式化浏览量
+        const formattedViews = this.formatViews(views)
+        
         // 设置导航栏标题
         if (title) {
           wx.setNavigationBarTitle({
@@ -241,15 +280,18 @@ Page({
         this.setData({
           title: title,
           meta: meta,
+          views: views,
+          formattedViews: formattedViews,
           content: processedContent,
-          parsedContent: parsedContent,
-          links: links,
-          images: images,
-          videos: videos,
+          parsedContent: Array.isArray(parsedContent) ? parsedContent : [],
+          links: Array.isArray(links) ? links : [],
+          images: Array.isArray(images) ? images : [],
+          videos: Array.isArray(videos) ? videos : [],
           location: locationData,
-          mapMarkers: mapMarkers,
+          mapMarkers: Array.isArray(mapMarkers) ? mapMarkers : [],
           coverImage: article.image || '', // 保存封面图片
           articleId: articleId, // 保存文章ID用于转发
+          authorInfo: authorInfo, // 发布者信息
           loading: false,
           error: false
         })
@@ -260,6 +302,20 @@ Page({
     } catch (error) {
       console.error('[article-detail] 获取文章详情异常:', error)
       this.showError(error.message || '获取文章详情失败，请稍后重试')
+    }
+  },
+
+  // 格式化浏览量
+  formatViews(views) {
+    if (!views || views === 0) {
+      return '0'
+    }
+    if (views < 1000) {
+      return String(views)
+    } else if (views < 10000) {
+      return (views / 1000).toFixed(1) + 'k'
+    } else {
+      return (views / 10000).toFixed(1) + 'w'
     }
   },
 
@@ -308,53 +364,96 @@ Page({
         let meta = ''
         let locationData = null // 存储地址信息
         let coverImage = '' // 存储封面图片
+        let articleData = null // 存储文章数据对象（用于提取发布者信息）
+        let views = 0 // 浏览量
 
         // 格式0: 数组格式 [{ content: "HTML内容", title: "标题" }] - 取第一个元素
         if (Array.isArray(res.data) && res.data.length > 0) {
           const firstItem = res.data[0]
+          articleData = firstItem
           content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
           title = firstItem.title || firstItem.name || ''
           meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || '')
           locationData = this.extractLocation(firstItem)
           coverImage = firstItem.image || ''
+          views = firstItem.views || 0
         }
         // 格式1: { content: "HTML内容", title: "标题" }
         else if (res.data.content || res.data.html || res.data.htmlContent) {
+          articleData = res.data
           content = res.data.content || res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
           meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || '')
           locationData = this.extractLocation(res.data)
           coverImage = res.data.image || ''
+          views = res.data.views || 0
         }
         // 格式2: { data: { content: "HTML内容", title: "标题" } }
         else if (res.data.data) {
           // 如果 data 是数组，取第一个元素
           if (Array.isArray(res.data.data) && res.data.data.length > 0) {
             const firstItem = res.data.data[0]
+            articleData = firstItem
             content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
             title = firstItem.title || firstItem.name || ''
             meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || '')
             locationData = this.extractLocation(firstItem)
             coverImage = firstItem.image || ''
+            views = firstItem.views || 0
           } else if (typeof res.data.data === 'object') {
+            articleData = res.data.data
             content = res.data.data.content || res.data.data.html || res.data.data.htmlContent || ''
             title = res.data.data.title || ''
             meta = formatTimestamp(res.data.data.meta || res.data.data.date || res.data.data.updatedAt || '')
             locationData = this.extractLocation(res.data.data)
             coverImage = res.data.data.image || ''
+            views = res.data.data.views || 0
           }
         }
         // 格式3: { html: "HTML内容", title: "标题" } 或 { htmlContent: "HTML内容", title: "标题" }
         else if (res.data.html || res.data.htmlContent) {
+          articleData = res.data
           content = res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
           meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || '')
           locationData = this.extractLocation(res.data)
           coverImage = res.data.image || ''
+          views = res.data.views || 0
         }
         // 格式4: 直接字符串
         else if (typeof res.data === 'string') {
           content = res.data
+        }
+        
+        // 提取发布者信息
+        let authorInfo = null
+        if (articleData) {
+          if (articleData.custom_fields) {
+            try {
+              const customFields = typeof articleData.custom_fields === 'string' 
+                ? JSON.parse(articleData.custom_fields) 
+                : articleData.custom_fields
+              
+              if (customFields && (customFields.nickname || customFields.phone || customFields.deviceModel)) {
+                authorInfo = {
+                  nickname: customFields.nickname || null,
+                  phone: customFields.phone || null,
+                  deviceModel: customFields.deviceModel || null
+                }
+              }
+            } catch (e) {
+              console.warn('[article-detail] 解析custom_fields失败:', e)
+            }
+          }
+          
+          // 如果没有从custom_fields获取到，尝试直接从文章对象获取
+          if (!authorInfo && (articleData.nickname || articleData.phone || articleData.deviceModel)) {
+            authorInfo = {
+              nickname: articleData.nickname || null,
+              phone: articleData.phone || null,
+              deviceModel: articleData.deviceModel || null
+            }
+          }
         }
 
         if (!content) {
@@ -391,6 +490,8 @@ Page({
           latitude: locationData.latitude,
           longitude: locationData.longitude,
           title: locationData.name || '位置',
+          width: 30,
+          height: 30,
           callout: {
             content: locationData.name || '位置',
             color: '#333',
@@ -402,17 +503,23 @@ Page({
           }
         }] : []
 
+        // 格式化浏览量
+        const formattedViews = this.formatViews(views)
+        
         this.setData({
           title: title,
           meta: meta,
+          views: views,
+          formattedViews: formattedViews,
           content: content,
-          parsedContent: parsedContent, // 解析后的节点数组
-          links: links,
-          images: images,
-          videos: videos,
+          parsedContent: Array.isArray(parsedContent) ? parsedContent : [],
+          links: Array.isArray(links) ? links : [],
+          images: Array.isArray(images) ? images : [],
+          videos: Array.isArray(videos) ? videos : [],
           location: locationData,
-          mapMarkers: mapMarkers,
+          mapMarkers: Array.isArray(mapMarkers) ? mapMarkers : [],
           coverImage: coverImage, // 保存封面图片
+          authorInfo: authorInfo, // 发布者信息
           loading: false,
           error: false
         })
@@ -1432,6 +1539,44 @@ Page({
         console.error('打开地图失败', err)
         wx.showToast({
           title: '打开地图失败',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    })
+  },
+
+  /**
+   * 拨打手机号
+   * @param {Object} e - 事件对象
+   */
+  makePhoneCall(e) {
+    const phone = e.currentTarget.dataset.phone
+    if (!phone) {
+      return
+    }
+    
+    // 清理手机号，移除空格、横线等字符
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '')
+    
+    if (!cleanPhone) {
+      wx.showToast({
+        title: '手机号无效',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    wx.makePhoneCall({
+      phoneNumber: cleanPhone,
+      success: () => {
+        console.log('[makePhoneCall] 拨打成功:', cleanPhone)
+      },
+      fail: (err) => {
+        console.error('[makePhoneCall] 拨打失败:', err)
+        wx.showToast({
+          title: '拨打失败',
           icon: 'none',
           duration: 2000
         })

@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "热门打卡地",
+  "navigationBarTitleText": "热门打卡",
   "usingComponents": {},
   "disableScroll": false,
   "enablePullDownRefresh": true,

@@ -51,11 +51,67 @@
 }
 
 .article-meta {
-  font-size: 14px;
-  color: #999;
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid #f0f0f0;
+}
+
+/* 第一行：时间和浏览量 */
+.meta-row-1 {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.meta-time {
+  color: #999;
+}
+
+.meta-separator {
+  color: #999;
+  margin: 0 4px;
+}
+
+.meta-views {
+  color: #999;
+}
+
+/* 第二行：发布者信息和设备信息 */
+.meta-row-2 {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.author-nickname {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.author-separator {
+  margin: 0 4px;
+}
+
+.author-phone {
+  font-size: 12px;
+  color: #576b95;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.device-tag {
+  display: inline-block;
+  font-size: 12px;
+  color: #576b95;
+  background-color: #f7f7f7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
 }
 
 .article-content {
@@ -367,6 +423,25 @@
 
 [data-weui-theme=dark] .article-meta {
   border-bottom-color: #3C3C3C;
+}
+
+[data-weui-theme=dark] .meta-time,
+[data-weui-theme=dark] .meta-views,
+[data-weui-theme=dark] .meta-separator {
+  color: #999;
+}
+
+[data-weui-theme=dark] .author-nickname {
+  color: #fff;
+}
+
+[data-weui-theme=dark] .author-phone {
+  color: #999;
+}
+
+[data-weui-theme=dark] .device-tag {
+  background-color: #3C3C3C;
+  color: #7a9eff;
 }
 
 [data-weui-theme=dark] .error-text {

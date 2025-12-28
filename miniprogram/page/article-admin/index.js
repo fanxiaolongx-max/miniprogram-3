@@ -1,5 +1,6 @@
 const blogApi = require('../../utils/blogApi.js')
 const { formatTimestamp } = require('../../util/util.js')
+const authHelper = require('../../utils/authHelper.js')
 
 Page({
   onShareAppMessage() {
@@ -181,12 +182,48 @@ Page({
 
       console.log(`[fetchArticles] 解析结果: items=${items.length}, total=${total}, hasMore=${hasMore}`)
 
-      // 格式化时间戳
-      items = items.map(item => ({
-        ...item,
-        createdAt: formatTimestamp(item.createdAt),
-        updatedAt: formatTimestamp(item.updatedAt)
-      }))
+      // 获取当前登录用户信息
+      const currentUser = authHelper.getLoginInfo()
+      // 获取当前用户的deviceId（优先使用phone作为deviceId，与保存文章时的逻辑一致）
+      const currentDeviceId = currentUser && currentUser.phone ? currentUser.phone.trim() : null
+      
+      // 格式化时间戳并检查编辑权限
+      items = items.map(item => {
+        // 提取文章的编辑者deviceId（从custom_fields或直接字段）
+        let articleDeviceId = null
+        if (item.custom_fields) {
+          try {
+            const customFields = typeof item.custom_fields === 'string' 
+              ? JSON.parse(item.custom_fields) 
+              : item.custom_fields
+            if (customFields && customFields.deviceId) {
+              articleDeviceId = customFields.deviceId
+            }
+          } catch (e) {
+            console.warn('[fetchArticles] 解析custom_fields失败:', e)
+          }
+        }
+        
+        // 如果没有从custom_fields获取到，尝试直接从文章对象获取
+        if (!articleDeviceId && item.deviceId) {
+          articleDeviceId = item.deviceId
+        }
+        
+        // 清理deviceId后比较
+        const articleDeviceIdNormalized = articleDeviceId ? articleDeviceId.trim() : null
+        
+        // 判断是否允许编辑和删除：当前用户deviceId与文章编辑者deviceId一致
+        const canEdit = currentDeviceId && articleDeviceIdNormalized && currentDeviceId === articleDeviceIdNormalized
+        const canDelete = canEdit // 删除权限与编辑权限一致
+        
+        return {
+          ...item,
+          createdAt: formatTimestamp(item.createdAt),
+          updatedAt: formatTimestamp(item.updatedAt),
+          canEdit: canEdit,
+          canDelete: canDelete
+        }
+      })
 
       if (isLoadMore) {
         // 追加数据
@@ -329,6 +366,21 @@ Page({
 
   // 创建文章
   createArticle() {
+    // 检查登录状态
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     // 跳转到编辑页面（新建模式）
     wx.navigateTo({
       url: '/page/article-edit/index?mode=create'
@@ -337,6 +389,21 @@ Page({
 
   // 编辑文章
   editArticle(e) {
+    // 检查登录状态
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     const item = e.currentTarget.dataset.item
     if (!item || !item.id) return
 
@@ -348,6 +415,21 @@ Page({
 
   // 删除文章
   deleteArticle(e) {
+    // 检查登录状态
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     const item = e.currentTarget.dataset.item
     if (!item || !item.id) return
 
@@ -366,6 +448,21 @@ Page({
 
   // 执行删除
   async performDelete(id) {
+    // 再次检查登录状态（防止绕过前端检查）
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     wx.showLoading({
       title: '删除中...',
       mask: true
