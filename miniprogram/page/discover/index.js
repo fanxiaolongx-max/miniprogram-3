@@ -21,6 +21,7 @@ Page({
     selectedCategory: '',
     categories: ['全部'],
     showCategories: false, // 控制分类区域显示
+    showMyPosts: false, // 是否仅显示我的发布
     // 分类映射：中文名称 -> 原始名称数组（用于合并相同中文的不同英文变体）
     categoryNameMap: {},
     // 分页相关
@@ -138,6 +139,7 @@ Page({
     this.setData({
       searchKeyword: '',
       selectedCategory: '',
+      showMyPosts: false, // 下拉刷新时取消选中"我的发布"，显示全部文章
       page: 1,
       hasMore: true
     })
@@ -259,13 +261,28 @@ Page({
     })
     
     // 使用新的 /api/blog/posts API 获取文章列表
-    return blogApi.blogPostApi.getList({
+    const params = {
       page: requestPage,
       pageSize: pageSize,
       category: category || undefined,
       search: keyword || undefined,
       published: 'true' // 只返回已发布的文章
-    }).then((result) => {
+    }
+    
+    // 如果选中了"仅显示我的发布"，检查是否已登录
+    if (this.data.showMyPosts) {
+      if (!authHelper.isLoggedInLocally()) {
+        // 如果未登录，重置状态
+        this.setData({
+          showMyPosts: false
+        })
+      } else {
+        // 已登录，添加 myPosts 参数
+        params.myPosts = true
+      }
+    }
+    
+    return blogApi.blogPostApi.getList(params).then((result) => {
       console.log('[fetchArticles] API响应:', result)
       console.log('[fetchArticles] 响应类型:', typeof result)
       console.log('[fetchArticles] 是否为数组:', Array.isArray(result))
@@ -640,6 +657,37 @@ Page({
       page: 1,
       hasMore: true
     })
+    this.fetchArticles()
+  },
+
+  // 切换"仅显示我的发布"
+  toggleMyPosts() {
+    const newValue = !this.data.showMyPosts
+    
+    // 如果要开启"仅显示我的发布"，检查是否已登录
+    if (newValue && !authHelper.isLoggedInLocally()) {
+      wx.showModal({
+        title: '提示',
+        content: '查看我的发布需要先登录，是否立即登录？',
+        confirmText: '去登录',
+        cancelText: '取消',
+        success: (res) => {
+          if (res.confirm) {
+            wx.switchTab({
+              url: '/page/my/index'
+            })
+          }
+        }
+      })
+      return
+    }
+    
+    this.setData({
+      showMyPosts: newValue,
+      page: 1,
+      hasMore: true
+    })
+    // 重新加载文章列表
     this.fetchArticles()
   },
 

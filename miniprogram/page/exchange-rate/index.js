@@ -504,8 +504,7 @@ Page({
 
   // 从 API 获取汇率
   fetchExchangeRate(forceRefresh = false) {
-    const config = require('../../config.js')
-    const apiUrl = config.exchangeRateApi || `${config.apiBaseUrl}/exchange-rate`
+    const blogApi = require('../../utils/blogApi.js')
     const app = getApp()
     
     // 如果不是强制刷新，先检查缓存
@@ -550,288 +549,167 @@ Page({
       rateLoading: true
     })
 
-    wx.request({
-      url: apiUrl,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        console.log('[fetchExchangeRate] 获取汇率响应', res)
-        console.log('[fetchExchangeRate] res.data:', res.data, 'res.data类型:', typeof res.data)
-        
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
-        
-        // 检查状态码和 success 字段
-        if (res.statusCode !== 200) {
-          console.error('[fetchExchangeRate] 获取汇率失败，状态码:', res.statusCode, '响应数据:', res.data)
-          this.showRateError()
-          return
-        }
-
-        // 检查是否有明确的错误标识
-        if (res.data && res.data.success === false) {
-          console.error('[fetchExchangeRate] API返回错误:', res.data)
-          this.showRateError()
-          return
-        }
-
-        // 如果没有数据，使用默认值，不报错（允许空数据）
-        if (!res.data) {
-          console.warn('[fetchExchangeRate] API返回数据为空，使用默认汇率')
-          // 使用默认值，不报错
-          const defaultRate = 6.7
-          const defaultReverseRate = parseFloat((1 / defaultRate).toFixed(4))
-          this.setData({
-            exchangeRate: defaultRate,
-            reverseRate: defaultReverseRate,
-            rates: {},
-            lastUpdated: '',
-            rateLoading: false,
-            isInitialLoad: false
-          }, () => {
-            if (this.data.isInitialLoad) {
-              this.calculateAmount('1', 'cny')
-            }
-          })
-          return
-        }
-
-          let rate = 6.7
-          let lastUpdated = ''
-          let rates = {} // 多币种汇率对象
-
-          // 处理不同的API返回格式
-          // 格式1（优先）: res.data 是数组 [{ CNY: { EGP: 6.74 }, ... }]
-          // 格式2: 包装在 res.data.data 中：{ data: [{ CNY: { EGP: 6.74 }, ... }] }
-          // 格式3: 直接在 res.data 中：{ "0": { CNY: { EGP: 6.74 }, ... }, data: [...] }
-          // 格式4: 直接在 res.data 中：{ CNY: { EGP: 6.74 }, ... }
-          console.log('[fetchExchangeRate] 处理数据，res.data:', res.data, 'res.data类型:', typeof res.data, '是否为数组:', Array.isArray(res.data))
-          
-          let rateData = null
-          
-          // 优先检查 res.data 是否是数组（格式1）
-          if (Array.isArray(res.data) && res.data.length > 0) {
-            const firstItem = res.data[0]
-            if (firstItem && typeof firstItem === 'object' && firstItem.CNY && firstItem.CNY.EGP) {
-              rateData = firstItem
-              console.log('[fetchExchangeRate] 从 res.data 数组第一个元素提取汇率数据:', rateData)
-            }
-          }
-          
-          // 如果 res.data 不是数组，检查其他格式
-          if (!rateData && res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
-            // 格式2: 检查 res.data.data 是否是数组
-            if (Array.isArray(res.data.data) && res.data.data.length > 0) {
-              const firstItem = res.data.data[0]
-              if (firstItem && typeof firstItem === 'object' && firstItem.CNY && firstItem.CNY.EGP) {
-                rateData = firstItem
-                console.log('[fetchExchangeRate] 从 res.data.data 数组第一个元素提取汇率数据:', rateData)
-              }
-            }
-            // 格式3: 检查是否有数字键（如 "0"）包含汇率数据
-            else {
-              const keys = Object.keys(res.data)
-              for (let i = 0; i < keys.length; i++) {
-                const key = keys[i]
-                // 检查是否是数字键且包含汇率数据
-                if (/^\d+$/.test(key) && res.data[key] && typeof res.data[key] === 'object') {
-                  const item = res.data[key]
-                  if (item.CNY && item.CNY.EGP) {
-                    rateData = item
-                    console.log('[fetchExchangeRate] 从数字键', key, '中提取汇率数据:', rateData)
-                    break
-                  }
-                }
-              }
-            }
-            
-            // 格式4: 检查 res.data.data 是否是对象
-            if (!rateData && res.data.data && typeof res.data.data === 'object' && !Array.isArray(res.data.data)) {
-              if (res.data.data.CNY && res.data.data.CNY.EGP) {
-                rateData = res.data.data
-                console.log('[fetchExchangeRate] 从 res.data.data 提取汇率数据:', rateData)
-              }
-            }
-            
-            // 格式5: 检查 res.data 本身是否包含汇率数据
-            if (!rateData && res.data.CNY && res.data.CNY.EGP) {
-              rateData = res.data
-              console.log('[fetchExchangeRate] 从 res.data 直接提取汇率数据:', rateData)
-            }
-          }
-          
-          // 如果找到了汇率数据，解析它
-          if (rateData) {
-            if (rateData.CNY && rateData.CNY.EGP) {
-              rate = parseFloat(rateData.CNY.EGP)
-              console.log('[fetchExchangeRate] 提取到 CNY->EGP 汇率:', rate)
-              
-              // 提取所有货币汇率（过滤掉非汇率字段）
-              rates = {}
-              const keys = Object.keys(rateData)
-              for (let i = 0; i < keys.length; i++) {
-                const key = keys[i]
-                // 跳过非汇率字段
-                if (key !== 'id' && key !== 'name' && key !== 'detailApi' && 
-                    key !== 'updatedAt' && key !== 'lastUpdated' && key !== 'updateTime' &&
-                    key !== 'htmlContent' && key !== 'views' && key !== 'createdAt') {
-                  if (rateData[key] && typeof rateData[key] === 'object' && !Array.isArray(rateData[key])) {
-                    rates[key] = rateData[key]
-                  }
-                }
-              }
-              console.log('[fetchExchangeRate] 提取到多币种汇率:', rates)
-              
-              // 提取更新时间
-              if (rateData.updatedAt) {
-                lastUpdated = rateData.updatedAt
-              } else if (rateData.lastUpdated) {
-                lastUpdated = rateData.lastUpdated
-              } else if (rateData.updateTime) {
-                lastUpdated = rateData.updateTime
-              }
-            }
-          } else {
-            // 如果没有找到，尝试旧的格式处理逻辑
-            const data = res.data.data || res.data
-            console.log('[fetchExchangeRate] 未找到新格式，尝试旧格式，data:', data, 'data类型:', typeof data, 'data是否为数组:', Array.isArray(data))
-            
-            // 优先处理多币种汇率格式
-            if (data && typeof data === 'object' && !Array.isArray(data)) {
-              console.log('[fetchExchangeRate] data 是对象，开始解析多币种格式')
-              // 检查是否是 rates 格式：{ rates: { CNY: { EGP: 6.7 }, USD: { EGP: 30.5 } } }
-              if (data.rates && typeof data.rates === 'object' && !Array.isArray(data.rates)) {
-                console.log('[fetchExchangeRate] 检测到 rates 格式，data.rates:', data.rates)
-                if (data.rates.CNY && data.rates.CNY.EGP) {
-                  rate = parseFloat(data.rates.CNY.EGP)
-                  rates = data.rates
-                  console.log('[fetchExchangeRate] 从 rates 格式提取，rate:', rate, 'rates:', rates)
-                }
-              }
-              // 检查是否是多币种格式：{ CNY: { EGP: 6.7 }, USD: { EGP: 30.5 } }
-              else if (data.CNY && typeof data.CNY === 'object' && !Array.isArray(data.CNY) && data.CNY.EGP) {
-                console.log('[fetchExchangeRate] 检测到多币种格式，data.CNY:', data.CNY)
-                rate = parseFloat(data.CNY.EGP)
-                // 过滤掉非汇率字段（如 updatedAt, lastUpdated, updateTime）
-                rates = {}
-                if (data && typeof data === 'object' && !Array.isArray(data) && data !== null) {
-                  try {
-                    console.log('[fetchExchangeRate] 开始过滤数据，准备调用 Object.keys')
-                    const keys = Object.keys(data)
-                    console.log('[fetchExchangeRate] Object.keys 成功，keys:', keys, 'keys长度:', keys.length)
-                    for (let i = 0; i < keys.length; i++) {
-                      const key = keys[i]
-                      console.log(`[fetchExchangeRate] 处理键 ${key}，值:`, data[key], '类型:', typeof data[key])
-                      if (key !== 'updatedAt' && key !== 'lastUpdated' && key !== 'updateTime' &&
-                          data[key] && typeof data[key] === 'object' && !Array.isArray(data[key]) && data[key] !== null) {
-                        rates[key] = data[key]
-                        console.log(`[fetchExchangeRate] 添加 ${key} 到 rates`)
-                      }
-                    }
-                    console.log('[fetchExchangeRate] 过滤完成，rates:', rates)
-                  } catch (err) {
-                    console.error('[fetchExchangeRate] 处理多币种汇率数据出错', err)
-                    console.error('[fetchExchangeRate] 错误堆栈:', err.stack)
-                    rates = {} // 确保始终是对象，不是 null
-                  }
-                }
-              }
-              // 检查是否是单币种对象格式：{ rate: 6.7 } 或 { exchangeRate: 6.7 }
-              else if (data.rate) {
-                rate = parseFloat(data.rate)
-              } else if (data.exchangeRate) {
-                rate = parseFloat(data.exchangeRate)
-              }
-            }
-            // 处理数字格式
-            else if (typeof data === 'number') {
-              rate = data
-            }
-          }
-
-        // 检查汇率是否有效，如果无效则使用默认值
-        if (isNaN(rate) || rate <= 0) {
-          console.warn('[fetchExchangeRate] 无法从API解析有效汇率，使用默认值 6.7，原始数据:', res.data)
-          rate = 6.7 // 使用默认值，不报错
-          rates = {} // 重置多币种汇率
-        }
-
-          // 获取更新时间（如果之前没有从 rateData 中提取）
-          if (!lastUpdated) {
-            if (res.data.updatedAt || res.data.lastUpdated || res.data.updateTime) {
-              lastUpdated = res.data.updatedAt || res.data.lastUpdated || res.data.updateTime
-            } else if (res.data.data && (res.data.data.updatedAt || res.data.data.lastUpdated || res.data.data.updateTime)) {
-              lastUpdated = res.data.data.updatedAt || res.data.data.lastUpdated || res.data.data.updateTime
-            } else {
-              // 如果没有提供更新时间，使用当前时间
-              const now = new Date()
-              const month = String(now.getMonth() + 1).padStart(2, '0')
-              const day = String(now.getDate()).padStart(2, '0')
-              const hours = String(now.getHours()).padStart(2, '0')
-              const minutes = String(now.getMinutes()).padStart(2, '0')
-              lastUpdated = `${month}-${day} ${hours}:${minutes}`
-            }
-          }
-
-          // 计算反向汇率
-          const reverseRate = parseFloat((1 / rate).toFixed(4))
-
-          console.log('[fetchExchangeRate] 准备保存数据，rate:', rate, 'reverseRate:', reverseRate, 'rates:', rates, 'rates类型:', typeof rates, 'rates是否为null:', rates === null)
-
-          // 保存到全局缓存
-          app.globalData.exchangeRateCache = {
-            rate: rate,
-            reverseRate: reverseRate,
-            rates: rates,
-            lastUpdated: lastUpdated,
-            timestamp: Date.now() // 记录缓存时间
-          }
-          console.log('[fetchExchangeRate] 汇率数据已缓存到 globalData', app.globalData.exchangeRateCache)
-
-          // 保存当前输入金额，用于重新计算
-          const currentAmount = this.data.isReversed ? this.data.egpAmount : this.data.cnyAmount
-          const isInitialLoad = this.data.isInitialLoad
-
-          console.log('[fetchExchangeRate] 当前输入金额:', currentAmount, 'isInitialLoad:', isInitialLoad)
-
-          this.setData({
-            exchangeRate: rate,
-            reverseRate: reverseRate,
-            rates: rates, // 保存多币种汇率数据
-            lastUpdated: lastUpdated,
-            rateLoading: false,
-            isInitialLoad: false // 标记首次加载完成
-          }, () => {
-            console.log('[fetchExchangeRate] setData 完成，当前 rates:', this.data.rates, 'rates类型:', typeof this.data.rates, 'rates是否为null:', this.data.rates === null)
-            
-            // 如果是首次加载，使用默认值 1 CNY 进行计算
-            if (isInitialLoad) {
-              console.log('[fetchExchangeRate] 首次加载，使用默认值 1 CNY 进行计算')
-              this.calculateAmount('1', 'cny')
-            }
-            // 如果当前有输入金额，重新计算（包括其他货币）
-            else if (currentAmount && currentAmount !== '' && currentAmount !== '0.00' && currentAmount !== '0') {
-              console.log('[fetchExchangeRate] 重新计算当前金额:', currentAmount)
-              this.calculateAmount(currentAmount, this.data.isReversed ? 'egp' : 'cny')
-            }
-          })
-
-          // 只在手动刷新时显示提示，首次加载不显示
-          if (forceRefresh) {
-            wx.showToast({
-              title: '汇率已更新',
-              icon: 'success',
-              duration: 1500
-            })
-          }
-      },
-      fail: (err) => {
-        console.error('获取汇率失败', err)
+    blogApi.blogPostApi.getList({
+      category: '汇率转换',
+      page: 1,
+      pageSize: 1  // 汇率通常只需要一条数据
+    }).then((result) => {
+      console.log('[fetchExchangeRate] 获取汇率响应', result)
+      
+      // 检查响应格式
+      if (!result || result.success === false) {
+        console.error('[fetchExchangeRate] API返回错误:', result)
         this.showRateError()
+        return
       }
+
+      // 从API格式中提取数据：{success, data: [{CNY: {EGP: ...}, USD: {EGP: ...}, ...}]}
+      let rateData = null
+      if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+        const firstItem = result.data[0]
+        // 优先检查 _originalData 字段（旧格式兼容）
+        if (firstItem._originalData && Array.isArray(firstItem._originalData) && firstItem._originalData.length > 0) {
+          rateData = firstItem._originalData[0]  // 取 _originalData 数组的第一个元素
+          console.log('[fetchExchangeRate] 从 _originalData 提取汇率数据:', rateData)
+        } else if (firstItem._originalData && typeof firstItem._originalData === 'object') {
+          // 如果 _originalData 是对象而不是数组
+          rateData = firstItem._originalData
+          console.log('[fetchExchangeRate] 从 _originalData 对象提取汇率数据:', rateData)
+        } else if (firstItem.CNY && typeof firstItem.CNY === 'object') {
+          // 新格式：数据直接在 firstItem 中，包含 CNY、USD 等字段
+          rateData = firstItem
+          console.log('[fetchExchangeRate] 从 data[0] 直接提取汇率数据:', rateData)
+        }
+      }
+
+      // 如果没有数据，使用默认值，不报错（允许空数据）
+      if (!rateData) {
+        console.warn('[fetchExchangeRate] API返回数据为空，使用默认汇率')
+        // 使用默认值，不报错
+        const defaultRate = 6.7
+        const defaultReverseRate = parseFloat((1 / defaultRate).toFixed(4))
+        this.setData({
+          exchangeRate: defaultRate,
+          reverseRate: defaultReverseRate,
+          rates: {},
+          lastUpdated: '',
+          rateLoading: false,
+          isInitialLoad: false
+        }, () => {
+          if (this.data.isInitialLoad) {
+            this.calculateAmount('1', 'cny')
+          }
+        })
+        return
+      }
+
+      // 解析汇率数据（从 _originalData 中提取）
+      let rate = 6.7
+      let lastUpdated = ''
+      let rates = {} // 多币种汇率对象
+
+      if (rateData && typeof rateData === 'object') {
+        // 提取 CNY->EGP 汇率
+        if (rateData.CNY && rateData.CNY.EGP) {
+          rate = parseFloat(rateData.CNY.EGP)
+          console.log('[fetchExchangeRate] 提取到 CNY->EGP 汇率:', rate)
+          
+          // 提取所有货币汇率（过滤掉非汇率字段）
+          rates = {}
+          const keys = Object.keys(rateData)
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i]
+            // 跳过非汇率字段
+            if (key !== 'id' && key !== 'updatedAt' && key !== 'lastUpdated' && key !== 'updateTime') {
+              if (rateData[key] && typeof rateData[key] === 'object' && !Array.isArray(rateData[key])) {
+                rates[key] = rateData[key]
+              }
+            }
+          }
+          console.log('[fetchExchangeRate] 提取到多币种汇率:', rates)
+          
+          // 提取更新时间
+          if (rateData.updatedAt) {
+            lastUpdated = rateData.updatedAt
+          } else if (rateData.lastUpdated) {
+            lastUpdated = rateData.lastUpdated
+          } else if (rateData.updateTime) {
+            lastUpdated = rateData.updateTime
+          }
+        }
+      }
+
+      // 检查汇率是否有效，如果无效则使用默认值
+      if (isNaN(rate) || rate <= 0) {
+        console.warn('[fetchExchangeRate] 无法从API解析有效汇率，使用默认值 6.7')
+        rate = 6.7 // 使用默认值，不报错
+        rates = {} // 重置多币种汇率
+      }
+
+      // 如果没有提供更新时间，使用当前时间
+      if (!lastUpdated) {
+        const now = new Date()
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const day = String(now.getDate()).padStart(2, '0')
+        const hours = String(now.getHours()).padStart(2, '0')
+        const minutes = String(now.getMinutes()).padStart(2, '0')
+        lastUpdated = `${month}-${day} ${hours}:${minutes}`
+      }
+
+      // 计算反向汇率
+      const reverseRate = parseFloat((1 / rate).toFixed(4))
+
+      console.log('[fetchExchangeRate] 准备保存数据，rate:', rate, 'reverseRate:', reverseRate, 'rates:', rates, 'rates类型:', typeof rates, 'rates是否为null:', rates === null)
+
+      // 保存到全局缓存
+      app.globalData.exchangeRateCache = {
+        rate: rate,
+        reverseRate: reverseRate,
+        rates: rates,
+        lastUpdated: lastUpdated,
+        timestamp: Date.now() // 记录缓存时间
+      }
+      console.log('[fetchExchangeRate] 汇率数据已缓存到 globalData', app.globalData.exchangeRateCache)
+
+      // 保存当前输入金额，用于重新计算
+      const currentAmount = this.data.isReversed ? this.data.egpAmount : this.data.cnyAmount
+      const isInitialLoad = this.data.isInitialLoad
+
+      console.log('[fetchExchangeRate] 当前输入金额:', currentAmount, 'isInitialLoad:', isInitialLoad)
+
+      this.setData({
+        exchangeRate: rate,
+        reverseRate: reverseRate,
+        rates: rates, // 保存多币种汇率数据
+        lastUpdated: lastUpdated,
+        rateLoading: false,
+        isInitialLoad: false // 标记首次加载完成
+      }, () => {
+        console.log('[fetchExchangeRate] setData 完成，当前 rates:', this.data.rates, 'rates类型:', typeof this.data.rates, 'rates是否为null:', this.data.rates === null)
+        
+        // 如果是首次加载，使用默认值 1 CNY 进行计算
+        if (isInitialLoad) {
+          console.log('[fetchExchangeRate] 首次加载，使用默认值 1 CNY 进行计算')
+          this.calculateAmount('1', 'cny')
+        }
+        // 如果当前有输入金额，重新计算（包括其他货币）
+        else if (currentAmount && currentAmount !== '' && currentAmount !== '0.00' && currentAmount !== '0') {
+          console.log('[fetchExchangeRate] 重新计算当前金额:', currentAmount)
+          this.calculateAmount(currentAmount, this.data.isReversed ? 'egp' : 'cny')
+        }
+      })
+
+      // 只在手动刷新时显示提示，首次加载不显示
+      if (forceRefresh) {
+        wx.showToast({
+          title: '汇率已更新',
+          icon: 'success',
+          duration: 1500
+        })
+      }
+    }).catch((error) => {
+      console.error('[fetchExchangeRate] 获取汇率失败', error)
+      this.showRateError()
     })
   },
 

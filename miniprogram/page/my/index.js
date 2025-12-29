@@ -109,6 +109,7 @@ Page({
     feedbackContent: '',
     feedbackCategory: '',
     feedbackCategoryIndex: 0,
+    feedbackType: 'feedback', // 'feedback' 或 'complaint'
     feedbackCategories: [
       { value: '', label: '请选择功能分类' },
       { value: '问路卡片', label: '问路卡片' },
@@ -990,6 +991,14 @@ Page({
     })
   },
 
+  // 选择反馈类型
+  onFeedbackTypeChange(e) {
+    const type = e.currentTarget.dataset.type
+    this.setData({
+      feedbackType: type
+    })
+  },
+
   // 提交反馈
   submitFeedback() {
     // 检查用户是否已登录
@@ -1014,6 +1023,7 @@ Page({
 
     const content = this.data.feedbackContent.trim()
     const category = this.data.feedbackCategory
+    const type = this.data.feedbackType || 'feedback' // 默认为 'feedback'
 
     // 验证反馈内容
     if (!content) {
@@ -1025,18 +1035,18 @@ Page({
       return
     }
 
-    if (content.length < 5) {
+    if (content.length < 1) {
       wx.showToast({
-        title: '反馈内容至少5个字符',
+        title: '反馈内容不能为空',
         icon: 'none',
         duration: 2000
       })
       return
     }
 
-    if (content.length > 500) {
+    if (content.length > 100) {
       wx.showToast({
-        title: '反馈内容不能超过500个字符',
+        title: '反馈内容不能超过100个字符',
         icon: 'none',
         duration: 2000
       })
@@ -1048,11 +1058,13 @@ Page({
     })
 
     const config = require('../../config.js')
-    const apiUrl = config.feedbackApi || `${config.apiBaseUrl}/feedback`
+    const authApi = require('../../utils/authApi.js')
+    const apiUrl = config.feedbackApi || `${config.apiBaseDomain}/api/user/feedback`
 
     // 准备用户信息
     const user = this.data.user || {}
     const requestData = {
+      type: type, // 'feedback' 或 'complaint'
       content: content,
       category: category || undefined,
       // 用户信息
@@ -1063,12 +1075,18 @@ Page({
       }
     }
 
+    // 获取认证请求头（包含Token）
+    // 会自动添加 x-user-token 和 Authorization 头（如果用户已登录）
+    const authHeaders = authApi.getAuthHeaders()
+    
     wx.request({
       url: apiUrl,
       method: 'POST',
       header: {
-        'content-type': 'application/json'
+        'content-type': 'application/json',
+        ...authHeaders  // 添加认证头（x-user-token、X-User-Token 和 Authorization）
       },
+      withCredentials: true, // 携带Cookie，用于Session认证（备用）
       data: requestData,
       success: (res) => {
         console.log('提交反馈响应', res)
@@ -1089,6 +1107,7 @@ Page({
             feedbackContent: '',
             feedbackCategory: '',
             feedbackCategoryIndex: 0,
+            feedbackType: 'feedback', // 重置为默认值
             submitting: false
           })
         } else {

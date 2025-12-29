@@ -159,6 +159,29 @@
       </view>
       <view class="feedback-card">
         <view class="feedback-form">
+          <!-- 反馈类型选择 -->
+          <view class="form-group">
+            <view class="form-label">反馈类型</view>
+            <view class="feedback-type-selector">
+              <view 
+                class="type-option {{feedbackType === 'feedback' ? 'active' : ''}}"
+                bindtap="onFeedbackTypeChange"
+                data-type="feedback"
+              >
+                <text class="type-icon">💡</text>
+                <text class="type-text">反馈建议</text>
+              </view>
+              <view 
+                class="type-option {{feedbackType === 'complaint' ? 'active' : ''}}"
+                bindtap="onFeedbackTypeChange"
+                data-type="complaint"
+              >
+                <text class="type-icon">⚠️</text>
+                <text class="type-text">投诉</text>
+              </view>
+            </view>
+          </view>
+
           <!-- 功能分类选择 -->
           <view class="form-group">
             <view class="form-label">功能分类</view>
@@ -184,14 +207,14 @@
             <view class="textarea-wrapper">
               <textarea 
                 class="feedback-textarea"
-                placeholder="请输入您的反馈、建议或需求（5-500字）"
+                placeholder="{{feedbackType === 'feedback' ? '请输入您的反馈、建议或需求（1-100字）' : '请输入投诉内容（1-100字）'}}"
                 value="{{feedbackContent}}"
                 bindinput="onFeedbackInput"
-                maxlength="500"
+                maxlength="100"
                 show-confirm-bar="{{false}}"
                 placeholder-class="textarea-placeholder"
               ></textarea>
-              <view class="char-count">{{feedbackContent.length}}/500</view>
+              <view class="char-count">{{feedbackContent.length}}/100</view>
             </view>
           </view>
 
@@ -203,7 +226,7 @@
             disabled="{{submitting}}"
             loading="{{submitting}}"
           >
-            {{submitting ? '提交中...' : '提交反馈'}}
+            {{submitting ? '提交中...' : (feedbackType === 'feedback' ? '提交反馈' : '提交投诉')}}
           </button>
         </view>
       </view>

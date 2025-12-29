@@ -17,6 +17,9 @@ Page({
       wx.reportEvent('weexpt_event_key_1', {option_1: 1, option_2: 10, option_str_1: 'abc'})
       wx.reportEvent('weexpt_event_key_1', {option_1: 'abc', option_2: '1000', option_str_1: '1'})
     }
+    
+    // 检查并刷新汇率（如果缓存过期）
+    this.fetchExchangeRateForBanner()
   },
   onShareAppMessage() {
     return {
@@ -143,274 +146,183 @@ Page({
   },
 
   // 获取汇率（用于 Banner）
-  fetchExchangeRateForBanner() {
-    const config = require('../../config.js')
-    const apiUrl = config.exchangeRateApi || `${config.apiBaseUrl}/exchange-rate`
+  fetchExchangeRateForBanner(forceRefresh = false) {
+    const blogApi = require('../../utils/blogApi.js')
     const app = getApp()
     
-    wx.request({
-      url: apiUrl,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
+    // 如果不是强制刷新，先检查缓存
+    if (!forceRefresh) {
+      const cache = app.globalData.exchangeRateCache
+      if (cache && cache.rate && cache.timestamp) {
+        const cacheAge = Date.now() - cache.timestamp
+        const cacheValidTime = 5 * 60 * 1000 // 5分钟
         
-        // 检查状态码
-        if (res.statusCode !== 200) {
-          console.error('[fetchExchangeRateForBanner] 获取汇率失败，状态码:', res.statusCode)
-          return
-        }
-
-        // 检查是否有明确的错误标识
-        if (res.data && res.data.success === false) {
-          console.error('[fetchExchangeRateForBanner] API返回错误:', res.data)
-          return
-        }
-
-        // 如果没有数据，使用默认值
-        if (!res.data) {
-          console.warn('[fetchExchangeRateForBanner] API返回数据为空，使用默认汇率')
-          return
-        }
-
-          let rate = 6.7
-          let lastUpdated = ''
-        let rates = {} // 多币种汇率对象
-
-        // 处理不同的API返回格式（与汇率页面完全一致）
-        // 格式1（优先）: res.data 是数组 [{ CNY: { EGP: 6.74 }, ... }]
-        // 格式2: 包装在 res.data.data 中：{ data: [{ CNY: { EGP: 6.74 }, ... }] }
-        // 格式3: 直接在 res.data 中：{ "0": { CNY: { EGP: 6.74 }, ... }, data: [...] }
-        // 格式4: 直接在 res.data 中：{ CNY: { EGP: 6.74 }, ... }
-        console.log('[fetchExchangeRateForBanner] 处理数据，res.data:', res.data, 'res.data类型:', typeof res.data, '是否为数组:', Array.isArray(res.data))
-        
-        let rateData = null
-        
-        // 优先检查 res.data 是否是数组（格式1）
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          const firstItem = res.data[0]
-          if (firstItem && typeof firstItem === 'object' && firstItem.CNY && firstItem.CNY.EGP) {
-            rateData = firstItem
-            console.log('[fetchExchangeRateForBanner] 从 res.data 数组第一个元素提取汇率数据:', rateData)
-          }
-        }
-        
-        // 如果 res.data 不是数组，检查其他格式
-        if (!rateData && res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
-          // 格式2: 检查 res.data.data 是否是数组
-          if (Array.isArray(res.data.data) && res.data.data.length > 0) {
-            const firstItem = res.data.data[0]
-            if (firstItem && typeof firstItem === 'object' && firstItem.CNY && firstItem.CNY.EGP) {
-              rateData = firstItem
-              console.log('[fetchExchangeRateForBanner] 从 res.data.data 数组第一个元素提取汇率数据:', rateData)
-            }
-          }
-          // 格式3: 检查是否有数字键（如 "0"）包含汇率数据
-          else {
-            const keys = Object.keys(res.data)
-            for (let i = 0; i < keys.length; i++) {
-              const key = keys[i]
-              // 检查是否是数字键且包含汇率数据
-              if (/^\d+$/.test(key) && res.data[key] && typeof res.data[key] === 'object') {
-                const item = res.data[key]
-                if (item.CNY && item.CNY.EGP) {
-                  rateData = item
-                  console.log('[fetchExchangeRateForBanner] 从数字键', key, '中提取汇率数据:', rateData)
-                  break
-                }
-              }
-            }
-          }
-          
-          // 格式4: 检查 res.data.data 是否是对象
-          if (!rateData && res.data.data && typeof res.data.data === 'object' && !Array.isArray(res.data.data)) {
-            if (res.data.data.CNY && res.data.data.CNY.EGP) {
-              rateData = res.data.data
-              console.log('[fetchExchangeRateForBanner] 从 res.data.data 提取汇率数据:', rateData)
-            }
-          }
-          
-          // 格式5: 检查 res.data 本身是否包含汇率数据
-          if (!rateData && res.data.CNY && res.data.CNY.EGP) {
-            rateData = res.data
-            console.log('[fetchExchangeRateForBanner] 从 res.data 直接提取汇率数据:', rateData)
-          }
-        }
-        
-        // 如果找到了汇率数据，解析它
-        if (rateData) {
-          if (rateData.CNY && rateData.CNY.EGP) {
-            rate = parseFloat(rateData.CNY.EGP)
-            console.log('[fetchExchangeRateForBanner] 提取到 CNY->EGP 汇率:', rate)
-            
-            // 提取所有货币汇率（过滤掉非汇率字段）
-            rates = {}
-            const keys = Object.keys(rateData)
-            for (let i = 0; i < keys.length; i++) {
-              const key = keys[i]
-              // 跳过非汇率字段
-              if (key !== 'id' && key !== 'name' && key !== 'detailApi' && 
-                  key !== 'updatedAt' && key !== 'lastUpdated' && key !== 'updateTime' &&
-                  key !== 'htmlContent' && key !== 'views' && key !== 'createdAt') {
-                if (rateData[key] && typeof rateData[key] === 'object' && !Array.isArray(rateData[key])) {
-                  rates[key] = rateData[key]
-                }
-              }
-            }
-            console.log('[fetchExchangeRateForBanner] 提取到多币种汇率:', rates)
-            
-            // 提取更新时间
-            if (rateData.updatedAt) {
-              lastUpdated = rateData.updatedAt
-            } else if (rateData.lastUpdated) {
-              lastUpdated = rateData.lastUpdated
-            } else if (rateData.updateTime) {
-              lastUpdated = rateData.updateTime
-            }
-          }
-        } else {
-          // 如果没有找到，尝试旧的格式处理逻辑（向后兼容）
-          const data = res.data.data || res.data
-          console.log('[fetchExchangeRateForBanner] 未找到新格式，尝试旧格式，data:', data)
-          
-          // 优先处理多币种汇率格式
-          if (data && typeof data === 'object' && !Array.isArray(data)) {
-            // 检查是否是 rates 格式：{ rates: { CNY: { EGP: 6.7 }, USD: { EGP: 30.5 } } }
-            if (data.rates && typeof data.rates === 'object' && !Array.isArray(data.rates)) {
-              if (data.rates.CNY && data.rates.CNY.EGP) {
-                rate = parseFloat(data.rates.CNY.EGP)
-                rates = data.rates
-                console.log('[fetchExchangeRateForBanner] 从 rates 格式提取，rate:', rate)
-              }
-            }
-            // 检查是否是多币种格式：{ CNY: { EGP: 6.7 }, USD: { EGP: 30.5 } }
-            else if (data.CNY && typeof data.CNY === 'object' && !Array.isArray(data.CNY) && data.CNY.EGP) {
-              rate = parseFloat(data.CNY.EGP)
-              // 过滤掉非汇率字段
-              rates = {}
-              if (data && typeof data === 'object' && !Array.isArray(data) && data !== null) {
-                try {
-                  const keys = Object.keys(data)
-                  for (let i = 0; i < keys.length; i++) {
-                    const key = keys[i]
-                    if (key !== 'updatedAt' && key !== 'lastUpdated' && key !== 'updateTime' && 
-                        data[key] && typeof data[key] === 'object' && !Array.isArray(data[key]) && data[key] !== null) {
-                      rates[key] = data[key]
-                    }
-                  }
-                } catch (err) {
-                  console.error('[fetchExchangeRateForBanner] 处理多币种汇率数据出错', err)
-                  rates = {}
-                }
-              }
-            }
-            // 检查是否是单币种对象格式：{ rate: 6.7 } 或 { exchangeRate: 6.7 }
-            else if (data.rate) {
-              rate = parseFloat(data.rate)
-            } else if (data.exchangeRate) {
-              rate = parseFloat(data.exchangeRate)
-            }
-          }
-          // 处理数字格式
-          else if (typeof data === 'number') {
-            rate = data
-          }
-        }
-
-        // 检查汇率是否有效
-        if (isNaN(rate) || rate <= 0) {
-          console.warn('[fetchExchangeRateForBanner] 无法从API解析有效汇率，使用默认值 6.7')
-          rate = 6.7
-          rates = {}
-        }
-
-        // 获取更新时间（如果之前没有从 rateData 中提取）
-        if (!lastUpdated) {
-          if (res.data.updatedAt || res.data.lastUpdated || res.data.updateTime) {
-            lastUpdated = res.data.updatedAt || res.data.lastUpdated || res.data.updateTime
-          } else if (res.data.data && (res.data.data.updatedAt || res.data.data.lastUpdated || res.data.data.updateTime)) {
-            lastUpdated = res.data.data.updatedAt || res.data.data.lastUpdated || res.data.data.updateTime
-          } else {
-            // 如果没有提供更新时间，使用当前时间
-            const now = new Date()
-            const month = String(now.getMonth() + 1).padStart(2, '0')
-            const day = String(now.getDate()).padStart(2, '0')
-            const hours = String(now.getHours()).padStart(2, '0')
-            const minutes = String(now.getMinutes()).padStart(2, '0')
-            lastUpdated = `${month}-${day} ${hours}:${minutes}`
-          }
-          }
-          
-          // 计算反向汇率
-          const reverseRate = parseFloat((1 / rate).toFixed(4))
-          
-        // 保存到全局缓存
-          app.globalData.exchangeRateCache = {
-            rate: rate,
-            reverseRate: reverseRate,
-            rates: rates,
-            lastUpdated: lastUpdated,
-          timestamp: Date.now()
-          }
-          console.log('[fetchExchangeRateForBanner] 汇率数据已缓存到 globalData', app.globalData.exchangeRateCache)
-          
+        if (cacheAge < cacheValidTime) {
+          console.log('[fetchExchangeRateForBanner] 使用缓存的汇率数据，缓存时间:', cacheAge, 'ms')
+          // 使用缓存数据
           this.setData({
-            exchangeRate: rate.toFixed(2)
+            exchangeRate: cache.rate.toFixed(2)
           })
-      },
-      fail: () => {
-        // 使用默认值
+          return
+        } else {
+          console.log('[fetchExchangeRateForBanner] 缓存已过期，重新获取汇率数据')
+        }
+      } else {
+        console.log('[fetchExchangeRateForBanner] 没有缓存数据，重新获取汇率数据')
       }
+    }
+    
+    blogApi.blogPostApi.getList({
+      category: '汇率转换',
+      page: 1,
+      pageSize: 1
+    }).then((result) => {
+      // 检查响应格式
+      if (!result || result.success === false) {
+        console.error('[fetchExchangeRateForBanner] API返回错误:', result)
+        return
+      }
+
+      // 从API格式中提取数据：{success, data: [{CNY: {EGP: ...}, USD: {EGP: ...}, ...}]}
+      let rateData = null
+      if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+        const firstItem = result.data[0]
+        // 优先检查 _originalData 字段（旧格式兼容）
+        if (firstItem._originalData && Array.isArray(firstItem._originalData) && firstItem._originalData.length > 0) {
+          rateData = firstItem._originalData[0]
+          console.log('[fetchExchangeRateForBanner] 从 _originalData 提取汇率数据:', rateData)
+        } else if (firstItem._originalData && typeof firstItem._originalData === 'object') {
+          rateData = firstItem._originalData
+          console.log('[fetchExchangeRateForBanner] 从 _originalData 对象提取汇率数据:', rateData)
+        } else if (firstItem.CNY && typeof firstItem.CNY === 'object') {
+          // 新格式：数据直接在 firstItem 中，包含 CNY、USD 等字段
+          rateData = firstItem
+          console.log('[fetchExchangeRateForBanner] 从 data[0] 直接提取汇率数据:', rateData)
+        }
+      }
+
+      if (!rateData) {
+        console.warn('[fetchExchangeRateForBanner] API返回数据为空，使用默认汇率')
+        // 使用默认值，不返回，继续执行
+        rateData = { CNY: { EGP: 6.7 } }
+      }
+
+      // 解析汇率数据
+      let rate = 6.7
+      if (rateData.CNY && rateData.CNY.EGP) {
+        rate = parseFloat(rateData.CNY.EGP)
+      }
+
+      // 检查汇率是否有效
+      if (isNaN(rate) || rate <= 0) {
+        rate = 6.7
+      }
+
+      // 计算反向汇率
+      const reverseRate = parseFloat((1 / rate).toFixed(4))
+      
+      // 提取所有货币汇率（过滤掉非汇率字段）
+      let rates = {}
+      if (rateData && typeof rateData === 'object') {
+        // 定义需要过滤的非汇率字段（包括所有可能的元数据字段）
+        const nonRateFields = [
+          'id', 'category', 'createdAt', 'description', 'detailApi', 'excerpt',
+          'image', 'name', 'published', 'slug', 'title', 'updateTime', 
+          'updatedAt', 'lastUpdated', 'views', '_sourceApiName', '_specialData', 
+          '_specialType', '_originalData'
+        ]
+        
+        const keys = Object.keys(rateData)
+        for (let i = 0; i < keys.length; i++) {
+          const key = keys[i]
+          // 跳过非汇率字段
+          if (nonRateFields.indexOf(key) === -1) {
+            // 只保留值是对象且包含EGP字段的键（货币代码）
+            if (rateData[key] && typeof rateData[key] === 'object' && !Array.isArray(rateData[key]) && rateData[key].EGP !== undefined) {
+              rates[key] = rateData[key]
+              console.log(`[fetchExchangeRateForBanner] 提取货币 ${key} 汇率:`, rateData[key])
+            }
+          }
+        }
+      }
+
+      // 提取更新时间
+      let lastUpdated = rateData.updatedAt || rateData.lastUpdated || rateData.updateTime || ''
+      if (!lastUpdated) {
+        const now = new Date()
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const day = String(now.getDate()).padStart(2, '0')
+        const hours = String(now.getHours()).padStart(2, '0')
+        const minutes = String(now.getMinutes()).padStart(2, '0')
+        lastUpdated = `${month}-${day} ${hours}:${minutes}`
+      }
+      
+      // 保存到全局缓存
+      app.globalData.exchangeRateCache = {
+        rate: rate,
+        reverseRate: reverseRate,
+        rates: rates,
+        lastUpdated: lastUpdated,
+        timestamp: Date.now()
+      }
+      console.log('[fetchExchangeRateForBanner] 汇率数据已缓存到 globalData', app.globalData.exchangeRateCache)
+      
+      this.setData({
+        exchangeRate: rate.toFixed(2)
+      })
+    }).catch((error) => {
+      console.error('[fetchExchangeRateForBanner] 获取汇率失败', error)
+      // 使用默认值，不显示错误
     })
   },
 
   // 获取出行风向标（用于 Banner 显示）
   fetchWeather() {
-    const config = require('../../config.js')
-    const apiUrl = config.weatherApi || `${config.apiBaseUrl}/weather`
+    const blogApi = require('../../utils/blogApi.js')
 
-    wx.request({
-      url: apiUrl,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
-        
-        // Banner 中只显示简单提示
-        if (res.statusCode === 200 && res.data) {
-          let data = res.data
-          if (res.data.data) {
-            data = res.data.data
-          }
-          
-          // 如果有全域预警，显示预警提示
-          if (data.globalAlert && data.globalAlert.message) {
-            this.setData({
-              weather: '有预警'
-            })
-          } else {
-            // 否则显示"查看"
-            this.setData({
-              weather: '查看'
-            })
-          }
+    blogApi.blogPostApi.getList({
+      category: '天气路况',
+      page: 1,
+      pageSize: 1
+    }).then((result) => {
+      // 检查响应格式
+      if (!result || result.success === false) {
+        this.setData({ weather: '查看' })
+        return
+      }
+
+      // 从API格式中提取数据：{success, data: [{_specialData: {...}}]}
+      let weatherData = null
+      if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+        const firstItem = result.data[0]
+        // 优先检查 _specialData 字段（新格式）
+        if (firstItem._specialData && typeof firstItem._specialData === 'object') {
+          weatherData = firstItem._specialData
+          console.log('[fetchWeather] 从 _specialData 提取天气数据:', weatherData)
+        } else if (firstItem._originalData && typeof firstItem._originalData === 'object') {
+          // 兼容旧格式 _originalData
+          weatherData = firstItem._originalData
+          console.log('[fetchWeather] 从 _originalData 提取天气数据:', weatherData)
         }
-      },
-      fail: (err) => {
-        console.error('获取出行风向标数据失败（Banner）', err)
-        // Banner 中失败不显示错误，保持默认值
+      }
+
+      // Banner 中只显示简单提示
+      if (weatherData && weatherData.globalAlert && weatherData.globalAlert.message) {
+        this.setData({
+          weather: '有预警'
+        })
+      } else {
+        // 否则显示"查看"
         this.setData({
           weather: '查看'
         })
       }
+    }).catch((error) => {
+      console.error('获取出行风向标数据失败（Banner）', error)
+      // Banner 中失败不显示错误，保持默认值
+      this.setData({
+        weather: '查看'
+      })
     })
   },
 

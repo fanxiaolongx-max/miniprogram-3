@@ -26,11 +26,12 @@ function getAuthHeaders(extraHeaders = {}) {
     ...extraHeaders
   }
   
-  // 如果存在token，同时添加到Authorization头和X-User-Token头（确保兼容性）
+  // 如果存在token，同时添加到Authorization头和x-user-token头
+  // 只使用小写 x-user-token 以避免重复（HTTP头名称在某些实现中不区分大小写）
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
-    headers['X-User-Token'] = token
-    console.log('[authApi] 使用Token认证（Authorization + X-User-Token）')
+    headers['x-user-token'] = token
+    console.log('[authApi] 使用Token认证（Authorization + x-user-token）')
   } else {
     console.log('[authApi] 未找到Token，使用Session认证')
   }
@@ -375,7 +376,14 @@ const authApi = {
         }
       })
     })
-  }
+  },
+
+  /**
+   * 获取认证请求头（自动添加Token）
+   * @param {Object} extraHeaders - 额外的请求头
+   * @returns {Object} 包含认证信息的请求头
+   */
+  getAuthHeaders: getAuthHeaders
 }
 
 module.exports = authApi

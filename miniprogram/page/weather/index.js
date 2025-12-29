@@ -33,96 +33,97 @@ Page({
   },
 
   fetchWeather() {
-    const config = require('../../config.js')
-    const apiUrl = config.weatherApi || `${config.apiBaseUrl}/weather`
+    const blogApi = require('../../utils/blogApi.js')
     
     this.setData({
       loading: true
     })
 
-    wx.request({
-      url: apiUrl,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        console.log('获取出行风向标数据响应', res)
-        
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
-        
-        if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取出行风向标数据失败', res.statusCode, res.data)
-          this.showError()
-          return
+    blogApi.blogPostApi.getList({
+      category: '天气路况',
+      page: 1,
+      pageSize: 1  // 天气通常只需要一条数据
+    }).then((result) => {
+      console.log('获取出行风向标数据响应', result)
+      
+      // 检查响应格式
+      if (!result || result.success === false) {
+        console.error('获取出行风向标数据失败', result)
+        this.showError()
+        return
+      }
+
+      // 从API格式中提取数据：{success, data: [{_specialData: {...}}]}
+      let weatherData = null
+      if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+        const firstItem = result.data[0]
+        // 优先检查 _specialData 字段（新格式）
+        if (firstItem._specialData && typeof firstItem._specialData === 'object') {
+          weatherData = firstItem._specialData
+          console.log('[fetchWeather] 从 _specialData 提取天气数据:', weatherData)
+        } else if (firstItem._originalData && typeof firstItem._originalData === 'object') {
+          // 兼容旧格式 _originalData
+          weatherData = firstItem._originalData
+          console.log('[fetchWeather] 从 _originalData 提取天气数据:', weatherData)
         }
+      }
 
-        if (!res.data) {
-          console.error('获取出行风向标数据失败：返回数据为空')
-          this.showError()
-          return
-        }
-
-        // 处理不同的数据格式
-        // 格式1: 直接在 res.data 中：{ globalAlert: {...}, attractions: [...], traffic: [...] }
-        // 格式2: 包装在 res.data.data 中：{ data: { globalAlert: {...}, attractions: [...], traffic: [...] } }
-        let data = res.data
-        if (res.data.data && typeof res.data.data === 'object' && !Array.isArray(res.data.data)) {
-          // 如果 res.data.data 是对象，检查是否包含 globalAlert/attractions/traffic
-          if (res.data.data.globalAlert || res.data.data.attractions || res.data.data.traffic) {
-            data = res.data.data
-          }
-        }
-
-        // 处理全域预警（优先从 data 中获取，如果没有则从 res.data 中获取）
-        const globalAlert = data.globalAlert || res.data.globalAlert || null
-
-        // 处理景点信息（优先从 data 中获取，如果没有则从 res.data 中获取）
-        let attractions = []
-        const attractionsData = data.attractions || res.data.attractions || []
-        if (Array.isArray(attractionsData)) {
-          attractions = attractionsData.map(item => ({
-            id: item.id || item._id || Math.random(),
-            name: item.name || '未知景点',
-            temperature: item.temperature || 0,
-            visibility: item.visibility || '中',
-            uvIndex: item.uvIndex || 0,
-            windSpeed: item.windSpeed || '',
-            suggestion: item.suggestion || ''
-          }))
-        }
-
-        // 处理路况广播（优先从 data 中获取，如果没有则从 res.data 中获取）
-        let traffic = []
-        const trafficData = data.traffic || res.data.traffic || []
-        if (Array.isArray(trafficData)) {
-          traffic = trafficData.map(item => ({
-            id: item.id || item._id || Math.random(),
-            time: item.time || '',
-            type: item.type || '其他',
-            location: item.location || '',
-            message: item.message || ''
-          }))
-        }
-
-        // 即使没有数据也正常显示（显示空状态），不报错
-        // 只有在API明确返回错误时才报错
-        console.log(`[fetchWeather] 数据处理完成：globalAlert=${!!globalAlert}, attractions=${attractions.length}条, traffic=${traffic.length}条`)
-
+      if (!weatherData) {
+        console.warn('[fetchWeather] API返回数据为空')
         this.setData({
-          globalAlert: globalAlert,
-          attractions: attractions,
-          traffic: traffic,
+          globalAlert: null,
+          attractions: [],
+          traffic: [],
           loading: false,
           error: false
         })
-      },
-      fail: (err) => {
-        console.error('获取出行风向标数据失败', err)
-        this.showError()
+        return
       }
+
+      // 处理全域预警
+      const globalAlert = weatherData.globalAlert || null
+
+      // 处理景点信息
+      let attractions = []
+      const attractionsData = weatherData.attractions || []
+      if (Array.isArray(attractionsData)) {
+        attractions = attractionsData.map(item => ({
+          id: item.id || item._id || Math.random(),
+          name: item.name || '未知景点',
+          temperature: item.temperature || 0,
+          visibility: item.visibility || '中',
+          uvIndex: item.uvIndex || 0,
+          windSpeed: item.windSpeed || '',
+          suggestion: item.suggestion || ''
+        }))
+      }
+
+      // 处理路况广播
+      let traffic = []
+      const trafficData = weatherData.traffic || []
+      if (Array.isArray(trafficData)) {
+        traffic = trafficData.map(item => ({
+          id: item.id || item._id || Math.random(),
+          time: item.time || '',
+          type: item.type || '其他',
+          location: item.location || '',
+          message: item.message || ''
+        }))
+      }
+
+      // 即使没有数据也正常显示（显示空状态），不报错
+      console.log(`[fetchWeather] 数据处理完成：globalAlert=${!!globalAlert}, attractions=${attractions.length}条, traffic=${traffic.length}条`)
+
+      this.setData({
+        globalAlert: globalAlert,
+        attractions: attractions,
+        traffic: traffic,
+        loading: false,
+        error: false
+      })
+    }).catch((error) => {
+      console.error('获取出行风向标数据失败', error)
+      this.showError()
     })
   },
 

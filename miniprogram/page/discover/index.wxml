@@ -2,14 +2,23 @@
   <view class="container">
     <!-- 搜索和筛选区域 -->
     <view class="filter-section" catchtap="onFilterSectionTap">
-      <view class="search-box">
-        <input 
-          class="search-input"
-          placeholder="搜索文章..."
-          value="{{searchKeyword}}"
-          bindinput="onSearchInput"
-        />
-        <text class="search-icon">🔍</text>
+      <view class="search-row">
+        <view class="search-box">
+          <input 
+            class="search-input"
+            placeholder="搜索文章..."
+            value="{{searchKeyword}}"
+            bindinput="onSearchInput"
+          />
+          <text class="search-icon">🔍</text>
+        </view>
+        <view 
+          class="my-posts-btn {{showMyPosts ? 'active' : ''}}"
+          bindtap="toggleMyPosts"
+        >
+          <text class="my-posts-icon">{{showMyPosts ? '✓' : ''}}</text>
+          <text class="my-posts-text">我的发布</text>
+        </view>
       </view>
       <view wx:if="{{showCategories && categories && categories.length > 0}}" class="category-tags-container category-tags-fade-in">
         <view class="category-tags">

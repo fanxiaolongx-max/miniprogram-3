@@ -297,13 +297,19 @@ const blogPostApi = {
     if (params.category) queryParams.push(`category=${encodeURIComponent(params.category)}`)
     if (params.search) queryParams.push(`search=${encodeURIComponent(params.search)}`)
     if (params.published !== undefined) queryParams.push(`published=${params.published}`)
+    if (params.myPosts === true) queryParams.push(`myPosts=true`)
     
     const fullUrl = `${blogApiBaseUrl}/posts${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`
     
     return new Promise((resolve, reject) => {
+      // 获取用户认证头（包含 x-user-token）
+      const authApi = require('./authApi.js')
+      const authHeaders = authApi.getAuthHeaders ? authApi.getAuthHeaders() : {}
+      
       const requestHeader = {
         'Content-Type': 'application/json',
-        'X-API-Token': API_TOKEN
+        'X-API-Token': API_TOKEN,
+        ...authHeaders // 合并用户认证头（包含 x-user-token）
       }
       
       console.log(`[blogPostApi] GET ${fullUrl}`)

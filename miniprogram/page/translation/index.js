@@ -78,79 +78,90 @@ Page({
 
   // 从 API 获取翻译数据
   fetchTranslation() {
-    const config = require('../../config.js')
-    const apiUrl = config.translationApi || `${config.apiBaseUrl}/translation`
+    const blogApi = require('../../utils/blogApi.js')
     
     this.setData({
       loading: true
     })
 
-    wx.request({
-      url: apiUrl,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        console.log('获取翻译数据响应', res)
+    blogApi.blogPostApi.getList({
+      category: '翻译卡片',
+      page: 1,
+      pageSize: 100  // 获取所有翻译数据
+    }).then((result) => {
+      console.log('获取翻译数据响应', result)
+      
+      // 检查响应格式
+      if (!result || result.success === false) {
+        console.error('获取翻译数据失败', result)
+        this.showError()
+        return
+      }
+
+      // 从API格式中提取数据：{success, data: [{_specialData: {...}}, ...]}
+      let phrases = []
+      if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+        const firstItem = result.data[0]
         
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
-        
-        // 检查状态码和 success 字段
-        if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取翻译数据失败', res.statusCode, res.data)
-          this.showError()
-          return
+        // 优先检查旧格式：_originalData 是数组（向后兼容）
+        if (firstItem._originalData && Array.isArray(firstItem._originalData)) {
+          phrases = firstItem._originalData
+          console.log('[fetchTranslation] 从 _originalData 数组提取翻译数据，数量:', phrases.length)
+        } else {
+          // 新格式：遍历 data 数组，提取每个元素的 _specialData
+          phrases = result.data
+            .map(item => {
+              // 优先检查 _specialData 字段（新格式）
+              if (item._specialData && typeof item._specialData === 'object') {
+                return item._specialData
+              }
+              // 兼容旧格式 _originalData（单个对象）
+              if (item._originalData && typeof item._originalData === 'object') {
+                return item._originalData
+              }
+              // 如果都没有，直接使用 item 本身（向后兼容）
+              return item
+            })
+            .filter(item => item !== null && item !== undefined)
+          
+          console.log('[fetchTranslation] 从 data 数组提取翻译数据，数量:', phrases.length)
         }
+      } else if (Array.isArray(result)) {
+        phrases = result
+      }
 
-        if (!res.data) {
-          console.error('获取翻译数据失败：返回数据为空')
-          this.showError()
-          return
-        }
-
-        let phrases = []
-        
-        // 处理不同的返回格式
-        if (Array.isArray(res.data)) {
-          phrases = res.data
-        } else if (res.data.data && Array.isArray(res.data.data)) {
-          phrases = res.data.data
-        } else if (res.data.phrases && Array.isArray(res.data.phrases)) {
-          phrases = res.data.phrases
-        }
-
-        // 检查是否有有效数据
-        if (!Array.isArray(phrases) || phrases.length === 0) {
-          console.error('获取翻译数据失败：返回格式不正确或数据为空')
-          this.showError()
-          return
-        }
-
-        // 标准化数据格式
-        phrases = phrases.map(item => ({
-          id: item.id || item._id || Math.random(),
-          chinese: item.chinese || item.zh || item.text || '',
-          arabic: item.arabic || item.ar || item.translation || '',
-          category: item.category || item.type || '其他'
-        }))
-
-        // 提取分类
-        const categories = ['all', ...new Set(phrases.map(p => p.category))]
-
+      // 检查是否有有效数据
+      if (!Array.isArray(phrases) || phrases.length === 0) {
+        console.warn('获取翻译数据：返回数据为空')
         this.setData({
-          phrases: phrases,
-          categories: categories,
+          phrases: [],
+          categories: ['all'],
           loading: false,
           error: false
         })
-      },
-      fail: (err) => {
-        console.error('获取翻译数据失败', err)
-        this.showError()
+        return
       }
+
+      // 标准化数据格式
+      phrases = phrases.map(item => ({
+        id: item.id || item._id || Math.random(),
+        chinese: item.chinese || item.zh || item.text || '',
+        arabic: item.arabic || item.ar || item.translation || '',
+        category: item.category || item.type || '其他'
+      }))
+
+      // 提取分类
+      const categories = ['all', ...new Set(phrases.map(p => p.category))]
+
+      this.setData({
+        phrases: phrases,
+        categories: categories,
+        loading: false,
+        error: false
+      })
+    }).catch((error) => {
+      console.error('获取翻译数据失败', error)
+      this.showError()
     })
   },
 

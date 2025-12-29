@@ -33,78 +33,57 @@ Page({
 
   // 从 API 获取二手集市数据
   fetchSecondHand() {
-    const config = require('../../config.js')
-    const apiUrl = config.secondHandApi || `${config.apiBaseUrl}/second-hand`
+    const blogApi = require('../../utils/blogApi.js')
     
     this.setData({
       loading: true
     })
 
-    wx.request({
-      url: apiUrl,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        console.log('获取二手集市数据响应', res)
-        
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
-        
-        // 检查状态码和 success 字段
-        if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取二手集市数据失败', res.statusCode, res.data)
-          this.showError()
-          return
-        }
+    blogApi.blogPostApi.getList({
+      category: '二手市场',
+      page: 1,
+      pageSize: 100  // 获取所有数据
+    }).then((result) => {
+      console.log('获取二手集市数据响应', result)
+      
+      // 处理新的响应格式：{success, data, pagination}
+      let items = []
+      if (result.success && result.data && Array.isArray(result.data)) {
+        items = result.data
+      } else if (Array.isArray(result)) {
+        items = result
+      }
 
-        if (!res.data) {
-          console.error('获取二手集市数据失败：返回数据为空')
-          this.showError()
-          return
-        }
-
-        let items = []
-        
-        // 处理不同的返回格式
-        if (Array.isArray(res.data)) {
-          items = res.data
-        } else if (res.data.data && Array.isArray(res.data.data)) {
-          items = res.data.data
-        } else if (res.data.items && Array.isArray(res.data.items)) {
-          items = res.data.items
-        }
-
-        // 检查是否有有效数据
-        if (!Array.isArray(items) || items.length === 0) {
-          console.error('获取二手集市数据失败：返回格式不正确或数据为空')
-          this.showError()
-          return
-        }
-
-        // 标准化数据格式
-        items = items.map(item => ({
-          id: item.id || item._id || Math.random(),
-          title: item.title || item.name || '未知商品',
-          price: item.price || item.amount || '0',
-          description: item.description || item.desc || '',
-          image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
-          contact: item.contact || item.phone || '',
-          category: item.category || item.type || ''
-        }))
-
+      // 检查是否有有效数据
+      if (!Array.isArray(items) || items.length === 0) {
+        console.warn('获取二手集市数据：返回数据为空')
         this.setData({
-          items: items,
+          items: [],
           loading: false,
           error: false
         })
-      },
-      fail: (err) => {
-        console.error('获取二手集市数据失败', err)
-        this.showError()
+        return
       }
+
+      // 标准化数据格式
+      items = items.map(item => ({
+        id: item.id || item._id || Math.random(),
+        title: item.title || item.name || '未知商品',
+        price: item.price || item.amount || '0',
+        description: item.description || item.excerpt || item.desc || '',
+        image: item.image || item.imageUrl || '/page/component/resources/pic/1.jpg',
+        contact: item.contact || item.phone || '',
+        category: item.category || item.type || ''
+      }))
+
+      this.setData({
+        items: items,
+        loading: false,
+        error: false
+      })
+    }).catch((error) => {
+      console.error('获取二手集市数据失败', error)
+      this.showError()
     })
   },
 
