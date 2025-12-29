@@ -189,7 +189,8 @@ Page({
         const article = result.data
         const htmlContent = article.htmlContent || ''
         const title = article.title || article.name || ''
-        const meta = formatTimestamp(article.createdAt || article.updatedAt || '')
+        // 优先显示更新时间，如果没有更新时间再显示发布时间
+        const meta = formatTimestamp(article.updatedAt || article.createdAt || '')
         const views = article.views || 0 // 浏览量
         
         if (!htmlContent) {
@@ -373,7 +374,8 @@ Page({
           articleData = firstItem
           content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
           title = firstItem.title || firstItem.name || ''
-          meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || '')
+          // 优先显示更新时间，如果没有更新时间再显示发布时间
+          meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || firstItem.createdAt || '')
           locationData = this.extractLocation(firstItem)
           coverImage = firstItem.image || ''
           views = firstItem.views || 0
@@ -383,7 +385,8 @@ Page({
           articleData = res.data
           content = res.data.content || res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
-          meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || '')
+          // 优先显示更新时间，如果没有更新时间再显示发布时间
+          meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || res.data.createdAt || '')
           locationData = this.extractLocation(res.data)
           coverImage = res.data.image || ''
           views = res.data.views || 0
@@ -396,7 +399,8 @@ Page({
             articleData = firstItem
             content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
             title = firstItem.title || firstItem.name || ''
-            meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || '')
+            // 优先显示更新时间，如果没有更新时间再显示发布时间
+            meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || firstItem.createdAt || '')
             locationData = this.extractLocation(firstItem)
             coverImage = firstItem.image || ''
             views = firstItem.views || 0
@@ -404,7 +408,8 @@ Page({
             articleData = res.data.data
             content = res.data.data.content || res.data.data.html || res.data.data.htmlContent || ''
             title = res.data.data.title || ''
-            meta = formatTimestamp(res.data.data.meta || res.data.data.date || res.data.data.updatedAt || '')
+            // 优先显示更新时间，如果没有更新时间再显示发布时间
+            meta = formatTimestamp(res.data.data.meta || res.data.data.date || res.data.data.updatedAt || res.data.data.createdAt || '')
             locationData = this.extractLocation(res.data.data)
             coverImage = res.data.data.image || ''
             views = res.data.data.views || 0
@@ -415,7 +420,8 @@ Page({
           articleData = res.data
           content = res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
-          meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || '')
+          // 优先显示更新时间，如果没有更新时间再显示发布时间
+          meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || res.data.createdAt || '')
           locationData = this.extractLocation(res.data)
           coverImage = res.data.image || ''
           views = res.data.views || 0

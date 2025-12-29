@@ -498,10 +498,14 @@ Page({
         const canEdit = currentDeviceId && articleDeviceIdNormalized && currentDeviceId === articleDeviceIdNormalized
         const canDelete = canEdit // 删除权限与编辑权限一致
         
+        // 优先显示更新时间，如果没有更新时间再显示发布时间
+        const displayTime = item.updatedAt ? formatTimestamp(item.updatedAt) : (item.createdAt ? formatTimestamp(item.createdAt) : '')
+        
         return {
           ...item,
           createdAt: formatTimestamp(item.createdAt),
           updatedAt: formatTimestamp(item.updatedAt),
+          displayTime: displayTime, // 显示时间（优先更新时间）
           views: views,
           formattedViews: formattedViews,
           authorInfo: authorInfo,
@@ -716,13 +720,26 @@ Page({
       return
     }
     
+    // 获取当前用户的deviceId（使用phone作为deviceId，与保存文章时的逻辑一致）
+    const currentUser = authHelper.getLoginInfo()
+    const deviceId = currentUser && currentUser.phone ? currentUser.phone.trim() : null
+    
+    if (!deviceId) {
+      wx.showToast({
+        title: '无法获取设备ID',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
     wx.showLoading({
       title: '删除中...',
       mask: true
     })
 
     try {
-      await blogApi.articleApi.delete(id)
+      await blogApi.articleApi.delete(id, deviceId)
       wx.hideLoading()
       wx.showToast({
         title: '删除成功',
@@ -770,5 +787,126 @@ Page({
 
   onImageError(e) {
     console.log('图片加载失败:', e.detail)
+  },
+
+  // 双击顶部区域回到顶部（微信推荐的最佳实践）
+  onFilterSectionTap(e) {
+    // 阻止事件冒泡，避免触发其他点击事件
+    e.stopPropagation && e.stopPropagation()
+    
+    const now = Date.now()
+    const lastTapTime = this._lastFilterTapTime || 0
+    const timeDiff = now - lastTapTime
+    
+    // 清除之前的定时器
+    if (this._filterTapTimer) {
+      clearTimeout(this._filterTapTimer)
+      this._filterTapTimer = null
+    }
+    
+    // 如果两次点击间隔小于350ms，认为是双击
+    if (timeDiff > 0 && timeDiff < 350) {
+      // 双击：滚动到顶部
+      this.scrollToTop()
+      this._lastFilterTapTime = 0
+    } else {
+      // 单次点击：记录时间，等待可能的第二次点击
+      this._lastFilterTapTime = now
+      // 如果350ms内没有第二次点击，清除记录
+      this._filterTapTimer = setTimeout(() => {
+        this._lastFilterTapTime = 0
+        this._filterTapTimer = null
+      }, 350)
+    }
+  },
+
+  // 双击瀑布流卡片图片区域回到顶部（微信推荐的最佳实践）
+  onItemImageTap(e) {
+    // 阻止事件冒泡，避免触发viewDetail
+    e.stopPropagation && e.stopPropagation()
+    
+    const now = Date.now()
+    const item = e.currentTarget.dataset.item
+    const itemId = item?.id || ''
+    const lastTapTime = this._lastImageTapTime || 0
+    const lastItemId = this._lastImageTapItemId || ''
+    const timeDiff = now - lastTapTime
+    
+    // 清除之前的定时器
+    if (this._imageTapTimer) {
+      clearTimeout(this._imageTapTimer)
+      this._imageTapTimer = null
+    }
+    
+    // 如果两次点击间隔小于350ms且是同一个item，认为是双击
+    if (timeDiff > 0 && timeDiff < 350 && itemId === lastItemId) {
+      // 双击：滚动到顶部
+      this.scrollToTop()
+      this._lastImageTapTime = 0
+      this._lastImageTapItemId = ''
+    } else {
+      // 单次点击：记录时间和itemId，等待可能的第二次点击
+      this._lastImageTapTime = now
+      this._lastImageTapItemId = itemId
+      // 如果350ms内没有第二次点击，执行查看详情
+      this._imageTapTimer = setTimeout(() => {
+        if (item) {
+          this.viewDetail({ currentTarget: { dataset: { item: item } } })
+        }
+        this._lastImageTapTime = 0
+        this._lastImageTapItemId = ''
+        this._imageTapTimer = null
+      }, 350)
+    }
+  },
+
+  // 双击标题回到顶部（微信推荐的最佳实践）
+  onItemTitleTap(e) {
+    // 阻止事件冒泡，避免触发viewDetail
+    e.stopPropagation && e.stopPropagation()
+    
+    const now = Date.now()
+    const item = e.currentTarget.dataset.item
+    const itemId = item?.id || ''
+    const lastTapTime = this._lastTitleTapTime || 0
+    const lastItemId = this._lastTitleTapItemId || ''
+    const timeDiff = now - lastTapTime
+    
+    // 清除之前的定时器
+    if (this._titleTapTimer) {
+      clearTimeout(this._titleTapTimer)
+      this._titleTapTimer = null
+    }
+    
+    // 如果两次点击间隔小于350ms且是同一个item，认为是双击
+    if (timeDiff > 0 && timeDiff < 350 && itemId === lastItemId) {
+      // 双击：滚动到顶部
+      this.scrollToTop()
+      this._lastTitleTapTime = 0
+      this._lastTitleTapItemId = ''
+    } else {
+      // 单次点击：记录时间和itemId，等待可能的第二次点击
+      this._lastTitleTapTime = now
+      this._lastTitleTapItemId = itemId
+      // 如果350ms内没有第二次点击，执行查看详情
+      this._titleTapTimer = setTimeout(() => {
+        if (item) {
+          this.viewDetail({ currentTarget: { dataset: { item: item } } })
+        }
+        this._lastTitleTapTime = 0
+        this._lastTitleTapItemId = ''
+        this._titleTapTimer = null
+      }, 350)
+    }
+  },
+
+  // 滚动到顶部（微信推荐的最佳实践）
+  scrollToTop() {
+    wx.pageScrollTo({
+      scrollTop: 0,
+      duration: 300
+    }).catch(err => {
+      console.error('[scrollToTop] 滚动失败:', err)
+    })
   }
 })

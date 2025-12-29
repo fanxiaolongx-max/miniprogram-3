@@ -69,7 +69,10 @@
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
               <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
               <view class="item-footer">
-                <text class="item-date">{{item.createdAt}}</text>
+                <view class="item-dates">
+                  <text wx:if="{{item.updatedAt}}" class="item-date item-date-updated">{{item.updatedAt}}</text>
+                  <text wx:if="{{!item.updatedAt && !item.createdAt}}" class="item-date">{{item.displayTime}}</text>
+                </view>
                 <view class="item-actions">
                   <view wx:if="{{item.canEdit}}" class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
                     <text>✏️</text>
@@ -107,7 +110,10 @@
               <view wx:if="{{item.description}}" class="item-description">{{item.description}}</view>
               <view wx:if="{{item.category}}" class="item-category">{{item.category}}</view>
               <view class="item-footer">
-                <text class="item-date">{{item.createdAt}}</text>
+                <view class="item-dates">
+                  <text wx:if="{{item.updatedAt}}" class="item-date item-date-updated">{{item.updatedAt}}</text>
+                  <text wx:if="{{!item.updatedAt && !item.createdAt}}" class="item-date">{{item.displayTime}}</text>
+                </view>
                 <view class="item-actions">
                   <view wx:if="{{item.canEdit}}" class="action-btn edit-btn" catchtap="editArticle" data-item="{{item}}">
                     <text>✏️</text>

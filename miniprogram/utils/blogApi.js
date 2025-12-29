@@ -162,10 +162,13 @@ const articleApi = {
   /**
    * 删除文章
    * @param {string} id - 文章ID
+   * @param {string} deviceId - 设备ID（用于权限验证）
    * @returns {Promise} 返回删除结果
    */
-  delete(id) {
-    return request({ url: `/posts/${id}`, method: 'DELETE' })
+  delete(id, deviceId) {
+    // 使用查询参数方式传递deviceId（推荐方式）
+    const url = deviceId ? `/posts/${id}?deviceId=${encodeURIComponent(deviceId)}` : `/posts/${id}`
+    return request({ url: url, method: 'DELETE' })
   }
 }
 

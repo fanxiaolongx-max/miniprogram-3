@@ -216,10 +216,14 @@ Page({
         const canEdit = currentDeviceId && articleDeviceIdNormalized && currentDeviceId === articleDeviceIdNormalized
         const canDelete = canEdit // 删除权限与编辑权限一致
         
+        // 优先显示更新时间，如果没有更新时间再显示发布时间
+        const displayTime = item.updatedAt ? formatTimestamp(item.updatedAt) : (item.createdAt ? formatTimestamp(item.createdAt) : '')
+        
         return {
-          ...item,
-          createdAt: formatTimestamp(item.createdAt),
+        ...item,
+        createdAt: formatTimestamp(item.createdAt),
           updatedAt: formatTimestamp(item.updatedAt),
+          displayTime: displayTime, // 显示时间（优先更新时间）
           canEdit: canEdit,
           canDelete: canDelete
         }
@@ -463,13 +467,26 @@ Page({
       return
     }
     
+    // 获取当前用户的deviceId（使用phone作为deviceId，与保存文章时的逻辑一致）
+    const currentUser = authHelper.getLoginInfo()
+    const deviceId = currentUser && currentUser.phone ? currentUser.phone.trim() : null
+    
+    if (!deviceId) {
+      wx.showToast({
+        title: '无法获取设备ID',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
     wx.showLoading({
       title: '删除中...',
       mask: true
     })
 
     try {
-      await blogApi.articleApi.delete(id)
+      await blogApi.articleApi.delete(id, deviceId)
       wx.hideLoading()
       wx.showToast({
         title: '删除成功',

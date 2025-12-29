@@ -26,10 +26,11 @@ function getAuthHeaders(extraHeaders = {}) {
     ...extraHeaders
   }
   
-  // 如果存在token，添加到Authorization头
+  // 如果存在token，同时添加到Authorization头和X-User-Token头（确保兼容性）
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
-    console.log('[authApi] 使用Token认证')
+    headers['X-User-Token'] = token
+    console.log('[authApi] 使用Token认证（Authorization + X-User-Token）')
   } else {
     console.log('[authApi] 未找到Token，使用Session认证')
   }
@@ -215,6 +216,21 @@ const authApi = {
           
           if (res.statusCode === 200 && res.data) {
             if (res.data.success) {
+              // 检查是否有token
+              const token = res.data.token
+              if (token) {
+                console.log('[authApi.loginWithCode] ✅ 登录成功，已获取Token，将使用Token认证')
+                // Token会通过authHelper.handleLoginSuccess保存
+              } else {
+                console.warn('[authApi.loginWithCode] ⚠️ 登录成功但未返回Token，将使用Session认证')
+                // 检查响应头（小程序中Set-Cookie可能在小写键中）
+                const headers = res.header || {}
+                const setCookie = headers['Set-Cookie'] || headers['set-cookie'] || headers['SET-COOKIE']
+                if (!setCookie) {
+                  console.warn('[authApi.loginWithCode] ⚠️ 警告：响应中没有Set-Cookie头！')
+                }
+              }
+              
               resolve(res.data)
             } else {
               const error = new Error(res.data.message || '登录失败')
