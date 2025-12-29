@@ -387,13 +387,13 @@ Page({
         
         // 检查文章内容是否为空
         // 需要至少有一个内容字段有实际内容（不只是空白字符）
-        // 注意：如果文章有category或apiName，即使内容为空也保留（可能是防骗预警等特殊类型文章）
+        // 注意：如果文章有category或apiName，即使内容为空也保留（可能是防骗指南等特殊类型文章）
         const hasContent = 
           (item.htmlContent && typeof item.htmlContent === 'string' && item.htmlContent.trim() !== '') ||
           (item.description && typeof item.description === 'string' && item.description.trim() !== '') ||
           (item.excerpt && typeof item.excerpt === 'string' && item.excerpt.trim() !== '')
         
-        // 如果所有内容字段都为空，但有category或apiName，仍然保留（可能是防骗预警等特殊类型）
+        // 如果所有内容字段都为空，但有category或apiName，仍然保留（可能是防骗指南等特殊类型）
         const hasCategory = item.category || item.apiName
         
         if (!hasContent && !hasCategory) {
@@ -410,9 +410,9 @@ Page({
           return false
         }
         
-        // 如果有分类但内容为空，记录日志但不过滤（可能是防骗预警等特殊类型）
+        // 如果有分类但内容为空，记录日志但不过滤（可能是防骗指南等特殊类型）
         if (!hasContent && hasCategory) {
-          console.log('[fetchArticles] 保留内容为空但有分类的文章（可能是防骗预警等特殊类型）:', {
+          console.log('[fetchArticles] 保留内容为空但有分类的文章（可能是防骗指南等特殊类型）:', {
             name: item.name,
             category: item.category || item.apiName
           })
@@ -534,13 +534,13 @@ Page({
       }
 
       // 注意：分类列表只从API获取（loadAllCategories），不从文章数据中提取
-      // 检查是否有防骗预警相关的文章（仅用于调试日志，不影响分类列表）
+      // 检查是否有防骗指南相关的文章（仅用于调试日志，不影响分类列表）
       const blacklistItems = items.filter(item => {
         const category = (item.category || item.apiName || '').toLowerCase()
         return category.includes('防骗') || category.includes('预警') || category.includes('blacklist') || category.includes('诈骗')
       })
       if (blacklistItems.length > 0) {
-        console.log(`[fetchArticles] 找到${blacklistItems.length}条防骗预警相关文章:`, blacklistItems.map(item => ({
+        console.log(`[fetchArticles] 找到${blacklistItems.length}条防骗指南相关文章:`, blacklistItems.map(item => ({
           id: item.id,
           name: item.name,
           category: item.category || item.apiName

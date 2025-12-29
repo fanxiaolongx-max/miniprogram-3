@@ -1,3 +1,5 @@
+const blogApi = require('../../utils/blogApi.js')
+
 Page({
   onShareAppMessage() {
     return {
@@ -52,9 +54,6 @@ Page({
   },
 
   fetchHotActivity(isLoadMore = false) {
-    const config = require('../../config.js')
-    const apiUrl = config.hotActivityApi || `${config.apiBaseUrl}/hot-activity`
-    
     // 如果是加载更多，设置 loadingMore；否则设置 loading
     if (isLoadMore) {
       this.setData({
@@ -74,105 +73,84 @@ Page({
     const requestPage = isLoadMore ? (currentPage + 1) : 1
     const pageSize = this.data.pageSize
     
-    // 获取过滤条件（两个独立的过滤条件，可以单独使用或组合使用）
-    // category: 分类过滤（精确匹配 category 字段）
-    // keyword: 全文搜索（搜索 title、description 等多个字段）
-    const category = this.data.selectedCategory || ''
+    // 获取过滤条件
+    let category = this.data.selectedCategory || ''
     const keyword = (this.data.searchKeyword || '').trim()
     
-    // 构建URL参数
-    const params = [`page=${requestPage}`, `pageSize=${pageSize}`]
-    // 分类过滤：只传有值的分类
-    if (category) {
-      params.push(`category=${encodeURIComponent(category)}`)
+    // 如果没有选择分类，默认使用"热门活动"分类
+    if (!category) {
+      category = '热门活动'
     }
-    // 关键词搜索：只传有值的关键词
-    if (keyword) {
-      params.push(`keyword=${encodeURIComponent(keyword)}`)
-    }
-    // 注意：如果两个条件都有值，会同时传递，后端会组合过滤
-    
-    const url = `${apiUrl}?${params.join('&')}`
     
     console.log(`[fetchHotActivity] 请求参数：isLoadMore=${isLoadMore}, currentPage=${currentPage}, requestPage=${requestPage}, pageSize=${pageSize}, category=${category || '无'}, keyword=${keyword || '无'}`)
 
-    wx.request({
-      url: url,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        console.log('获取热门活动数据响应', res)
+    // 使用统一的 /api/blog/posts API
+    blogApi.blogPostApi.getList({
+      page: requestPage,
+      pageSize: pageSize,
+      category: category || undefined,
+      search: keyword || undefined,
+      published: 'true' // 只返回已发布的文章
+    }).then((result) => {
+      console.log('[fetchHotActivity] API响应:', result)
+      
+      let items = []
+      let total = 0
+      let hasMore = false
+
+      // 处理新的API返回格式：{ success: true, data: [...], pagination: {...} }
+      if (result && result.success && result.data && Array.isArray(result.data)) {
+        items = result.data
         
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
-        
-        if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取热门活动数据失败', res.statusCode, res.data)
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
-        }
-
-        if (!res.data) {
-          console.error('获取热门活动数据失败：返回数据为空')
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
-        }
-
-        let items = []
-        let total = 0
-        let hasMore = false
-
-        // 处理分页返回格式（默认）：{ data: [...], total: 100, hasMore: true }
-        if (res.data.data && Array.isArray(res.data.data)) {
-          items = res.data.data
-          total = res.data.total || 0
-          hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
+        // 从 pagination 对象中提取分页信息
+        if (result.pagination) {
+          total = result.pagination.total || 0
+          const currentPage = result.pagination.currentPage || requestPage
+          const totalPages = result.pagination.totalPages || 0
+          hasMore = currentPage < totalPages
           console.log(`[fetchHotActivity] 分页数据：请求页 ${requestPage}，返回 ${items.length} 条，总计 ${total}，还有更多：${hasMore}`)
+        } else {
+          // 如果没有 pagination 对象，使用旧逻辑
+          total = result.total || items.length
+          hasMore = result.hasMore !== undefined ? result.hasMore : (items.length >= pageSize)
         }
-        // 处理数组格式（format=array 时）：[...]
-        else if (Array.isArray(res.data)) {
-          items = res.data
-          hasMore = items.length >= pageSize
-          console.log(`[fetchHotActivity] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
+      } else if (result && result.data && Array.isArray(result.data)) {
+        // 兼容没有 success 字段的格式
+        items = result.data
+        if (result.pagination) {
+          total = result.pagination.total || 0
+          const currentPage = result.pagination.currentPage || requestPage
+          const totalPages = result.pagination.totalPages || 0
+          hasMore = currentPage < totalPages
+        } else {
+          total = result.total || 0
+          hasMore = result.hasMore !== undefined ? result.hasMore : (items.length >= pageSize)
         }
-        // 兼容旧格式：{ activities: [...] }
-        else if (res.data.activities && Array.isArray(res.data.activities)) {
-          items = res.data.activities
-          total = res.data.total || items.length
-          hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
+      } else if (Array.isArray(result)) {
+        // 兼容直接返回数组的格式
+        items = result
+        hasMore = items.length >= pageSize
+        console.log(`[fetchHotActivity] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
+      }
+      else {
+        console.error('获取热门活动数据失败：返回格式不正确', result)
+        if (isLoadMore) {
+          this.setData({ loadingMore: false })
+        } else {
+          this.showError()
         }
-        // 兼容单个对象格式（仅首次加载时）
-        else if (!isLoadMore && (res.data.title || res.data.name)) {
-          items = [{
-            id: res.data.id || Math.random(),
-            title: res.data.title || res.data.name || '活动',
-            description: res.data.description || res.data.desc || '',
-            image: res.data.image || res.data.imageUrl || '/page/component/resources/pic/1.jpg',
-            category: res.data.category || ''
-          }]
-          hasMore = false
-        }
+        return
+      }
 
-        if (!Array.isArray(items)) {
-          console.error('获取热门活动数据失败：返回格式不正确')
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
+      if (!Array.isArray(items)) {
+        console.error('获取热门活动数据失败：返回格式不正确')
+        if (isLoadMore) {
+          this.setData({ loadingMore: false })
+        } else {
+          this.showError()
         }
+        return
+      }
 
         // 如果没有数据且不是首次加载，说明没有更多了
         if (items.length === 0 && isLoadMore) {
@@ -295,8 +273,7 @@ Page({
             }, 100)
           }
         })
-      },
-      fail: (err) => {
+      }).catch((err) => {
         console.error('获取热门活动数据失败', err)
         if (isLoadMore) {
           this.setData({ loadingMore: false })
@@ -308,8 +285,7 @@ Page({
         } else {
           this.showError()
         }
-      }
-    })
+      })
   },
 
   // 滚动到底部 - 已禁用自动加载，仅保留日志

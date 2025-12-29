@@ -1251,7 +1251,7 @@ Page({
   shouldHideContactFields(category) {
     if (!category) return false
     const normalizedCategory = category.trim().toLowerCase()
-    const hideKeywords = ['小费指南', 'tip-guide', 'tipguide', '签证攻略', 'visa-guide', 'visaguide', '防骗指南', '防骗预警', 'blacklist', 'scam']
+    const hideKeywords = ['小费指南', 'tip-guide', 'tipguide', '签证攻略', 'visa-guide', 'visaguide', '防骗指南', '防骗指南', 'blacklist', 'scam']
     return hideKeywords.some(keyword => {
       const normalizedKeyword = keyword.toLowerCase()
       return normalizedCategory.indexOf(normalizedKeyword) !== -1 || 

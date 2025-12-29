@@ -1,3 +1,5 @@
+const blogApi = require('../../utils/blogApi.js')
+
 Page({
   onShareAppMessage() {
     return {
@@ -50,9 +52,6 @@ Page({
   },
 
   fetchTipGuide(isLoadMore = false, isPreload = false) {
-    const config = require('../../config.js')
-    const apiUrl = config.tipGuideApi || `${config.apiBaseUrl}/tip-guide`
-    
     // 如果是加载更多，设置 loadingMore；否则设置 loading
     if (isLoadMore) {
       if (isPreload) {
@@ -78,88 +77,83 @@ Page({
     const pageSize = this.data.pageSize
     
     // 获取过滤条件
-    const category = this.data.selectedCategory || ''
+    let category = this.data.selectedCategory || ''
     const keyword = (this.data.searchKeyword || '').trim()
     
-    // 构建URL参数
-    const params = [`page=${requestPage}`, `pageSize=${pageSize}`]
-    if (category) {
-      params.push(`category=${encodeURIComponent(category)}`)
+    // 如果没有选择分类，默认使用"小费指南"分类
+    if (!category) {
+      category = '小费指南'
     }
-    if (keyword) {
-      params.push(`keyword=${encodeURIComponent(keyword)}`)
-    }
-    
-    const url = `${apiUrl}?${params.join('&')}`
     
     console.log(`[fetchTipGuide] 请求参数：isLoadMore=${isLoadMore}, currentPage=${currentPage}, requestPage=${requestPage}, pageSize=${pageSize}, category=${category || '无'}, keyword=${keyword || '无'}`)
 
-    wx.request({
-      url: url,
-      method: 'GET',
-      header: {
-        'content-type': 'application/json'
-      },
-      success: (res) => {
-        console.log('获取小费指南响应', res)
+    // 使用统一的 /api/blog/posts API
+    blogApi.blogPostApi.getList({
+      page: requestPage,
+      pageSize: pageSize,
+      category: category || undefined,
+      search: keyword || undefined,
+      published: 'true' // 只返回已发布的文章
+    }).then((result) => {
+      console.log('[fetchTipGuide] API响应:', result)
+      
+      let items = []
+      let total = 0
+      let hasMore = false
+
+      // 处理新的API返回格式：{ success: true, data: [...], pagination: {...} }
+      if (result && result.success && result.data && Array.isArray(result.data)) {
+        items = result.data
         
-        // 处理API响应数据，自动替换URL（将 boba.app 替换为 bobapro.life）
-        const envHelper = require('../../utils/envHelper.js')
-        res.data = envHelper.processApiResponse(res.data)
-        
-        if (res.statusCode !== 200 || (res.data && res.data.success === false)) {
-          console.error('获取小费指南失败', res.statusCode, res.data)
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
-        }
-
-        if (!res.data) {
-          console.error('获取小费指南失败：返回数据为空')
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
-        }
-
-        let items = []
-        let total = 0
-        let hasMore = false
-
-        // 处理分页返回格式（默认）：{ data: [...], total: 100, hasMore: true }
-        if (res.data.data && Array.isArray(res.data.data)) {
-          items = res.data.data
-          total = res.data.total || 0
-          hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
+        // 从 pagination 对象中提取分页信息
+        if (result.pagination) {
+          total = result.pagination.total || 0
+          const currentPage = result.pagination.currentPage || requestPage
+          const totalPages = result.pagination.totalPages || 0
+          hasMore = currentPage < totalPages
           console.log(`[fetchTipGuide] 分页数据：请求页 ${requestPage}，返回 ${items.length} 条，总计 ${total}，还有更多：${hasMore}`)
+        } else {
+          // 如果没有 pagination 对象，使用旧逻辑
+          total = result.total || items.length
+          hasMore = result.hasMore !== undefined ? result.hasMore : (items.length >= pageSize)
         }
-        // 处理数组格式（format=array 时）：[...]
-        else if (Array.isArray(res.data)) {
-          items = res.data
-          hasMore = items.length >= pageSize
-          console.log(`[fetchTipGuide] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
+      } else if (result && result.data && Array.isArray(result.data)) {
+        // 兼容没有 success 字段的格式
+        items = result.data
+        if (result.pagination) {
+          total = result.pagination.total || 0
+          const currentPage = result.pagination.currentPage || requestPage
+          const totalPages = result.pagination.totalPages || 0
+          hasMore = currentPage < totalPages
+        } else {
+          total = result.total || 0
+          hasMore = result.hasMore !== undefined ? result.hasMore : (items.length >= pageSize)
         }
-        // 兼容旧格式：{ items: [...] }
-        else if (res.data.items && Array.isArray(res.data.items)) {
-          items = res.data.items
-          total = res.data.total || items.length
-          hasMore = res.data.hasMore !== undefined ? res.data.hasMore : (items.length >= pageSize)
+      } else if (Array.isArray(result)) {
+        // 兼容直接返回数组的格式
+        items = result
+        hasMore = items.length >= pageSize
+        console.log(`[fetchTipGuide] 数组格式：请求页 ${requestPage}，返回 ${items.length} 条，还有更多：${hasMore}`)
+      }
+      else {
+        console.error('获取小费指南失败：返回格式不正确', result)
+        if (isLoadMore) {
+          this.setData({ loadingMore: false })
+        } else {
+          this.showError()
         }
+        return
+      }
 
-        if (!Array.isArray(items)) {
-          console.error('获取小费指南失败：返回格式不正确')
-          if (isLoadMore) {
-            this.setData({ loadingMore: false })
-          } else {
-            this.showError()
-          }
-          return
+      if (!Array.isArray(items)) {
+        console.error('获取小费指南失败：返回格式不正确')
+        if (isLoadMore) {
+          this.setData({ loadingMore: false })
+        } else {
+          this.showError()
         }
+        return
+      }
 
         // 如果没有数据且不是首次加载，说明没有更多了
         if (items.length === 0 && isLoadMore) {
@@ -344,8 +338,7 @@ Page({
             }, 100)
           }
         })
-      },
-      fail: (err) => {
+      }).catch((err) => {
         console.error('获取小费指南失败', err)
         if (isLoadMore) {
           if (isPreload) {
@@ -366,8 +359,7 @@ Page({
         } else {
           this.showError()
         }
-      }
-    })
+      })
   },
 
   // 滚动到底部 - 已禁用自动加载
