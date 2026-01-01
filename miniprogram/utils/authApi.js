@@ -84,6 +84,8 @@ const authApi = {
    * @param {string} pin - 4位数字PIN码
    * @param {string} name - 用户姓名（可选）
    * @returns {Promise} 返回Promise对象
+   * @returns {Promise<Object>} 返回格式：{ success: true, user: {...}, token: "...", isNewUser: true/false }
+   * @returns {boolean} isNewUser - 是否为新用户注册（需要服务器支持）
    */
   loginWithPin(phone, pin, name) {
     return new Promise((resolve, reject) => {
@@ -181,9 +183,11 @@ const authApi = {
    * 验证码登录（自动注册）
    * @param {string} phone - 手机号
    * @param {string} code - 6位数字验证码
-   * @param {string} pin - 4位数字PIN码
+   * @param {string} pin - 4位数字PIN码（已废弃，不再需要）
    * @param {string} name - 用户姓名（可选）
    * @returns {Promise} 返回Promise对象
+   * @returns {Promise<Object>} 返回格式：{ success: true, user: {...}, token: "...", isNewUser: true/false }
+   * @returns {boolean} isNewUser - 是否为新用户注册（需要服务器支持）
    */
   loginWithCode(phone, code, pin, name) {
     return new Promise((resolve, reject) => {

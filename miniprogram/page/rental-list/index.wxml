@@ -72,20 +72,7 @@
                 <text wx:if="{{item.rooms}}" class="item-meta">{{item.rooms}}室</text>
                 <text wx:if="{{item.area}}" class="item-meta">{{item.area}}㎡</text>
               </view>
-              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-footer">
-                <text class="item-address">{{item.address}}</text>
-                <view class="footer-buttons">
-                  <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
-                    <text class="location-icon">📍</text>
-                    <text class="location-text">导航</text>
-                  </view>
-                  <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                    <text class="phone-icon">📞</text>
-                    <text class="phone-text">呼叫</text>
-                  </view>
-                </view>
-              </view>
-              <view wx:else class="item-footer">
+              <view class="item-footer">
                 <text class="item-address">{{item.address}}</text>
               </view>
             </view>
@@ -134,20 +121,7 @@
                 <text wx:if="{{item.rooms}}" class="item-meta">{{item.rooms}}室</text>
                 <text wx:if="{{item.area}}" class="item-meta">{{item.area}}㎡</text>
               </view>
-              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-footer">
-                <text class="item-address">{{item.address}}</text>
-                <view class="footer-buttons">
-                  <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
-                    <text class="location-icon">📍</text>
-                    <text class="location-text">导航</text>
-                  </view>
-                  <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                    <text class="phone-icon">📞</text>
-                    <text class="phone-text">呼叫</text>
-                  </view>
-                </view>
-              </view>
-              <view wx:else class="item-footer">
+              <view class="item-footer">
                 <text class="item-address">{{item.address}}</text>
               </view>
             </view>

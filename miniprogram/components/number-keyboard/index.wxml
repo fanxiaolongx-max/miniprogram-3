@@ -1,5 +1,5 @@
 <view class="number-keyboard {{show ? 'show' : ''}}" catchtouchmove="preventMove">
-  <view class="keyboard-mask" bindtap="onMaskTap"></view>
+  <view class="keyboard-mask" catchtap="onMaskTap"></view>
   <view class="keyboard-content" catchtap="preventClose">
     <view class="keyboard-row">
       <view class="keyboard-key" bindtap="onKeyTap" data-key="1">1</view>

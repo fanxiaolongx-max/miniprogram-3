@@ -66,16 +66,6 @@
                   <text class="meta-text">{{item.authorInfo.nickname}}</text>
                 </view>
               </view>
-              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-footer">
-                <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
-                  <text class="location-icon">📍</text>
-                  <text class="location-text">导航</text>
-                </view>
-                <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                  <text class="phone-icon">📞</text>
-                  <text class="phone-text">呼叫</text>
-                </view>
-              </view>
             </view>
           </view>
         </view>
@@ -113,16 +103,6 @@
                 <view wx:if="{{item.authorInfo && item.authorInfo.nickname}}" class="meta-author-compact">
                   <text class="meta-icon">👤</text>
                   <text class="meta-text">{{item.authorInfo.nickname}}</text>
-                </view>
-              </view>
-              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-footer">
-                <view wx:if="{{item.latitude && item.longitude}}" class="location-btn" catchtap="openLocation" data-item="{{item}}">
-                  <text class="location-icon">📍</text>
-                  <text class="location-text">导航</text>
-                </view>
-                <view wx:if="{{item.phone}}" class="phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                  <text class="phone-icon">📞</text>
-                  <text class="phone-text">呼叫</text>
                 </view>
               </view>
             </view>

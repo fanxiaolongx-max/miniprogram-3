@@ -4,12 +4,14 @@
   right: 0;
   top: 0;
   bottom: 0;
-  z-index: 1000;
+  z-index: 9999; /* 提高 z-index，确保在最顶层 */
   display: none;
+  pointer-events: none; /* 默认不接收事件，只有显示时才接收 */
 }
 
 .number-keyboard.show {
   display: block;
+  pointer-events: auto; /* 显示时接收事件 */
 }
 
 .keyboard-mask {
@@ -19,7 +21,13 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.3);
-  z-index: 1001;
+  z-index: 10000; /* 遮罩层在最上层 */
+  pointer-events: auto; /* 确保遮罩层可以接收点击事件 */
+  /* 确保遮罩层完全覆盖，包括安全区域 */
+  width: 100vw;
+  height: 100vh;
+  min-width: 100vw;
+  min-height: 100vh;
 }
 
 .keyboard-content {
@@ -30,7 +38,8 @@
   background: #f5f5f5;
   padding: 20rpx 0 40rpx;
   border-top: 1rpx solid #e0e0e0;
-  z-index: 1002;
+  z-index: 10001; /* 键盘内容在最上层 */
+  pointer-events: auto; /* 确保键盘内容可以接收点击事件 */
 }
 
 .keyboard-row {

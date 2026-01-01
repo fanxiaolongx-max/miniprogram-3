@@ -94,12 +94,8 @@ const config = {
    */
   blogAdminApiBaseUrl: `${apiBaseDomain}/api/blog-admin`,
 
-  /**
-   * 博客管理 API Token
-   * 用于API认证，应该从安全的地方获取（如云函数、配置中心）
-   * 注意：实际使用时应该避免硬编码，可以通过云函数或后端代理来保护Token
-   */
-  blogAdminApiToken: '210311199405041819'
+  // 注意：已停用硬编码 token，现在统一使用 x-user-token 进行认证
+  // blogAdminApiToken: '210311199405041819' // 已停用
 }
 
 module.exports = config

@@ -2,6 +2,7 @@ const blogApi = require('../../utils/blogApi.js')
 const config = require('../../config.js')
 const { extractChineseName } = require('../../util/util.js')
 const authHelper = require('../../utils/authHelper.js')
+const authApi = require('../../utils/authApi.js')
 const systemInfo = require('../../utils/systemInfo.js')
 
 Page({
@@ -10,17 +11,17 @@ Page({
     mode: 'create',
     articleId: null,
     saving: false,
-    uploadingCover: false,
     uploadingMedia: false,
     // 上传进度
     uploadProgress: 0,
     uploadTotal: 0,
     uploadCurrent: 0,
     showUploadProgress: false,
-    uploadType: '', // 'cover', 'image', 'video'
+    uploadType: '', // 'image', 'video'
     // 表单数据
     name: '',
-    apiName: '',
+    apiName: '', // 实际的API名称（用于创建文章，如 "tip-guide"）
+    apiNameDisplay: '', // 显示名称（用于界面显示，如 "小费指南"）
     htmlContent: '',
     image: '',
     phone: '', // 手机号
@@ -51,11 +52,17 @@ Page({
     // 弹窗状态
     showCategoryModal: false,
     showFontModal: false,
+    showMediaPickerModal: false,
+    showVideoPreview: false,
+    previewVideoUrl: '',
+    previewVideoPoster: '',
     // 滚动位置
     scrollIntoView: '',
     // 编辑器相关
     editorReady: false,
-    editorCtx: null
+    editorCtx: null,
+    // 全屏编辑状态
+    fullscreen: false
   },
 
   onLoad(options) {
@@ -133,50 +140,49 @@ Page({
       const result = await blogApi.apiConfigApi.getList()
       console.log('[loadApiList] API列表原始结果:', JSON.stringify(result, null, 2))
       
-      // 提取分类名称的辅助函数（简化版，不做任何处理）
-      const extractName = (item) => {
+      // 提取分类信息的辅助函数，返回 {name, apiName} 对象
+      const extractCategoryInfo = (item) => {
         if (typeof item === 'string') {
-          return item
+          // 如果是字符串，同时作为 name 和 apiName
+          return { name: item, apiName: item }
         }
         if (item && typeof item === 'object') {
-          // 优先使用 name 字段
-          if (item.name && typeof item.name === 'string') {
-            return item.name
-          }
-          // 如果没有 name，尝试其他可能的字段
-          if (item.title && typeof item.title === 'string') {
-            return item.title
-          }
-          if (item.label && typeof item.label === 'string') {
-            return item.label
-          }
-          // 尝试 apiName 字段
-          if (item.apiName && typeof item.apiName === 'string') {
-            return item.apiName
+          // 优先使用 apiName 作为实际API名称（后端需要的）
+          // name 作为显示名称（中文）
+          const apiName = item.apiName || item.name || item.title || item.label || ''
+          const name = item.name || item.title || item.label || item.apiName || ''
+          
+          // 如果 apiName 和 name 都存在且不同，使用 apiName 作为实际值
+          // 如果只有 name，则 name 同时作为显示和实际值
+          return {
+            name: name || apiName, // 显示名称（优先中文名称）
+            apiName: apiName || name // 实际API名称（优先 apiName 字段）
           }
         }
-        // 如果都无法提取，返回空字符串（会被过滤掉）
-        return ''
+        // 如果都无法提取，返回 null（会被过滤掉）
+        return null
       }
       
       let apiList = []
       
       if (result.success && result.data) {
-        apiList = result.data.map(extractName).filter(name => name !== '')
+        apiList = result.data.map(extractCategoryInfo).filter(item => item && item.apiName)
       } else if (Array.isArray(result)) {
         // 如果直接返回数组
-        apiList = result.map(extractName).filter(name => name !== '')
+        apiList = result.map(extractCategoryInfo).filter(item => item && item.apiName)
       } else if (result && result.data && Array.isArray(result.data)) {
         // 如果result.data是数组
-        apiList = result.data.map(extractName).filter(name => name !== '')
+        apiList = result.data.map(extractCategoryInfo).filter(item => item && item.apiName)
       }
       
       // 过滤掉禁止创建文章的分类（天气、汇率、翻译）
       const forbiddenCategories = this.getForbiddenCategories()
-      apiList = apiList.filter(name => {
-        const isForbidden = this.isForbiddenCategory(name)
+      apiList = apiList.filter(item => {
+        // 使用 apiName 或 name 来检查是否禁止
+        const categoryName = item.apiName || item.name
+        const isForbidden = this.isForbiddenCategory(categoryName)
         if (isForbidden) {
-          console.log(`[loadApiList] 过滤掉禁止的分类: ${name}`)
+          console.log(`[loadApiList] 过滤掉禁止的分类: ${categoryName}`)
         }
         return !isForbidden
       })
@@ -186,16 +192,30 @@ Page({
       // 确保apiList始终是数组，避免渲染层错误
       const safeApiList = Array.isArray(apiList) ? apiList : []
       
+      if (safeApiList.length === 0) {
+        console.warn('[loadApiList] API列表为空，可能的原因：')
+        console.warn('1. API返回数据格式不正确')
+        console.warn('2. 所有分类都被过滤掉了')
+        console.warn('3. API请求失败或返回空数据')
+        console.warn('原始结果:', result)
+      }
+      
       this.setData({
         apiList: safeApiList
       })
       
       return safeApiList
     } catch (error) {
-      console.error('加载API列表失败:', error)
+      console.error('[loadApiList] 加载API列表失败:', error)
+      console.error('[loadApiList] 错误详情:', error.message, error.stack)
       wx.showToast({
-        title: '加载分类失败',
-        icon: 'none'
+        title: '加载分类失败: ' + (error.message || '未知错误'),
+        icon: 'none',
+        duration: 3000
+      })
+      // 设置空数组，避免渲染错误
+      this.setData({
+        apiList: []
       })
       return []
     }
@@ -282,22 +302,41 @@ Page({
         
         // 确保API列表已加载后再设置分类
         let apiNameIndex = 0
+        let apiNameDisplay = apiName // 默认使用 apiName 作为显示名称
+        
         if (apiName && apiList.length > 0) {
-          // 精确匹配
-          let index = apiList.findIndex(name => name === apiName)
+          // 查找匹配的分类项（支持对象格式和字符串格式）
+          let index = apiList.findIndex(item => {
+            if (typeof item === 'string') {
+              return item === apiName
+            }
+            // 对象格式：匹配 apiName 或 name
+            return item.apiName === apiName || item.name === apiName
+          })
           
           // 如果精确匹配失败，尝试模糊匹配（去除空格、大小写不敏感）
           if (index < 0) {
             const normalizedApiName = apiName.trim().toLowerCase()
-            index = apiList.findIndex(name => {
-              const normalizedName = (name || '').trim().toLowerCase()
+            index = apiList.findIndex(item => {
+              let itemName = ''
+              if (typeof item === 'string') {
+                itemName = item
+              } else {
+                itemName = item.apiName || item.name || ''
+              }
+              const normalizedName = (itemName || '').trim().toLowerCase()
               return normalizedName === normalizedApiName
             })
           }
           
           if (index >= 0) {
             apiNameIndex = index
-            console.log('[loadArticle] 找到分类索引:', index, '分类名称:', apiList[index])
+            const matchedItem = apiList[index]
+            // 如果是对象格式，使用 name 作为显示名称
+            if (typeof matchedItem === 'object' && matchedItem.name) {
+              apiNameDisplay = matchedItem.name
+            }
+            console.log('[loadArticle] 找到分类索引:', index, '分类名称:', matchedItem)
           } else {
             console.warn('[loadArticle] 未找到匹配的分类:', apiName, '可用分类:', apiList)
           }
@@ -305,10 +344,14 @@ Page({
           console.warn('[loadArticle] 分类为空或API列表为空:', { apiName, apiListLength: apiList.length })
         }
         
-        // 如果没有封面图，从内容中提取第一张图片
-        let coverImage = article.image || ''
-        if (!coverImage && article.htmlContent) {
+        // 从内容中提取第一张图片作为封面（如果文章有图片）
+        let coverImage = ''
+        if (article.htmlContent) {
           coverImage = this.extractFirstImage(article.htmlContent)
+        }
+        // 如果内容中没有图片，使用原有的封面图（向后兼容）
+        if (!coverImage && article.image) {
+          coverImage = article.image
         }
         
         // 处理经纬度：确保是数字类型或null
@@ -334,7 +377,8 @@ Page({
         
         this.setData({
           name: article.name || '',
-          apiName: apiName,
+          apiName: apiName, // 实际的API名称（用于保存）
+          apiNameDisplay: apiNameDisplay, // 显示名称（用于界面显示）
           apiNameIndex: apiNameIndex,
           htmlContent: article.htmlContent || '',
           image: coverImage,
@@ -388,14 +432,15 @@ Page({
     return match ? match[1] : ''
   },
 
-  // 更新封面图（从内容中提取）
+  // 更新封面图（从内容中提取第一张图片）
   updateCoverFromContent(htmlContent) {
-    // 如果已有封面图，不自动替换
-    if (this.data.image) return
-    
+    // 总是从内容中提取第一张图片作为封面
     const firstImage = this.extractFirstImage(htmlContent)
     if (firstImage) {
       this.setData({ image: firstImage })
+    } else {
+      // 如果没有图片，清空封面
+      this.setData({ image: '' })
     }
   },
 
@@ -607,11 +652,16 @@ Page({
     if (!this.editorCtx || !html) return
     
     try {
-      // 将视频标签转换为占位图片，以便在编辑器中显示
-      const htmlWithPlaceholders = this.convertVideoToPlaceholder(html)
+      // 移除图片和视频标签，正文中不显示图片和视频（只在上方预览区域显示）
+      let textOnlyHtml = html
+      textOnlyHtml = textOnlyHtml.replace(/<img[^>]*>/gi, '')
+      textOnlyHtml = textOnlyHtml.replace(/<image[^>]*>/gi, '')
+      // 移除视频标签，视频不在正文中显示
+      textOnlyHtml = textOnlyHtml.replace(/<video[^>]*>.*?<\/video>/gi, '')
+      textOnlyHtml = textOnlyHtml.replace(/<video[^>]*\/>/gi, '')
       
       this.editorCtx.setContents({
-        html: htmlWithPlaceholders
+        html: textOnlyHtml
       })
     } catch (error) {
       console.error('设置编辑器内容失败:', error)
@@ -642,8 +692,8 @@ Page({
         // 检查并设置封面图
         this.updateCoverFromContent(newHtml)
         
-        // 解析媒体内容
-        this.parseMediaFromContent()
+        // 注意：不要调用 parseMediaFromContent()，因为视频已经通过占位符处理
+        // mediaList 应该通过 insertImage 和 removeMedia 独立管理
         
         return
       }
@@ -667,7 +717,14 @@ Page({
     }
     
     // 如果处理了视频占位符，使用处理后的HTML
-    const finalHtml = hasVideoPlaceholder ? processedHtml : html
+    let finalHtml = hasVideoPlaceholder ? processedHtml : html
+    
+    // 移除图片和视频标签，正文中不显示图片和视频（只在上方预览区域显示）
+    finalHtml = finalHtml.replace(/<img[^>]*>/gi, '')
+    finalHtml = finalHtml.replace(/<image[^>]*>/gi, '')
+    // 移除视频标签，视频不在正文中显示
+    finalHtml = finalHtml.replace(/<video[^>]*>.*?<\/video>/gi, '')
+    finalHtml = finalHtml.replace(/<video[^>]*\/>/gi, '')
     
     this.setData({
       htmlContent: finalHtml
@@ -676,8 +733,9 @@ Page({
     // 检查并设置封面图
     this.updateCoverFromContent(finalHtml)
     
-    // 解析媒体内容
-    this.parseMediaFromContent()
+    // 注意：不要调用 parseMediaFromContent()，因为：
+    // 1. 我们已经移除了图片标签，parseMediaFromContent() 会清空 mediaList
+    // 2. mediaList 应该通过 insertImage 和 removeMedia 独立管理，不从 htmlContent 解析
     
     // 防抖保存历史记录
     if (this._historyTimer) {
@@ -802,84 +860,29 @@ Page({
     }
   },
 
-  // 插入/更换封面
-  insertCover() {
-    const that = this
-    wx.chooseImage({
-      count: 1,
-      sizeType: ['compressed'],
-      sourceType: ['album', 'camera'],
-      success: async function(res) {
-        that.setData({ 
-          uploadingCover: true,
-          showUploadProgress: true,
-          uploadProgress: 0,
-          uploadTotal: 1,
-          uploadCurrent: 0,
-          uploadType: 'cover'
-        })
-        
-        try {
-          const imageUrl = await that.uploadFile(res.tempFilePaths[0], 'image', (progress) => {
-            that.setData({
-              uploadProgress: progress,
-              uploadCurrent: 1
-            })
-          })
-          that.setData({
-            image: imageUrl,
-            uploadingCover: false,
-            showUploadProgress: false,
-            uploadProgress: 0
-          })
-          wx.showToast({
-            title: '封面设置成功',
-            icon: 'success',
-            duration: 1500
-          })
-        } catch (error) {
-          that.setData({ 
-            uploadingCover: false,
-            showUploadProgress: false,
-            uploadProgress: 0
-          })
-          // 显示详细的错误信息
-          const errorMsg = error.message || '上传失败'
-          console.error('[insertCover] 封面图上传失败:', errorMsg, error)
-          wx.showModal({
-            title: '封面图上传失败',
-            content: errorMsg,
-            showCancel: false,
-            confirmText: '知道了'
-          })
-        }
-      },
-      fail: function(err) {
-        console.error('[insertCover] 选择封面图失败:', err)
-        const errMsg = err.errMsg || '选择图片失败'
-        let errorMsg = '选择图片失败'
-        
-        if (errMsg.includes('cancel')) {
-          // 用户取消选择，不需要提示
-          return
-        } else if (errMsg.includes('permission')) {
-          errorMsg = '需要相机和相册权限，请在设置中开启'
-        } else if (errMsg) {
-          errorMsg = `选择图片失败：${errMsg}`
-        }
-        
-        wx.showModal({
-          title: '选择图片失败',
-          content: errorMsg,
-          showCancel: false,
-          confirmText: '知道了'
-        })
-      }
+  // 插入/更换封面功能已移除，封面自动从文章第一张图片提取
+
+  // 显示媒体选择弹窗
+  showMediaPicker() {
+    this.setData({
+      showMediaPickerModal: true
+    })
+  },
+
+  // 隐藏媒体选择弹窗
+  hideMediaPicker() {
+    this.setData({
+      showMediaPickerModal: false
     })
   },
 
   // 插入图片
   insertImage() {
+    // 关闭弹窗
+    this.setData({
+      showMediaPickerModal: false
+    })
+    
     const that = this
     wx.chooseImage({
       count: 9,
@@ -919,7 +922,7 @@ Page({
           )
           const imageUrls = await Promise.all(uploadPromises)
           
-          // 添加到媒体列表
+          // 添加到媒体列表（只添加到预览区域，不插入到编辑器）
           const mediaList = Array.isArray(that.data.mediaList) ? [...that.data.mediaList] : []
           imageUrls.forEach(url => {
             mediaList.push({
@@ -927,27 +930,6 @@ Page({
               url: url
             })
           })
-          
-          // 插入到编辑器（insertImage会在光标位置插入）
-          if (that.editorCtx) {
-            // insertImage API会在光标位置插入，不需要特殊处理
-            imageUrls.forEach(url => {
-              that.editorCtx.insertImage({
-                src: url,
-                alt: '图片',
-                width: '100%',
-                height: 'auto'
-              })
-            })
-            // onEditorInput会自动触发并更新htmlContent
-          } else {
-            // 如果编辑器未就绪，直接添加到HTML内容末尾
-            let htmlContent = that.data.htmlContent || ''
-            imageUrls.forEach(url => {
-              htmlContent += `<img src="${url}" alt="图片" style="max-width: 100%; height: auto; margin: 12px 0;" />\n`
-            })
-            that.setData({ htmlContent: htmlContent })
-          }
           
           that.setData({
             mediaList: mediaList,
@@ -959,7 +941,7 @@ Page({
           that.saveToHistory()
           
           wx.showToast({
-            title: '图片已插入',
+            title: '图片已添加',
             icon: 'success',
             duration: 1500
           })
@@ -1006,6 +988,11 @@ Page({
 
   // 插入视频
   insertVideo() {
+    // 关闭弹窗
+    this.setData({
+      showMediaPickerModal: false
+    })
+    
     const that = this
     wx.chooseVideo({
       sourceType: ['album', 'camera'],
@@ -1022,6 +1009,7 @@ Page({
         })
         
         try {
+          // 上传视频文件
           const videoUrl = await that.uploadFile(res.tempFilePath, 'video', (progress) => {
             that.setData({
               uploadProgress: progress,
@@ -1029,80 +1017,23 @@ Page({
             })
           })
           
-          // 添加到媒体列表
+          // 如果有封面图，也上传封面图
+          let posterUrl = null
+          if (res.thumbTempFilePath) {
+            try {
+              posterUrl = await that.uploadFile(res.thumbTempFilePath, 'image', () => {})
+            } catch (error) {
+              console.warn('[insertVideo] 封面图上传失败，继续使用视频:', error)
+            }
+          }
+          
+          // 添加到媒体列表（只添加到预览区域，不插入到编辑器）
           const mediaList = Array.isArray(that.data.mediaList) ? [...that.data.mediaList] : []
           mediaList.push({
             type: 'video',
-            url: videoUrl
+            url: videoUrl,
+            poster: posterUrl || res.thumbTempFilePath || null // 保存封面图URL或临时路径
           })
-          
-          // 构建视频HTML标签（保存到HTML中）
-          const videoHtml = `<video src="${videoUrl}" controls style="max-width: 100%; margin: 12px 0;"></video>`
-          
-          // 生成视频占位符图片（SVG格式，显示视频播放图标）
-          // 使用简单的SVG作为占位符，用户可以在编辑器中看到
-          const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120">
-            <rect width="200" height="120" fill="#f0f0f0" stroke="#ddd" stroke-width="1"/>
-            <circle cx="100" cy="60" r="25" fill="#07c160" opacity="0.9"/>
-            <polygon points="95,50 95,70 110,60" fill="#fff"/>
-            <text x="100" y="100" text-anchor="middle" font-size="12" fill="#666" font-family="Arial">视频</text>
-          </svg>`
-          
-          // 将SVG编码为data URI，并在URL中包含视频URL作为标识
-          // 使用特殊标记来标识这是视频占位符
-          const videoId = `VIDEO_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-          const videoPlaceholderSvg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgContent)}`
-          
-          // 保存视频URL到临时映射中，用于后续替换
-          if (!that._videoPlaceholderMap) {
-            that._videoPlaceholderMap = {}
-          }
-          that._videoPlaceholderMap[videoId] = videoUrl
-          
-          // 插入视频到光标位置
-          if (that.editorCtx) {
-            // 标记正在插入媒体
-            that._insertingMedia = true
-            that._mediaHtml = videoHtml
-            that._mediaPlaceholderImg = videoPlaceholderSvg
-            that._currentVideoId = videoId
-            
-            // 在光标位置插入占位符图片（用户可以在编辑器中看到）
-            that.editorCtx.insertImage({
-              src: videoPlaceholderSvg,
-              alt: `视频_${videoId}`, // 在alt中保存ID用于识别
-              width: '100%',
-              height: 'auto'
-            })
-            
-            // 等待编辑器更新后，在HTML中替换占位符图片为video标签
-            // onEditorInput会自动处理替换
-            setTimeout(() => {
-              // 如果onEditorInput没有触发，手动处理
-              if (that._insertingMedia) {
-                let htmlContent = that.data.htmlContent || ''
-                // 查找包含videoId的img标签
-                const imgPlaceholderRegex = new RegExp(`<img[^>]+alt=["']视频_${videoId}["'][^>]*>`, 'gi')
-                if (imgPlaceholderRegex.test(htmlContent)) {
-                  htmlContent = htmlContent.replace(imgPlaceholderRegex, videoHtml)
-                  that.setData({
-                    htmlContent: htmlContent
-                  })
-                }
-                that._insertingMedia = false
-                that._mediaPlaceholderImg = null
-                that._mediaHtml = null
-                that._currentVideoId = null
-              }
-            }, 500)
-          } else {
-            // 如果编辑器未就绪，直接添加到HTML内容末尾
-            let htmlContent = that.data.htmlContent || ''
-            htmlContent += (htmlContent ? '\n' : '') + videoHtml
-            that.setData({
-              htmlContent: htmlContent
-            })
-          }
           
           that.setData({
             mediaList: mediaList,
@@ -1114,7 +1045,7 @@ Page({
           that.saveToHistory()
           
           wx.showToast({
-            title: '视频已插入',
+            title: '视频已添加',
             icon: 'success',
             duration: 1500
           })
@@ -1163,31 +1094,46 @@ Page({
     })
   },
 
+  // 预览视频
+  previewVideo(e) {
+    const index = e.currentTarget.dataset.index
+    const mediaList = this.data.mediaList || []
+    const media = mediaList[index]
+    
+    if (media && media.type === 'video' && media.url) {
+      this.setData({
+        showVideoPreview: true,
+        previewVideoUrl: media.url,
+        previewVideoPoster: media.poster || media.thumbTempFilePath || ''
+      })
+    }
+  },
+
+  // 隐藏视频预览
+  hideVideoPreview() {
+    // 暂停视频播放
+    const videoContext = wx.createVideoContext('preview-video-player', this)
+    if (videoContext) {
+      videoContext.pause()
+    }
+    
+    this.setData({
+      showVideoPreview: false,
+      previewVideoUrl: '',
+      previewVideoPoster: ''
+    })
+  },
+
   // 删除媒体
   removeMedia(e) {
     const index = e.currentTarget.dataset.index
     const mediaList = Array.isArray(this.data.mediaList) ? [...this.data.mediaList] : []
-    const removedMedia = mediaList[index]
     
-    // 从内容中移除对应的HTML标签
-    let htmlContent = this.data.htmlContent
-    if (removedMedia.type === 'image') {
-      htmlContent = htmlContent.replace(
-        new RegExp(`<img[^>]+src=["']${removedMedia.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'gi'),
-        ''
-      )
-    } else if (removedMedia.type === 'video') {
-      htmlContent = htmlContent.replace(
-        new RegExp(`<video[^>]+src=["']${removedMedia.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>\\s*`, 'gi'),
-        ''
-      )
-    }
-    
+    // 从媒体列表中移除（图片和视频现在只显示在预览区域，不需要从HTML中移除）
     mediaList.splice(index, 1)
     
     this.setData({
-      mediaList: mediaList,
-      htmlContent: htmlContent
+      mediaList: mediaList
     })
     
     this.saveToHistory()
@@ -1205,18 +1151,51 @@ Page({
 
   // 选择分类
   selectCategory(e) {
-    const category = e.currentTarget.dataset.category
-    const index = this.data.apiList.findIndex(name => name === category)
+    const categoryName = e.currentTarget.dataset.category // 这是显示名称
+    // 从 apiList 中找到对应的项，获取实际的 apiName
+    const categoryItem = this.data.apiList.find(item => {
+      // 兼容旧格式（字符串）和新格式（对象）
+      if (typeof item === 'string') {
+        return item === categoryName
+      }
+      return item.name === categoryName || item.apiName === categoryName
+    })
+    
+    // 获取实际的 apiName（用于创建文章）
+    const actualApiName = categoryItem 
+      ? (typeof categoryItem === 'object' ? categoryItem.apiName : categoryItem)
+      : categoryName
+    
+    // 获取显示名称
+    const displayName = categoryItem 
+      ? (typeof categoryItem === 'object' ? categoryItem.name : categoryItem)
+      : categoryName
+    
+    const index = this.data.apiList.findIndex(item => {
+      if (typeof item === 'string') {
+        return item === categoryName
+      }
+      return item.name === categoryName || item.apiName === categoryName
+    })
+    
     // 安全地更新errors对象
     const currentErrors = this.data.errors || {}
     
-    // 计算分类类型
-    const isSecondHand = this.isSecondHandCategory(category)
-    const isRental = this.isRentalCategory(category)
-    const hideContactFields = this.shouldHideContactFields(category)
+    // 计算分类类型（使用实际的 apiName）
+    const isSecondHand = this.isSecondHandCategory(actualApiName)
+    const isRental = this.isRentalCategory(actualApiName)
+    const hideContactFields = this.shouldHideContactFields(actualApiName)
+    
+    console.log('[selectCategory] 选择分类:', {
+      displayName,
+      actualApiName,
+      categoryItem,
+      index
+    })
     
     this.setData({
-      apiName: category,
+      apiName: actualApiName, // 使用实际的 apiName（后端需要的）
+      apiNameDisplay: displayName, // 保存显示名称（可选，用于显示）
       apiNameIndex: index >= 0 ? index : 0,
       showCategoryModal: false,
       isSecondHand: isSecondHand,
@@ -1602,6 +1581,23 @@ Page({
     })
   },
 
+  // 切换全屏编辑
+  toggleFullscreen() {
+    const fullscreen = !this.data.fullscreen
+    this.setData({
+      fullscreen: fullscreen
+    })
+    
+    // 全屏时滚动到编辑器位置
+    if (fullscreen) {
+      setTimeout(() => {
+        this.setData({
+          scrollIntoView: 'content-editor'
+        })
+      }, 100)
+    }
+  },
+
 
   // 切换键盘
   toggleKeyboard() {
@@ -1622,6 +1618,9 @@ Page({
     return new Promise((resolve, reject) => {
       const uploadUrl = `${config.apiBaseDomain}/api/blog-admin/upload`
       
+      // 获取用户认证头（包含 x-user-token）
+      const authHeaders = authApi.getAuthHeaders ? authApi.getAuthHeaders() : {}
+      
       const uploadTask = wx.uploadFile({
         url: uploadUrl,
         filePath: filePath,
@@ -1630,7 +1629,7 @@ Page({
           type: type
         },
         header: {
-          'X-API-Token': '210311199405041819'
+          ...authHeaders // 使用 x-user-token 认证
         },
         success: (res) => {
           const statusCode = res.statusCode || 200
@@ -1896,15 +1895,39 @@ Page({
     // 获取设备信息
     const deviceInfo = await this.getDeviceInfo()
 
-    // 如果没有封面图，尝试从内容中提取第一张图片
-    let coverImage = this.data.image || ''
-    if (!coverImage && this.data.htmlContent) {
-      coverImage = this.extractFirstImage(this.data.htmlContent)
-    }
-
     // 确保将占位图片转换为video标签（保存时）
     let htmlContent = this.data.htmlContent.trim()
     htmlContent = this.convertPlaceholderToVideo(htmlContent)
+    
+    // 移除正文中的图片和视频标签（图片和视频只在上方预览区域显示，不在正文中显示）
+    htmlContent = htmlContent.replace(/<img[^>]*>/gi, '')
+    htmlContent = htmlContent.replace(/<image[^>]*>/gi, '')
+    // 移除视频标签，确保删除的视频不会保留在 htmlContent 中
+    htmlContent = htmlContent.replace(/<video[^>]*>.*?<\/video>/gi, '')
+    htmlContent = htmlContent.replace(/<video[^>]*\/>/gi, '')
+    
+    // 将 mediaList 中的图片和视频插入到 HTML 内容中（在文本内容之前）
+    // 视频会写入到 htmlContent，但详情页会在顶部轮播区域显示，不在正文中显示
+    const mediaHtmlParts = []
+    if (this.data.mediaList && Array.isArray(this.data.mediaList) && this.data.mediaList.length > 0) {
+      this.data.mediaList.forEach(media => {
+        if (media.type === 'image' && media.url) {
+          mediaHtmlParts.push(`<img src="${media.url}" alt="" />`)
+        } else if (media.type === 'video' && media.url) {
+          // 视频需要写入到 htmlContent，以便详情页可以提取并在顶部轮播显示
+          const poster = media.poster ? ` poster="${media.poster}"` : ''
+          mediaHtmlParts.push(`<video src="${media.url}"${poster} controls></video>`)
+        }
+      })
+    }
+    
+    // 将媒体内容插入到HTML内容之前
+    if (mediaHtmlParts.length > 0) {
+      htmlContent = mediaHtmlParts.join('\n') + '\n' + htmlContent
+    }
+    
+    // 从最终HTML内容中提取第一张图片作为封面
+    let coverImage = this.extractFirstImage(htmlContent)
 
     const data = {
       name: this.data.name.trim(),
@@ -2045,5 +2068,221 @@ Page({
   // 取消
   cancel() {
     wx.navigateBack()
+  },
+
+  // 存草稿
+  async saveDraft() {
+    // 检查登录状态
+    const app = getApp()
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+
+    // 如果正在保存，防止重复点击
+    if (this.data.saving) {
+      return
+    }
+
+    this.setData({ saving: true })
+
+    try {
+      // 获取设备信息
+      const deviceInfo = await this.getDeviceInfo()
+
+      // 确保将占位图片转换为video标签（保存时）
+      let htmlContent = this.data.htmlContent.trim()
+      htmlContent = this.convertPlaceholderToVideo(htmlContent)
+      
+      // 移除正文中的图片和视频标签（图片和视频只在上方预览区域显示，不在正文中显示）
+      htmlContent = htmlContent.replace(/<img[^>]*>/gi, '')
+      htmlContent = htmlContent.replace(/<image[^>]*>/gi, '')
+      // 移除视频标签，确保删除的视频不会保留在 htmlContent 中
+      htmlContent = htmlContent.replace(/<video[^>]*>.*?<\/video>/gi, '')
+      htmlContent = htmlContent.replace(/<video[^>]*\/>/gi, '')
+      
+      // 将 mediaList 中的图片和视频插入到 HTML 内容中（在文本内容之前）
+      // 视频会写入到 htmlContent，但详情页会在顶部轮播区域显示，不在正文中显示
+      const mediaHtmlParts = []
+      if (this.data.mediaList && Array.isArray(this.data.mediaList) && this.data.mediaList.length > 0) {
+        this.data.mediaList.forEach(media => {
+          if (media.type === 'image' && media.url) {
+            mediaHtmlParts.push(`<img src="${media.url}" alt="" />`)
+          } else if (media.type === 'video' && media.url) {
+            // 视频需要写入到 htmlContent，以便详情页可以提取并在顶部轮播显示
+            const poster = media.poster ? ` poster="${media.poster}"` : ''
+            mediaHtmlParts.push(`<video src="${media.url}"${poster} controls></video>`)
+          }
+        })
+      }
+      
+      // 将媒体内容插入到HTML内容之前
+      if (mediaHtmlParts.length > 0) {
+        htmlContent = mediaHtmlParts.join('\n') + '\n' + htmlContent
+      }
+      
+      // 从最终HTML内容中提取第一张图片作为封面
+      let coverImage = this.extractFirstImage(htmlContent)
+
+      const data = {
+        name: this.data.name.trim() || '未命名草稿',
+        apiName: this.data.apiName.trim() || 'discover',
+        htmlContent: htmlContent,
+        published: false, // 存草稿时设置为 false
+        // 添加新字段
+        nickname: deviceInfo.nickname || null,
+        deviceModel: deviceInfo.deviceModel || null,
+        deviceId: deviceInfo.deviceId || null,
+        deviceIp: deviceInfo.deviceIp || null
+      }
+
+      if (coverImage) {
+        data.image = coverImage.trim()
+      }
+      
+      // 处理手机号和定位信息
+      if (this.data.phone && this.data.phone.trim()) {
+        data.phone = this.data.phone.trim()
+      } else {
+        data.phone = null
+      }
+      
+      if (this.data.address && this.data.address.trim()) {
+        data.address = this.data.address.trim()
+      } else {
+        data.address = null
+      }
+      
+      // 纬度
+      if (this.data.latitude !== null && this.data.latitude !== undefined) {
+        const lat = parseFloat(this.data.latitude)
+        if (!isNaN(lat) && lat >= -90 && lat <= 90) {
+          data.latitude = lat
+        } else {
+          data.latitude = null
+        }
+      } else {
+        data.latitude = null
+      }
+      
+      // 经度
+      if (this.data.longitude !== null && this.data.longitude !== undefined) {
+        const lng = parseFloat(this.data.longitude)
+        if (!isNaN(lng) && lng >= -180 && lng <= 180) {
+          data.longitude = lng
+        } else {
+          data.longitude = null
+        }
+      } else {
+        data.longitude = null
+      }
+      
+      // 处理价格、房间数、面积字段（根据分类）
+      const isSecondHand = this.isSecondHandCategory(this.data.apiName)
+      const isRental = this.isRentalCategory(this.data.apiName)
+      
+      // 价格：二手市场和租房酒店都支持
+      if (isSecondHand || isRental) {
+        if (this.data.price && this.data.price.trim()) {
+          const priceNum = parseFloat(this.data.price.trim())
+          data.price = !isNaN(priceNum) ? priceNum : this.data.price.trim()
+        } else {
+          data.price = null
+        }
+      }
+      
+      // 房间数和面积：仅租房酒店支持
+      if (isRental) {
+        // 房间数
+        if (this.data.rooms && this.data.rooms.trim()) {
+          const roomsNum = parseFloat(this.data.rooms.trim())
+          data.rooms = !isNaN(roomsNum) ? roomsNum : this.data.rooms.trim()
+        } else {
+          data.rooms = null
+        }
+        
+        // 面积
+        if (this.data.area && this.data.area.trim()) {
+          const areaNum = parseFloat(this.data.area.trim())
+          data.area = !isNaN(areaNum) ? areaNum : this.data.area.trim()
+        } else {
+          data.area = null
+        }
+      }
+
+      // 发送请求到服务器保存草稿
+      let result
+      if (this.data.mode === 'create') {
+        result = await blogApi.articleApi.create(data)
+      } else {
+        result = await blogApi.articleApi.update(this.data.articleId, data)
+      }
+
+      // 保存到本地存储（作为备份）
+    const draftData = {
+      name: this.data.name,
+      apiName: this.data.apiName,
+      htmlContent: this.data.htmlContent,
+      image: this.data.image,
+      phone: this.data.phone,
+      address: this.data.address,
+      latitude: this.data.latitude,
+      longitude: this.data.longitude,
+      price: this.data.price,
+      rooms: this.data.rooms,
+      area: this.data.area,
+      mediaList: this.data.mediaList,
+      timestamp: Date.now()
+    }
+
+    try {
+      wx.setStorageSync('article_draft', draftData)
+      } catch (storageError) {
+        console.warn('[saveDraft] 本地存储保存失败:', storageError)
+      }
+
+      // 如果是编辑模式，更新 articleId（如果是新创建的）
+      if (this.data.mode === 'create' && result && result.data && result.data.id) {
+        this.setData({
+          articleId: result.data.id,
+          mode: 'edit'
+        })
+      }
+
+      // 设置需要刷新的标志
+      const pages = getCurrentPages()
+      const prevPage = pages[pages.length - 2]
+      if (prevPage) {
+        const route = prevPage.route || ''
+        if (route === 'page/article-admin/index' || route === 'page/discover/index') {
+          prevPage._needRefresh = true
+          console.log('[saveDraft] 已设置刷新标志，页面返回后将自动刷新')
+        }
+      }
+
+      wx.showToast({
+        title: '草稿已保存',
+        icon: 'success',
+        duration: 1500
+      })
+
+      // 延迟返回，让用户看到成功提示
+      setTimeout(() => {
+        wx.navigateBack()
+      }, 1500)
+    } catch (error) {
+      console.error('[saveDraft] 保存草稿失败:', error)
+      wx.showToast({
+        title: error.message || '保存失败',
+        icon: 'none',
+        duration: 2000
+      })
+    } finally {
+      this.setData({ saving: false })
+    }
   }
 })

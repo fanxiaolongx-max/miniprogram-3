@@ -70,16 +70,6 @@
               <view class="item-price-section">
                 <text class="item-price">{{item.price}} EGP</text>
                   </view>
-              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-actions">
-                <view wx:if="{{item.latitude && item.longitude}}" class="action-btn location-btn" catchtap="openLocation" data-item="{{item}}">
-                  <text class="action-icon">📍</text>
-                  <text class="action-text">导航</text>
-                  </view>
-                <view wx:if="{{item.phone}}" class="action-btn phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                  <text class="action-icon">📞</text>
-                  <text class="action-text">呼叫</text>
-                </view>
-              </view>
             </view>
           </view>
           </block>
@@ -124,16 +114,6 @@
               <view class="item-price-section">
                 <text class="item-price">{{item.price}} EGP</text>
                   </view>
-              <view wx:if="{{item.latitude && item.longitude || item.phone}}" class="item-actions">
-                <view wx:if="{{item.latitude && item.longitude}}" class="action-btn location-btn" catchtap="openLocation" data-item="{{item}}">
-                  <text class="action-icon">📍</text>
-                  <text class="action-text">导航</text>
-                  </view>
-                <view wx:if="{{item.phone}}" class="action-btn phone-btn" catchtap="makePhoneCall" data-item="{{item}}">
-                  <text class="action-icon">📞</text>
-                  <text class="action-text">呼叫</text>
-                </view>
-              </view>
             </view>
           </view>
           </block>

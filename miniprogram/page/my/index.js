@@ -1,6 +1,7 @@
 const app = getApp()
 const authApi = require('../../utils/authApi.js')
 const authHelper = require('../../utils/authHelper.js')
+const blogApi = require('../../utils/blogApi.js')
 
 /**
  * 生成随机可爱的名字
@@ -90,6 +91,27 @@ Page({
     // 登录状态
     isLoggedIn: false,
     user: null,
+    // 我的喜欢和收藏相关
+    currentView: '', // 'likes' | 'favorites' | ''（空字符串表示显示反馈建议）
+    articlesList: [], // 文章列表
+    articlesLoading: false, // 加载状态
+    articlesError: false, // 错误状态
+    articlesErrorMessage: '', // 错误消息
+    currentPage: 1, // 当前页码
+    pageSize: 6, // 每页数量
+    hasMoreArticles: false, // 是否还有更多文章
+    likesCount: 0, // 喜欢数量
+    favoritesCount: 0, // 收藏数量
+    showSettingsMenu: false, // 是否显示设置菜单
+    showFeedbackForm: false, // 是否显示反馈表单
+    // 修改PIN相关
+    showPinInputModal: false, // 是否显示PIN输入弹窗
+    pinInputType: '', // 'oldPin' | 'newPin' | 'confirmPin'
+    pinInputValue: '', // PIN输入值
+    pinInputTitle: '', // PIN输入弹窗标题
+    pinInputPlaceholder: '', // PIN输入提示文字
+    oldPinForChange: '', // 保存旧PIN码
+    newPinForChange: '', // 保存新PIN码
     // 登录表单
     loginMode: 'pin', // 'pin' 或 'code'
     phone: '',
@@ -159,6 +181,11 @@ Page({
 
     // 然后验证服务器端登录状态
     this.checkLoginStatus()
+    
+    // 如果已登录，加载统计数据
+    if (this.data.isLoggedIn) {
+      this.loadStats()
+    }
   },
 
   onShow() {
@@ -176,16 +203,24 @@ Page({
   // 检查登录状态（使用统一的登录状态管理）
   async checkLoginStatus() {
     await authHelper.checkAndUpdateLoginStatus(app, this)
-    // 如果已登录，设置头像图案
+    // 如果已登录，设置头像图案并加载统计数据
     if (this.data.isLoggedIn && this.data.user) {
       const avatarEmoji = getCuteAvatar(this.data.user.id)
       this.setData({
-        avatarEmoji: avatarEmoji
+        avatarEmoji: avatarEmoji,
+        showSettingsMenu: false, // 确保设置菜单关闭
+        showPinInputModal: false // 确保PIN输入弹窗关闭
       })
+      // 加载统计数据
+      this.loadStats()
     } else {
-      // 未登录时清空头像图案
+      // 未登录时清空头像图案和统计数据
       this.setData({
-        avatarEmoji: ''
+        avatarEmoji: '',
+        likesCount: 0,
+        favoritesCount: 0,
+        showSettingsMenu: false, // 确保设置菜单关闭
+        showPinInputModal: false // 确保PIN输入弹窗关闭
       })
     }
   },
@@ -264,13 +299,9 @@ Page({
     this.setData({
       pinFocused: true,
       pinCursor: cursor,
-      showKeyboard: true // 显示自定义键盘
+      showKeyboard: true // 直接显示键盘，不需要滚动
     })
     console.log('[onPinFocus] PIN码输入框已聚焦，显示自定义键盘，当前PIN长度:', this.data.pin.length)
-    // 延迟滚动，确保键盘已显示
-    setTimeout(() => {
-      this.scrollToPinInput()
-    }, 300)
   },
 
   // PIN码输入框失焦 - 延迟隐藏键盘（避免点击键盘按钮时失焦）
@@ -290,75 +321,12 @@ Page({
   onPinBoxTap() {
     this.setData({
       pinFocused: true,
-      showKeyboard: true
+      showKeyboard: true // 直接显示键盘，不需要滚动
     })
-    // 延迟滚动，确保键盘已显示
-    setTimeout(() => {
-      this.scrollToPinInput()
-    }, 300)
+    console.log('[onPinBoxTap] 点击PIN输入框，显示自定义键盘')
   },
 
-  // 滚动到PIN输入框位置
-  scrollToPinInput() {
-    const query = wx.createSelectorQuery().in(this)
-    // 同时获取PIN输入框和键盘的位置信息
-    query.select('.pin-input-wrapper').boundingClientRect()
-    query.select('.number-keyboard').boundingClientRect()
-    query.exec((res) => {
-      const pinRect = res[0]
-      const keyboardRect = res[1]
-      
-      if (pinRect) {
-        // 获取系统信息
-        wx.getSystemInfo({
-          success: (sysInfo) => {
-            const windowHeight = sysInfo.windowHeight
-            // 计算键盘高度（如果获取到了键盘位置）
-            // 键盘高度 = 4行按键(100rpx*4) + 间距(20rpx*3) + padding(20rpx+40rpx) ≈ 520rpx
-            // 转换为px：520rpx * (windowWidth / 750)
-            const pixelRatio = sysInfo.windowWidth / 750
-            const keyboardHeight = 520 * pixelRatio // 大约 260px (在375px宽度的设备上)
-            
-            // 可用高度 = 窗口高度 - 键盘高度 - 安全边距
-            const safeMargin = 50 // 预留一些边距
-            const availableHeight = windowHeight - keyboardHeight - safeMargin
-            
-            // 获取当前滚动位置
-            wx.createSelectorQuery().selectViewport().scrollOffset((scrollRes) => {
-              const currentScrollTop = scrollRes ? scrollRes.scrollTop : 0
-              
-              // 计算输入框在页面中的绝对位置（相对于页面顶部）
-              const pinAbsoluteTop = pinRect.top + currentScrollTop
-              
-              // 如果输入框在可用区域下方，需要滚动
-              if (pinRect.top > availableHeight) {
-                // 目标滚动位置：让输入框显示在可用区域的合适位置（距离顶部100px）
-                const targetScrollTop = pinAbsoluteTop - 100
-                
-                wx.pageScrollTo({
-                  scrollTop: Math.max(0, targetScrollTop), // 确保不小于0
-                  duration: 300 // 300ms 平滑滚动动画
-                })
-                console.log('[scrollToPinInput] 滚动到PIN输入框', {
-                  currentScrollTop,
-                  pinRectTop: pinRect.top,
-                  pinAbsoluteTop,
-                  targetScrollTop: Math.max(0, targetScrollTop),
-                  availableHeight,
-                  keyboardHeight
-                })
-              } else {
-                console.log('[scrollToPinInput] PIN输入框已在可见区域，无需滚动', {
-                  pinRectTop: pinRect.top,
-                  availableHeight
-                })
-              }
-            }).exec()
-          }
-        })
-      }
-    })
-  },
+  // 注意：已移除所有滚动相关的方法，因为新设计使用固定定位，不需要滚动
 
   // 自定义键盘输入数字
   onKeyboardInput(e) {
@@ -586,6 +554,20 @@ Page({
       const result = await authApi.loginWithPin(phone, pin, nameToSend)
       console.log('[loginWithPin] 登录成功:', result)
       
+      // 检查是否是新用户注册
+      // 注意：需要服务器在登录 API 响应中返回 isNewUser 字段来准确判断
+      // 建议服务器返回格式：{ success: true, user: {...}, token: "...", isNewUser: true/false }
+      const isNewUser = result.isNewUser || result.isNew || false
+      
+      if (!isNewUser) {
+        // 如果没有 isNewUser 字段，记录日志提示（但不影响功能）
+        console.warn('[loginWithPin] ⚠️ 服务器未返回 isNewUser 字段，无法准确判断是否为新用户注册')
+        console.warn('[loginWithPin] 建议：请让后端在登录 API 响应中添加 isNewUser 字段')
+      }
+      
+      // 使用服务器返回的 isNewUser 字段（如果服务器支持）
+      const isNewUserRegistered = isNewUser
+      
       // 验证返回结果
       if (!result || !result.user) {
         throw new Error('登录响应数据无效')
@@ -610,13 +592,20 @@ Page({
         // 设置头像图案
         const avatarEmoji = getCuteAvatar(result.user.id)
         this.setData({
-          avatarEmoji: avatarEmoji
+          avatarEmoji: avatarEmoji,
+          showSettingsMenu: false, // 确保设置菜单关闭
+          showPinInputModal: false // 确保PIN输入弹窗关闭
         })
+        // 登录成功后立即刷新统计数据
+        this.loadStats()
       } catch (handleError) {
         console.error('[loginWithPin] 处理登录成功时出错:', handleError)
         // 即使处理出错，也尝试清空表单
       }
       
+      // 保存 PIN 码用于新用户提示（在清空表单前）
+      const savedPin = pin
+
       // 清空表单
       try {
         this.setData({
@@ -630,10 +619,29 @@ Page({
         console.error('[loginWithPin] 清空表单失败:', setDataError)
       }
 
-      wx.showToast({
-        title: '登录成功',
-        icon: 'success'
-      })
+      // 如果是新用户注册，显示注册成功提示并显示 PIN 码
+      if (isNewUserRegistered) {
+        wx.showModal({
+          title: '注册成功',
+          content: `恭喜您注册成功！\n\n您的 PIN 码是：${savedPin}\n\n请牢记您的 PIN 码，这是您登录的重要凭证。`,
+          showCancel: false,
+          confirmText: '我知道了',
+          confirmColor: '#333333',
+          success: () => {
+            // 用户确认后，显示登录成功提示
+            wx.showToast({
+              title: '登录成功',
+              icon: 'success',
+              duration: 2000
+            })
+          }
+        })
+      } else {
+        wx.showToast({
+          title: '登录成功',
+          icon: 'success'
+        })
+      }
     } catch (error) {
       console.error('[loginWithPin] 登录异常:', error)
       console.error('[loginWithPin] 错误详情:', {
@@ -729,6 +737,20 @@ Page({
       const result = await authApi.loginWithCode(phone, code, nameToSend)
       console.log('[loginWithCode] 登录成功:', result)
       
+      // 检查是否是新用户注册
+      // 注意：需要服务器在登录 API 响应中返回 isNewUser 字段来准确判断
+      // 建议服务器返回格式：{ success: true, user: {...}, token: "...", isNewUser: true/false }
+      const isNewUser = result.isNewUser || result.isNew || false
+      
+      if (!isNewUser) {
+        // 如果没有 isNewUser 字段，记录日志提示（但不影响功能）
+        console.warn('[loginWithCode] ⚠️ 服务器未返回 isNewUser 字段，无法准确判断是否为新用户注册')
+        console.warn('[loginWithCode] 建议：请让后端在登录 API 响应中添加 isNewUser 字段')
+      }
+      
+      // 使用服务器返回的 isNewUser 字段（如果服务器支持）
+      const isNewUserRegistered = isNewUser
+      
       // 检查服务器返回的用户信息中是否有name
       const serverName = result.user.name || result.user.nickname || ''
       const userInputName = name.trim()
@@ -746,8 +768,12 @@ Page({
       // 设置头像图案
       const avatarEmoji = getCuteAvatar(result.user.id)
       this.setData({
-        avatarEmoji: avatarEmoji
+        avatarEmoji: avatarEmoji,
+        showSettingsMenu: false, // 确保设置菜单关闭
+        showPinInputModal: false // 确保PIN输入弹窗关闭
       })
+      // 登录成功后立即刷新统计数据
+      this.loadStats()
       
       // 清空表单
       this.setData({
@@ -759,10 +785,28 @@ Page({
         showKeyboard: false // 隐藏键盘
       })
 
-      wx.showToast({
-        title: '登录成功',
-        icon: 'success'
-      })
+      // 如果是新用户注册，显示注册成功提示
+      if (isNewUserRegistered) {
+        wx.showModal({
+          title: '注册成功',
+          content: '恭喜您注册成功！\n\n请使用 PIN 码登录功能设置您的 PIN 码，以便下次快速登录。',
+          showCancel: false,
+          confirmText: '我知道了',
+          confirmColor: '#333333',
+          success: () => {
+            wx.showToast({
+              title: '登录成功',
+              icon: 'success',
+              duration: 2000
+            })
+          }
+        })
+      } else {
+        wx.showToast({
+          title: '登录成功',
+          icon: 'success'
+        })
+      }
     } catch (error) {
       console.error('[loginWithCode] 登录异常:', error)
       console.error('[loginWithCode] 错误详情:', {
@@ -1102,13 +1146,14 @@ Page({
             duration: 2000
           })
           
-          // 清空表单
+          // 清空表单并隐藏
           this.setData({
             feedbackContent: '',
             feedbackCategory: '',
             feedbackCategoryIndex: 0,
             feedbackType: 'feedback', // 重置为默认值
-            submitting: false
+            submitting: false,
+            showFeedbackForm: false
           })
         } else {
           const errorMsg = res.data?.message || '提交失败，请稍后重试'
@@ -1134,5 +1179,627 @@ Page({
         })
       }
     })
+  },
+
+  // 显示我的喜欢
+  showMyLikes() {
+    if (this.data.currentView === 'likes') {
+      // 如果已经是喜欢视图，点击后隐藏
+      this.setData({
+        currentView: '',
+        showFeedbackForm: false
+      })
+      return
+    }
+    this.setData({
+      currentView: 'likes',
+      articlesList: [],
+      currentPage: 1,
+      hasMoreArticles: false,
+      articlesError: false,
+      articlesErrorMessage: '',
+      showFeedbackForm: false
+    })
+    this.loadMyLikes()
+  },
+
+  // 显示我的收藏
+  showMyFavorites() {
+    if (this.data.currentView === 'favorites') {
+      // 如果已经是收藏视图，点击后隐藏
+      this.setData({
+        currentView: '',
+        showFeedbackForm: false
+      })
+      return
+    }
+    this.setData({
+      currentView: 'favorites',
+      articlesList: [],
+      currentPage: 1,
+      hasMoreArticles: false,
+      articlesError: false,
+      articlesErrorMessage: '',
+      showFeedbackForm: false
+    })
+    this.loadMyFavorites()
+  },
+
+  // 检查是否为未登录错误
+  isUnauthorizedError(error) {
+    if (!error) return false
+    
+    const errorMessage = String(error.message || '').toLowerCase()
+    const isAuthError = errorMessage.includes('未登录') || 
+                       errorMessage.includes('未认证') || 
+                       errorMessage.includes('unauthorized') ||
+                       errorMessage.includes('请先登录') ||
+                       errorMessage.includes('需要登录') ||
+                       errorMessage.includes('认证失败') ||
+                       errorMessage.includes('token') ||
+                       errorMessage.includes('401')
+    
+    return isAuthError
+  },
+
+  // 处理未登录错误
+  handleUnauthorizedError() {
+    console.log('[handleUnauthorizedError] 检测到未登录错误，清除登录状态')
+    
+    // 清除登录状态
+    authHelper.clearLoginInfo()
+    
+    // 更新全局状态
+    app.globalData.user = null
+    app.globalData.isLoggedIn = false
+    
+    // 更新页面状态
+    this.setData({
+      isLoggedIn: false,
+      user: null,
+      avatarEmoji: '',
+      currentView: '', // 隐藏文章列表，显示反馈建议
+      articlesList: [],
+      articlesError: false,
+      articlesErrorMessage: '',
+      articlesLoading: false
+    })
+    
+    // 提示用户
+    wx.showToast({
+      title: '登录已过期，请重新登录',
+      icon: 'none',
+      duration: 2000
+    })
+  },
+
+  // 加载我的喜欢
+  async loadMyLikes(page = 1) {
+    if (this.data.articlesLoading) return
+
+    this.setData({
+      articlesLoading: true,
+      articlesError: false,
+      articlesErrorMessage: ''
+    })
+
+    try {
+      const result = await blogApi.blogInteractionApi.getMyLikes({
+        page: page,
+        pageSize: this.data.pageSize
+      })
+
+      // 检查业务状态中的未登录错误
+      if (result && result.success === false) {
+        const errorMessage = result.message || ''
+        if (this.isUnauthorizedError({ message: errorMessage })) {
+          this.handleUnauthorizedError()
+          return
+        }
+        throw new Error(errorMessage || '获取数据失败')
+      }
+
+      if (result && result.success && result.data) {
+        // 如果是第一页，替换整个列表；否则追加到现有列表
+        const currentList = this.data.articlesList || []
+        const newArticles = page === 1 ? result.data : [...currentList, ...result.data]
+        const pagination = result.pagination || {}
+        const hasMore = pagination.currentPage < pagination.totalPages
+
+        console.log(`[loadMyLikes] 加载第${page}页，当前列表长度: ${currentList.length}，新数据长度: ${result.data.length}，追加后长度: ${newArticles.length}`)
+
+        // 更新统计数量（如果是第一页）
+        const updateData = {
+          articlesList: newArticles,
+          currentPage: page,
+          hasMoreArticles: hasMore,
+          articlesLoading: false,
+          articlesError: false
+        }
+        if (page === 1) {
+          updateData.likesCount = pagination.total || 0
+          console.log(`[loadMyLikes] 更新喜欢数量: ${pagination.total}`)
+        }
+
+        // 使用 setData 更新，小程序会自动保持滚动位置（追加数据时）
+        this.setData(updateData)
+      } else {
+        throw new Error(result?.message || '获取数据失败')
+      }
+    } catch (error) {
+      console.error('[loadMyLikes] 加载失败:', error)
+      
+      // 检查是否为未登录错误
+      if (this.isUnauthorizedError(error)) {
+        this.handleUnauthorizedError()
+        return
+      }
+      
+      this.setData({
+        articlesError: true,
+        articlesErrorMessage: error.message || '获取数据失败，请稍后重试',
+        articlesLoading: false
+      })
+    }
+  },
+
+  // 加载我的收藏
+  async loadMyFavorites(page = 1) {
+    if (this.data.articlesLoading) return
+
+    this.setData({
+      articlesLoading: true,
+      articlesError: false,
+      articlesErrorMessage: ''
+    })
+
+    try {
+      const result = await blogApi.blogInteractionApi.getMyFavorites({
+        page: page,
+        pageSize: this.data.pageSize
+      })
+
+      // 检查业务状态中的未登录错误
+      if (result && result.success === false) {
+        const errorMessage = result.message || ''
+        if (this.isUnauthorizedError({ message: errorMessage })) {
+          this.handleUnauthorizedError()
+          return
+        }
+        throw new Error(errorMessage || '获取数据失败')
+      }
+
+      if (result && result.success && result.data) {
+        // 如果是第一页，替换整个列表；否则追加到现有列表
+        const currentList = this.data.articlesList || []
+        const newArticles = page === 1 ? result.data : [...currentList, ...result.data]
+        const pagination = result.pagination || {}
+        const hasMore = pagination.currentPage < pagination.totalPages
+
+        console.log(`[loadMyFavorites] 加载第${page}页，当前列表长度: ${currentList.length}，新数据长度: ${result.data.length}，追加后长度: ${newArticles.length}`)
+
+        // 更新统计数量（如果是第一页）
+        const updateData = {
+          articlesList: newArticles,
+          currentPage: page,
+          hasMoreArticles: hasMore,
+          articlesLoading: false,
+          articlesError: false
+        }
+        if (page === 1) {
+          updateData.favoritesCount = pagination.total || 0
+          console.log(`[loadMyFavorites] 更新收藏数量: ${pagination.total}`)
+        }
+
+        // 使用 setData 更新，小程序会自动保持滚动位置（追加数据时）
+        this.setData(updateData)
+      } else {
+        throw new Error(result?.message || '获取数据失败')
+      }
+    } catch (error) {
+      console.error('[loadMyFavorites] 加载失败:', error)
+      
+      // 检查是否为未登录错误
+      if (this.isUnauthorizedError(error)) {
+        this.handleUnauthorizedError()
+        return
+      }
+      
+      this.setData({
+        articlesError: true,
+        articlesErrorMessage: error.message || '获取数据失败，请稍后重试',
+        articlesLoading: false
+      })
+    }
+  },
+
+  // 加载更多文章
+  loadMoreArticles() {
+    if (this.data.currentView === 'likes') {
+      this.loadMyLikes(this.data.currentPage + 1)
+    } else if (this.data.currentView === 'favorites') {
+      this.loadMyFavorites(this.data.currentPage + 1)
+    }
+  },
+
+  // 重试加载文章
+  retryLoadArticles() {
+    if (this.data.currentView === 'likes') {
+      this.loadMyLikes(1)
+    } else if (this.data.currentView === 'favorites') {
+      this.loadMyFavorites(1)
+    }
+  },
+
+  // 查看文章详情
+  viewArticleDetail(e) {
+    const item = e.currentTarget.dataset.item
+    if (!item || !item.id) {
+      wx.showToast({
+        title: '文章信息错误',
+        icon: 'none'
+      })
+      return
+    }
+
+    wx.navigateTo({
+      url: `/page/article-detail/index?id=${item.id}`
+    })
+  },
+
+  // 图片加载错误处理
+  onImageError(e) {
+    console.log('[onImageError] 图片加载失败:', e)
+    // 可以设置默认图片
+  },
+
+  // 显示/隐藏设置菜单
+  toggleSettingsMenu() {
+    this.setData({
+      showSettingsMenu: !this.data.showSettingsMenu
+    })
+  },
+
+  // 关闭设置菜单
+  closeSettingsMenu() {
+    this.setData({
+      showSettingsMenu: false
+    })
+  },
+
+  // 阻止事件冒泡（用于设置菜单内容区域）
+  stopPropagation() {
+    // 空函数，仅用于阻止事件冒泡，不执行任何操作
+  },
+
+  // 修改昵称
+  changeNickname() {
+    // 关闭设置菜单
+    this.setData({
+      showSettingsMenu: false
+    })
+
+    // 获取当前昵称
+    const currentName = this.data.user?.name || this.data.user?.phone || ''
+
+    wx.showModal({
+      title: '修改昵称',
+      editable: true,
+      placeholderText: '请输入新昵称',
+      content: currentName,
+      success: async (res) => {
+        if (res.confirm && res.content) {
+          const newName = res.content.trim()
+          if (!newName) {
+            wx.showToast({
+              title: '昵称不能为空',
+              icon: 'none'
+            })
+            return
+          }
+
+          if (newName.length > 50) {
+            wx.showToast({
+              title: '昵称不能超过50个字符',
+              icon: 'none'
+            })
+            return
+          }
+
+          // 调用API更新昵称
+          try {
+            wx.showLoading({
+              title: '更新中...',
+              mask: true
+            })
+
+            const authApi = require('../../utils/authApi.js')
+            const config = require('../../config.js')
+            const authHeaders = authApi.getAuthHeaders()
+
+            const result = await new Promise((resolve, reject) => {
+              wx.request({
+                url: `${config.apiBaseDomain}/api/auth/user/profile`,
+                method: 'PUT',
+                header: authHeaders,
+                data: {
+                  name: newName
+                },
+                success: (res) => {
+                  if (res.statusCode === 200 && res.data && res.data.success !== false) {
+                    resolve(res.data)
+                  } else {
+                    reject(new Error(res.data?.message || '更新失败'))
+                  }
+                },
+                fail: (err) => {
+                  reject(new Error(err.errMsg || '网络错误'))
+                }
+              })
+            })
+
+            wx.hideLoading()
+
+            // 更新本地用户信息
+            if (result && result.user) {
+              this.setData({
+                user: result.user
+              })
+              // 更新全局用户信息
+              app.globalData.user = result.user
+              // 更新本地存储
+              wx.setStorageSync('userInfo', result.user)
+
+              wx.showToast({
+                title: '昵称已更新',
+                icon: 'success'
+              })
+            } else {
+              throw new Error('更新响应数据无效')
+            }
+          } catch (error) {
+            wx.hideLoading()
+            console.error('[changeNickname] 更新昵称失败:', error)
+            wx.showToast({
+              title: error.message || '更新失败，请稍后重试',
+              icon: 'none',
+              duration: 2000
+            })
+          }
+        }
+      }
+    })
+  },
+
+  // 修改PIN
+  changePin() {
+    // 关闭设置菜单
+    this.setData({
+      showSettingsMenu: false
+    })
+
+    // 第一步：输入旧PIN码
+    this.showPinInputModal('oldPin', '修改PIN', '请输入当前PIN码')
+  },
+
+  // 显示PIN输入弹窗
+  showPinInputModal(type, title, placeholder) {
+    this.setData({
+      showPinInputModal: true,
+      pinInputType: type,
+      pinInputTitle: title,
+      pinInputPlaceholder: placeholder,
+      pinInputValue: '' // 清空输入值
+    })
+  },
+
+  // 关闭PIN输入弹窗
+  closePinInputModal() {
+    this.setData({
+      showPinInputModal: false,
+      pinInputType: '',
+      pinInputValue: '',
+      pinInputTitle: '',
+      pinInputPlaceholder: ''
+    })
+  },
+
+  // PIN输入框聚焦时清除内容
+  onPinInputFocus() {
+    this.setData({
+      pinInputValue: ''
+    })
+  },
+
+  // PIN输入框输入处理
+  onPinInputChange(e) {
+    let value = e.detail.value
+    
+    // 只保留数字
+    value = value.replace(/\D/g, '')
+    
+    // 限制为4位
+    if (value.length > 4) {
+      value = value.slice(0, 4)
+    }
+    
+    this.setData({
+      pinInputValue: value
+    })
+  },
+
+  // 确认PIN输入
+  async confirmPinInput() {
+    const { pinInputType, pinInputValue } = this.data
+    
+    // 验证PIN码格式
+    if (!/^\d{4}$/.test(pinInputValue)) {
+      wx.showToast({
+        title: 'PIN码必须是4位数字',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (pinInputType === 'oldPin') {
+      // 保存旧PIN码，进入下一步：输入新PIN码
+      this.setData({
+        oldPinForChange: pinInputValue,
+        showPinInputModal: false
+      })
+      this.showPinInputModal('newPin', '输入新PIN码', '请输入新的4位数字PIN码')
+    } else if (pinInputType === 'newPin') {
+      // 检查新旧PIN码是否相同
+      if (pinInputValue === this.data.oldPinForChange) {
+        wx.showToast({
+          title: '新PIN码不能与旧PIN码相同',
+          icon: 'none'
+        })
+        return
+      }
+      
+      // 保存新PIN码，进入下一步：确认新PIN码
+      this.setData({
+        newPinForChange: pinInputValue,
+        showPinInputModal: false
+      })
+      this.showPinInputModal('confirmPin', '确认新PIN码', '请再次输入新PIN码以确认')
+    } else if (pinInputType === 'confirmPin') {
+      // 验证两次输入的新PIN码是否一致
+      if (pinInputValue !== this.data.newPinForChange) {
+        wx.showToast({
+          title: '两次输入的新PIN码不一致',
+          icon: 'none'
+        })
+        return
+      }
+
+      // 关闭弹窗和设置菜单
+      this.closePinInputModal()
+      this.setData({
+        showSettingsMenu: false
+      })
+
+      // 调用API更新PIN码
+      try {
+        wx.showLoading({
+          title: '更新中...',
+          mask: true
+        })
+
+        const authApi = require('../../utils/authApi.js')
+        const config = require('../../config.js')
+        const authHeaders = authApi.getAuthHeaders()
+
+        const result = await new Promise((resolve, reject) => {
+          wx.request({
+            url: `${config.apiBaseDomain}/api/auth/user/pin`,
+            method: 'PUT',
+            header: authHeaders,
+            data: {
+              pin: this.data.newPinForChange,
+              oldPin: this.data.oldPinForChange
+            },
+            success: (res) => {
+              if (res.statusCode === 200 && res.data && res.data.success !== false) {
+                resolve(res.data)
+              } else {
+                reject(new Error(res.data?.message || '更新失败'))
+              }
+            },
+            fail: (err) => {
+              reject(new Error(err.errMsg || '网络错误'))
+            }
+          })
+        })
+
+        wx.hideLoading()
+
+        // 保存新PIN码用于显示
+        const newPin = this.data.newPinForChange
+
+        // 清空临时数据
+        this.setData({
+          oldPinForChange: '',
+          newPinForChange: ''
+        })
+
+        wx.showModal({
+          title: 'PIN码已更新',
+          content: `您的新PIN码是：${newPin}\n\n请牢记您的PIN码，这是您登录的重要凭证。`,
+          showCancel: false,
+          confirmText: '我知道了',
+          success: () => {
+            wx.showToast({
+              title: 'PIN码已更新',
+              icon: 'success'
+            })
+          }
+        })
+      } catch (error) {
+        wx.hideLoading()
+        console.error('[changePin] 更新PIN码失败:', error)
+        wx.showToast({
+          title: error.message || '更新失败，请稍后重试',
+          icon: 'none',
+          duration: 2000
+        })
+      }
+    }
+  },
+
+  // 显示反馈表单
+  showFeedbackForm() {
+    this.setData({
+      showFeedbackForm: true,
+      currentView: '' // 确保不在列表视图
+    })
+  },
+
+  // 加载统计数据（在登录后调用）
+  async loadStats() {
+    if (!this.data.isLoggedIn) return
+
+    try {
+      // 并行加载喜欢和收藏的第一页数据来获取总数
+      // 使用 pageSize=1 只获取第一页，但会返回完整的 pagination 信息（包括 total）
+      const [likesResult, favoritesResult] = await Promise.all([
+        blogApi.blogInteractionApi.getMyLikes({ page: 1, pageSize: 1 }).catch((err) => {
+          console.error('[loadStats] 获取喜欢数量失败:', err)
+          return { success: false }
+        }),
+        blogApi.blogInteractionApi.getMyFavorites({ page: 1, pageSize: 1 }).catch((err) => {
+          console.error('[loadStats] 获取收藏数量失败:', err)
+          return { success: false }
+        })
+      ])
+
+      // 更新喜欢数量
+      if (likesResult && likesResult.success && likesResult.pagination) {
+        const total = likesResult.pagination.total || 0
+        console.log('[loadStats] 更新喜欢数量:', total)
+        this.setData({
+          likesCount: total
+        })
+      } else if (likesResult && likesResult.success === false) {
+        // 如果是业务错误（如未登录），不更新数量
+        console.warn('[loadStats] 获取喜欢数量失败:', likesResult.message)
+      }
+
+      // 更新收藏数量
+      if (favoritesResult && favoritesResult.success && favoritesResult.pagination) {
+        const total = favoritesResult.pagination.total || 0
+        console.log('[loadStats] 更新收藏数量:', total)
+        this.setData({
+          favoritesCount: total
+        })
+      } else if (favoritesResult && favoritesResult.success === false) {
+        // 如果是业务错误（如未登录），不更新数量
+        console.warn('[loadStats] 获取收藏数量失败:', favoritesResult.message)
+      }
+    } catch (error) {
+      console.error('[loadStats] 加载统计数据失败:', error)
+      // 静默失败，不影响用户体验
+    }
   }
 })

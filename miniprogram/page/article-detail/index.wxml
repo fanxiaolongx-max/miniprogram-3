@@ -13,191 +13,260 @@
 
     <!-- 内容展示 -->
     <view wx:else class="article-container">
-      <view wx:if="{{title}}" class="article-title">{{title}}</view>
+      <!-- 媒体横向滚动区域（最上方，包含图片和视频） -->
+      <view wx:if="{{parsedImages && parsedImages.length > 0}}" class="images-gallery-section">
+        <swiper 
+          class="images-gallery-swiper"
+          current="{{currentImageIndex}}"
+          bindchange="onImageSwiperChange"
+          indicator-dots="{{false}}"
+          autoplay="{{false}}"
+          circular="{{false}}"
+          duration="{{300}}"
+        >
+          <block wx:for="{{parsedImages}}" wx:key="index" wx:for-index="imgIndex">
+            <swiper-item class="images-gallery-swiper-item">
+              <!-- 图片 -->
+              <view wx:if="{{item.type === 'image'}}" class="images-gallery-item">
+                <image 
+                  class="images-gallery-image"
+                  src="{{item.url}}"
+                  mode="aspectFill"
+                  bindtap="previewImageFromGallery"
+                  data-url="{{item.url}}"
+                  data-index="{{imgIndex}}"
+                  show-menu-by-longpress="{{true}}"
+                ></image>
+              </view>
+              <!-- 视频 -->
+              <view wx:elif="{{item.type === 'video'}}" class="images-gallery-item images-gallery-video-item">
+                <video 
+                  id="gallery-video-{{imgIndex}}"
+                  class="images-gallery-video"
+                  src="{{item.src}}"
+                  poster="{{item.poster || ''}}"
+                  controls="{{true}}"
+                  show-center-play-btn="{{true}}"
+                  enable-play-gesture="{{true}}"
+                  object-fit="contain"
+                  lazy-load="{{true}}"
+                  initial-time="{{0}}"
+                  autoplay="{{currentImageIndex === imgIndex}}"
+                  bindplay="onVideoPlay"
+                  bindpause="onVideoPause"
+                  binderror="onVideoError"
+                  data-index="{{imgIndex}}"
+                ></video>
+              </view>
+            </swiper-item>
+          </block>
+        </swiper>
+        <view wx:if="{{parsedImages.length > 1}}" class="images-gallery-indicator">
+          <text class="images-gallery-indicator-text">{{currentImageIndex + 1}} / {{parsedImages.length}}</text>
+        </view>
+      </view>
       
-      <!-- 文章元信息区域 -->
-      <view wx:if="{{meta || views > 0 || authorInfo}}" class="article-meta">
-        <!-- 第一行：时间和浏览量 -->
-        <view wx:if="{{meta || views > 0}}" class="meta-row-1">
-          <text wx:if="{{meta}}" class="meta-time">{{meta}}</text>
-          <text wx:if="{{meta && views > 0}}" class="meta-separator"> · </text>
-          <text wx:if="{{views > 0}}" class="meta-views">{{formattedViews}} 浏览</text>
+      <!-- 向后兼容：如果没有解析图片，显示旧版图片列表 -->
+      <view wx:elif="{{images && images.length > 0 && (!parsedContent || parsedContent.length === 0)}}" class="images-gallery-section">
+        <swiper 
+          class="images-gallery-swiper"
+          current="{{currentImageIndex}}"
+          bindchange="onImageSwiperChange"
+          indicator-dots="{{false}}"
+          autoplay="{{false}}"
+          circular="{{false}}"
+          duration="{{300}}"
+        >
+          <block wx:if="{{images}}" wx:for="{{images}}" wx:key="*this" wx:for-index="index">
+            <swiper-item class="images-gallery-swiper-item">
+              <view class="images-gallery-item">
+                <image 
+                  class="images-gallery-image"
+                  src="{{item}}"
+                  mode="aspectFill"
+                  bindtap="previewImage"
+                  data-url="{{item}}"
+                  data-index="{{index}}"
+                  show-menu-by-longpress="{{true}}"
+                ></image>
+              </view>
+            </swiper-item>
+          </block>
+        </swiper>
+        <view wx:if="{{images.length > 1}}" class="images-gallery-indicator">
+          <text class="images-gallery-indicator-text">{{currentImageIndex + 1}} / {{images.length}}</text>
+        </view>
+      </view>
+
+      <!-- 正文内容区域 -->
+      <view class="content-section">
+        <!-- 使用解析后的节点数组进行内联渲染（只显示文本、链接，不显示图片和视频） -->
+        <view wx:if="{{parsedContent && parsedContent.length > 0}}" class="article-content-parsed">
+          <block wx:if="{{parsedContent}}" wx:for="{{parsedContent}}" wx:key="index" wx:for-index="nodeIndex" wx:for-item="node">
+            <!-- 文本节点 -->
+            <rich-text wx:if="{{node.type === 'text'}}" class="article-text-node" nodes="{{node.content}}" selectable="{{true}}"></rich-text>
+            
+            <!-- 视频节点 - 已在顶部轮播中显示，正文中不显示 -->
+            
+            <!-- 链接节点 -->
+            <view wx:elif="{{node.type === 'link'}}" class="article-link-node">
+              <view class="inline-link-item" bindtap="copyLink" data-url="{{node.url}}">
+                <text class="inline-link-icon">🔗</text>
+                <text class="inline-link-text">{{node.text}}</text>
+                <text class="inline-link-hint">点击复制</text>
+              </view>
+            </view>
+          </block>
         </view>
         
-        <!-- 第二行：发布者信息和设备信息 -->
-        <view wx:if="{{authorInfo && (authorInfo.nickname || authorInfo.phone || authorInfo.deviceModel)}}" class="meta-row-2">
-          <text wx:if="{{authorInfo.nickname}}" class="author-nickname">🧔🏻 {{authorInfo.nickname}}</text>
-          <text wx:if="{{authorInfo.nickname && authorInfo.phone}}" class="author-separator"> </text>
-          <text wx:if="{{authorInfo.phone}}" class="author-phone" bindtap="makePhoneCall" data-phone="{{authorInfo.phone}}">☎️ ({{authorInfo.phone}})</text>
-          <text wx:if="{{authorInfo.deviceModel}}" class="device-tag">📱 {{authorInfo.deviceModel}}</text>
+        <!-- 向后兼容：如果没有解析后的内容，使用原来的 rich-text -->
+        <rich-text wx:else class="article-content" nodes="{{content}}" selectable="{{true}}"></rich-text>
+      </view>
+
+      <!-- 地点和发布时间信息 -->
+      <view class="meta-section">
+        <!-- 地点信息 -->
+        <view wx:if="{{location && location.address}}" class="meta-location" bindtap="openLocation">
+          <text class="location-icon">📍</text>
+          <text class="location-text">{{location.address}}</text>
+        </view>
+        
+        <!-- 发布时间 -->
+        <view wx:if="{{meta}}" class="meta-time-row">
+          <text class="meta-time">{{meta}}</text>
+          <text wx:if="{{views > 0}}" class="meta-views">{{formattedViews}} 浏览</text>
         </view>
       </view>
-      
-      <!-- 使用解析后的节点数组进行内联渲染 -->
-      <view wx:if="{{parsedContent && parsedContent.length > 0}}" class="article-content-parsed">
-        <block wx:if="{{parsedContent}}" wx:for="{{parsedContent}}" wx:key="index" wx:for-index="nodeIndex" wx:for-item="node">
-          <!-- 文本节点 -->
-          <rich-text wx:if="{{node.type === 'text'}}" class="article-text-node" nodes="{{node.content}}" selectable="{{true}}"></rich-text>
+
+      <!-- 文章视频区域 - 已移除，视频只在顶部轮播显示 -->
+      <!-- 视频已在顶部轮播区域显示，不再在正文下方显示 -->
+
+      <!-- 评论区 -->
+      <view class="comments-section">
+        <view class="comments-header">
+          <text class="comments-title">评论</text>
+          <text class="comments-count">{{commentsCount || 0}}</text>
+        </view>
+        
+        <!-- 评论列表 -->
+        <view wx:if="{{comments && comments.length > 0}}" class="comments-list">
+          <block wx:for="{{comments}}" wx:key="id" wx:for-item="comment" wx:for-index="commentIndex">
+            <!-- 根评论 -->
+            <view class="comment-item comment-root">
+              <view class="comment-avatar">
+                <text class="comment-avatar-emoji">{{comment.avatarEmoji || '👤'}}</text>
+              </view>
+              <view class="comment-content">
+                <view class="comment-header">
+                  <text class="comment-author">{{comment.author || '匿名用户'}}</text>
+                  <text class="comment-time">{{comment.time || ''}}</text>
+                </view>
+                <view class="comment-text">{{comment.content}}</view>
+                <view class="comment-actions">
+                  <view class="comment-action-btn" bindtap="likeComment" data-comment-id="{{comment.id}}">
+                    <text class="comment-action-icon">{{comment.liked ? '❤️' : '🤍'}}</text>
+                    <text class="comment-action-count">{{comment.likes || 0}}</text>
+                  </view>
+                  <view class="comment-action-btn" bindtap="replyComment" data-comment-id="{{comment.id}}" data-index="{{commentIndex}}">
+                    <text class="comment-action-icon">💬</text>
+                    <text class="comment-action-text">回复</text>
+                  </view>
+                </view>
+                
+                <!-- 回复列表 -->
+                <view wx:if="{{comment.replies && comment.replies.length > 0}}" class="comment-replies">
+                  <block wx:for="{{comment.replies}}" wx:key="id" wx:for-item="reply" wx:for-index="replyIndex">
+                    <view class="comment-item comment-reply">
+                      <view class="comment-avatar comment-reply-avatar">
+                        <text class="comment-avatar-emoji">{{reply.avatarEmoji || '👤'}}</text>
+                      </view>
+                      <view class="comment-content">
+                        <view class="comment-header">
+                          <text class="comment-author">{{reply.author || '匿名用户'}}</text>
+                          <text class="comment-time">{{reply.time || ''}}</text>
+                        </view>
+                        <view class="comment-text">{{reply.content}}</view>
+                        <view class="comment-actions">
+                          <view class="comment-action-btn" bindtap="likeComment" data-comment-id="{{reply.id}}" data-is-reply="true" data-parent-id="{{comment.id}}">
+                            <text class="comment-action-icon">{{reply.liked ? '❤️' : '🤍'}}</text>
+                            <text class="comment-action-count">{{reply.likes || 0}}</text>
+                          </view>
+                          <view class="comment-action-btn" bindtap="replyComment" data-comment-id="{{reply.id}}" data-parent-id="{{reply.parentId || comment.id}}" data-index="{{commentIndex}}">
+                            <text class="comment-action-icon">💬</text>
+                            <text class="comment-action-text">回复</text>
+                          </view>
+                        </view>
+                      </view>
+                    </view>
+                  </block>
+                </view>
+              </view>
+            </view>
+          </block>
           
-          <!-- 图片节点 -->
-          <view wx:elif="{{node.type === 'image'}}" class="article-image-node">
-            <image 
-              class="article-inline-image"
-              src="{{node.url}}"
-              mode="widthFix"
-              bindtap="previewImageFromNode"
-              data-url="{{node.url}}"
-              data-index="{{nodeIndex}}"
-              show-menu-by-longpress="{{true}}"
-            ></image>
-          </view>
-          
-          <!-- 视频节点 -->
-          <view wx:elif="{{node.type === 'video'}}" class="article-video-node">
-            <block wx:if="{{node.poster}}">
-              <video 
-                class="article-inline-video"
-                src="{{node.src}}"
-                poster="{{node.poster}}"
-                controls="{{true}}"
-                show-center-play-btn="{{true}}"
-                enable-play-gesture="{{true}}"
-                object-fit="contain"
-                lazy-load="{{true}}"
-                initial-time="{{0}}"
-                binderror="onVideoError"
-                data-index="{{nodeIndex}}"
-              ></video>
-            </block>
-            <block wx:else>
-              <video 
-                class="article-inline-video"
-                src="{{node.src}}"
-                controls="{{true}}"
-                show-center-play-btn="{{true}}"
-                enable-play-gesture="{{true}}"
-                object-fit="contain"
-                lazy-load="{{true}}"
-                initial-time="{{0}}"
-                binderror="onVideoError"
-                data-index="{{nodeIndex}}"
-              ></video>
-            </block>
-          </view>
-          
-          <!-- 链接节点 -->
-          <view wx:elif="{{node.type === 'link'}}" class="article-link-node">
-            <view class="inline-link-item" bindtap="copyLink" data-url="{{node.url}}">
-              <text class="inline-link-icon">🔗</text>
-              <text class="inline-link-text">{{node.text}}</text>
-              <text class="inline-link-hint">点击复制</text>
+          <!-- 加载更多评论按钮 -->
+          <view wx:if="{{hasMoreComments && !loadingComments}}" class="comment-load-more">
+            <view class="comment-load-more-btn" bindtap="loadMoreComments">
+              <text>加载更多评论</text>
             </view>
           </view>
-        </block>
-      </view>
-      
-      <!-- 向后兼容：如果没有解析后的内容，使用原来的 rich-text -->
-      <rich-text wx:else class="article-content" nodes="{{content}}" selectable="{{true}}"></rich-text>
-      
-      <!-- 文章地址地图区域 -->
-      <view wx:if="{{location}}" class="location-section">
-        <view class="location-title">位置信息</view>
-        <view class="location-info">
-          <view wx:if="{{location.name}}" class="location-name">{{location.name}}</view>
-          <view wx:if="{{location.address}}" class="location-address">{{location.address}}</view>
-        </view>
-        <map
-          class="location-map"
-          longitude="{{location.longitude}}"
-          latitude="{{location.latitude}}"
-          scale="16"
-          markers="{{mapMarkers}}"
-          bindtap="openLocation"
-          show-location="{{true}}"
-        ></map>
-        <view class="location-tip">点击地图打开导航</view>
-      </view>
-      
-      <!-- 文章图片区域（缩略图网格，支持点击查看大图和长按保存）- 仅在未使用内联渲染时显示 -->
-      <view wx:if="{{images && images.length > 0 && (!parsedContent || parsedContent.length === 0)}}" class="images-section">
-        <view class="images-title">文章图片</view>
-        <view class="images-container">
-          <block wx:if="{{images}}">
-            <image 
-              wx:for="{{images}}" 
-              wx:key="*this"
-              wx:for-index="index"
-            class="article-image-thumbnail"
-            src="{{item}}"
-            mode="aspectFill"
-            bindtap="previewImage"
-            data-url="{{item}}"
-            data-index="{{index}}"
-            show-menu-by-longpress="{{true}}"
-          ></image>
-          </block>
-        </view>
-      </view>
-      
-      <!-- 文章视频区域 - 仅在未使用内联渲染时显示 -->
-      <view wx:if="{{videos && videos.length > 0 && (!parsedContent || parsedContent.length === 0)}}" class="videos-section">
-        <view class="videos-title">文章视频</view>
-        <view class="videos-container">
-          <block wx:if="{{videos}}" wx:for="{{videos}}" wx:key="src" wx:for-index="index">
-            <!-- 有 poster 的视频 -->
-            <video 
-              wx:if="{{item.poster}}"
-              class="article-video"
-              src="{{item.src}}"
-              poster="{{item.poster}}"
-              controls="{{true}}"
-              show-center-play-btn="{{true}}"
-              enable-play-gesture="{{true}}"
-              object-fit="contain"
-              lazy-load="{{true}}"
-              initial-time="{{0}}"
-              binderror="onVideoError"
-              data-index="{{index}}"
-            ></video>
-            <!-- 没有 poster 的视频 -->
-            <video 
-              wx:else
-              class="article-video"
-              src="{{item.src}}"
-              controls="{{true}}"
-              show-center-play-btn="{{true}}"
-              enable-play-gesture="{{true}}"
-              object-fit="contain"
-              lazy-load="{{true}}"
-              initial-time="{{0}}"
-              binderror="onVideoError"
-              data-index="{{index}}"
-            ></video>
-          </block>
-        </view>
-      </view>
-      
-      <!-- 文章链接区域 - 仅在未使用内联渲染时显示 -->
-      <view wx:if="{{links && links.length > 0 && (!parsedContent || parsedContent.length === 0)}}" class="links-section">
-        <view class="links-title">文章链接</view>
-        <view class="links-container">
-          <block wx:if="{{links}}">
-            <view 
-              wx:for="{{links}}" 
-              wx:key="url" 
-              class="link-item"
-            bindtap="copyLink"
-            data-url="{{item.url}}"
-          >
-            <view class="link-icon">🔗</view>
-            <view class="link-content">
-              <view class="link-text">{{item.text}}</view>
-              <view class="link-url">{{item.url}}</view>
-            </view>
-            <view class="link-action">复制</view>
+          
+          <!-- 加载中提示 -->
+          <view wx:if="{{loadingComments}}" class="comment-load-more">
+            <text class="comments-empty-text">加载中...</text>
           </view>
-          </block>
         </view>
+        
+        <!-- 空评论提示 -->
+        <view wx:else class="comments-empty">
+          <text class="comments-empty-text">暂无评论，快来抢沙发吧~</text>
+        </view>
+      </view>
+
+      <!-- 底部间距，避免被底部操作栏遮挡 -->
+      <view class="bottom-spacer"></view>
+    </view>
+  </view>
+
+  <!-- 底部操作栏（点赞、收藏、评论） -->
+  <view class="bottom-action-bar">
+    <view class="action-input-wrapper" bindtap="focusCommentInput">
+      <text class="action-input-placeholder">说点什么...</text>
+    </view>
+    <view class="action-buttons">
+      <view class="action-btn {{liked ? 'liked' : ''}}" bindtap="toggleLike">
+        <text class="action-icon">{{liked ? '❤️' : '🤍'}}</text>
+        <text class="action-count">{{likeCount || 0}}</text>
+      </view>
+      <view class="action-btn {{favorited ? 'favorited' : ''}}" bindtap="toggleFavorite">
+        <text class="action-icon">{{favorited ? '⭐' : '☆'}}</text>
+        <text class="action-count">{{favoriteCount || 0}}</text>
+      </view>
+      <view class="action-btn" bindtap="focusCommentInput">
+        <text class="action-icon">💬</text>
+        <text class="action-count">{{commentsCount || 0}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 评论输入框（固定在底部） -->
+  <view wx:if="{{showCommentInput}}" class="comment-input-bar">
+    <view class="comment-input-wrapper">
+      <input 
+        id="comment-input"
+        class="comment-input"
+        placeholder="说点什么..."
+        value="{{commentText}}"
+        focus="{{commentInputFocus}}"
+        bindinput="onCommentInput"
+        bindfocus="onCommentFocus"
+        bindblur="onCommentBlur"
+        confirm-type="send"
+        bindconfirm="submitComment"
+      />
+      <view class="comment-send-btn {{commentText.trim() ? 'active' : ''}} {{submittingComment ? 'submitting' : ''}}" bindtap="submitComment">
+        <text wx:if="{{submittingComment}}">发送中...</text>
+        <text wx:else>发送</text>
       </view>
     </view>
   </view>

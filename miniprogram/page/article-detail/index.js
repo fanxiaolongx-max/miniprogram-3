@@ -1,4 +1,57 @@
-const { formatTimestamp } = require('../../util/util.js')
+const { formatRelativeTime } = require('../../util/util.js')
+
+/**
+ * 根据用户ID生成固定的可爱头像图案
+ * @param {string|number} userId - 用户ID
+ * @returns {string} 可爱图案emoji
+ */
+function getCuteAvatar(userId) {
+  // 可爱的emoji图案列表（与用户登录页面保持一致）
+  const cuteEmojis = [
+    '🐱', '🐰', '🐻', '🐼', '🐨', '🐯', '🦁', '🐶', '🐷', '🐸',
+    '🐵', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺',
+    '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟',
+    '🦗', '🕷️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑',
+    '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈',
+    '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪',
+    '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏',
+    '🐑', '🦙', '🐐', '🦌', '🐕', '🦮', '🐩', '🐈', '🐓', '🦃',
+    '🦤', '🦚', '🦜', '🦢', '🦩', '🕊️', '🦅', '🦉', '🦇', '🐺',
+    '🌻', '🌺', '🌹', '🌷', '🌼', '🌸', '💐', '🌾', '🌿', '🍀',
+    '☘️', '🍃', '🍂', '🍁', '🌳', '🌲', '🌴', '🌵', '🌊', '⭐',
+    '🌟', '✨', '💫', '💥', '💢', '💤', '💨', '🌈', '☀️', '🌙',
+    '☁️', '⛅', '☔', '❄️', '⛄', '🔥', '💧', '🌊', '🍎', '🍊',
+    '🍋', '🍌', '🍉', '🍇', '🍓', '🍈', '🍒', '🍑', '🥭', '🍍',
+    '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🌽',
+    '🥕', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚',
+    '🍳', '🥞', '🥓', '🥩', '🍗', '🍖', '🌭', '🍔', '🍟', '🍕',
+    '🥪', '🥙', '🌮', '🌯', '🥗', '🥘', '🥫', '🍝', '🍜', '🍲',
+    '🍛', '🍣', '🍱', '🥟', '🍤', '🍙', '🍚', '🍘', '🍥', '🥠',
+    '🥮', '🍢', '🍡', '🍧', '🍨', '🍦', '🥧', '🍰', '🎂', '🍮',
+    '🍭', '🍬', '🍫', '🍿', '🍩', '🍪', '🌰', '🥜', '🍯', '🥛',
+    '🍼', '☕', '🍵',
+    '🍸', '🍹', '🧉', '🧊', '🥄', '🍴', '🍽️', '🥢', '🥣', '🥡',
+    '🥤', '🧃', '🧉', '🧊', '🥤', '🧃', '🧉', '🧊', '🥤', '🧃'
+  ]
+  
+  // 如果没有用户ID，使用随机图案
+  if (!userId) {
+    return cuteEmojis[Math.floor(Math.random() * cuteEmojis.length)]
+  }
+  
+  // 根据用户ID生成固定的索引（确保同一用户总是得到同一个图案）
+  const userIdStr = String(userId)
+  let hash = 0
+  for (let i = 0; i < userIdStr.length; i++) {
+    const char = userIdStr.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // 转换为32位整数
+  }
+  
+  // 使用哈希值选择图案（确保是正数）
+  const index = Math.abs(hash) % cuteEmojis.length
+  return cuteEmojis[index]
+}
 
 Page({
   onShareAppMessage() {
@@ -51,6 +104,7 @@ Page({
     meta: '',
     content: '',
     parsedContent: [], // 解析后的内容节点数组 [{type: 'text'|'image'|'video'|'link', ...}]
+    parsedImages: [], // 从解析内容中提取的图片节点（用于顶部横向滚动）
     apiUrl: '',
     loading: false,
     error: false,
@@ -61,7 +115,25 @@ Page({
     mapMarkers: [], // 地图标记点
     coverImage: '', // 文章封面图片（优先用于转发）
     articleId: '', // 文章ID（用于转发时构建路径）
-    authorInfo: null // 发布者信息 { nickname, phone, deviceModel }
+    authorInfo: null, // 发布者信息 { nickname, phone, deviceModel }
+    currentImageIndex: 0, // 当前图片索引（用于显示指示器）
+    // 互动数据
+    liked: false, // 是否已点赞
+    likeCount: 0, // 点赞数
+    favorited: false, // 是否已收藏
+    favoriteCount: 0, // 收藏数
+    // 评论相关
+    comments: [], // 评论列表
+    commentsCount: 0, // 评论总数（从API获取）
+    commentsPage: 1, // 当前评论页码
+    commentsPageSize: 10, // 每页评论数量
+    hasMoreComments: false, // 是否还有更多评论
+    loadingComments: false, // 是否正在加载评论
+    showCommentInput: false, // 是否显示评论输入框
+    commentText: '', // 评论内容
+    replyingTo: null, // 正在回复的评论ID
+    commentInputFocus: false, // 评论输入框焦点状态
+    submittingComment: false // 是否正在提交评论
   },
 
   onLoad(options) {
@@ -107,6 +179,14 @@ Page({
       // 解析HTML为节点数组（用于内联显示）
       const parsedContent = this.parseHtmlToNodes(htmlContent)
       
+      // 从解析后的内容中提取图片和视频节点（用于顶部横向滚动显示）
+      const parsedMedia = parsedContent.filter(node => node.type === 'image' || node.type === 'video')
+      // 向后兼容：保留 parsedImages 变量名
+      const parsedImages = parsedMedia
+      
+      // 过滤掉图片和视频节点，正文中不显示图片和视频（只显示文本、链接）
+      const parsedContentWithoutImages = parsedContent.filter(node => node.type !== 'image' && node.type !== 'video')
+      
       // 处理HTML内容，使图片自适应屏幕宽度，并移除视频标签（rich-text不支持，用于向后兼容）
       const processedContent = this.processHtmlContent(htmlContent)
       
@@ -145,16 +225,32 @@ Page({
         })
       }
       
+      // 向后兼容：直接传递 htmlContent 时无法获取互动数据
+      const liked = false
+      const likeCount = 0
+      const favorited = false
+      const favoriteCount = 0
+      const comments = []
+      const commentsCount = 0
+      
       this.setData({
         title: title,
         meta: meta,
         content: processedContent,
-        parsedContent: Array.isArray(parsedContent) ? parsedContent : [],
+        parsedContent: Array.isArray(parsedContentWithoutImages) ? parsedContentWithoutImages : [],
+        parsedImages: Array.isArray(parsedImages) ? parsedImages : [],
         links: Array.isArray(links) ? links : [],
         images: Array.isArray(images) ? images : [],
         videos: Array.isArray(videos) ? videos : [],
         location: locationData,
         mapMarkers: Array.isArray(mapMarkers) ? mapMarkers : [],
+        currentImageIndex: 0,
+        liked: liked,
+        likeCount: likeCount,
+        favorited: favorited,
+        favoriteCount: favoriteCount,
+        comments: comments,
+        commentsCount: commentsCount,
         loading: false,
         error: false
       })
@@ -183,14 +279,19 @@ Page({
 
     try {
       const blogApi = require('../../utils/blogApi.js')
-      const result = await blogApi.articleApi.getDetail(articleId)
+      // 明确传递参数，确保包含评论列表（第一页，10条）
+      const result = await blogApi.articleApi.getDetail(articleId, {
+        includeComments: true,
+        commentsPage: 1,
+        commentsPageSize: this.data.commentsPageSize || 10
+      })
       
       if (result.success && result.data) {
         const article = result.data
         const htmlContent = article.htmlContent || ''
         const title = article.title || article.name || ''
         // 优先显示更新时间，如果没有更新时间再显示发布时间
-        const meta = formatTimestamp(article.updatedAt || article.createdAt || '')
+        const meta = formatRelativeTime(article.updatedAt || article.createdAt || '')
         const views = article.views || 0 // 浏览量
         
         if (!htmlContent) {
@@ -207,6 +308,14 @@ Page({
         
         // 解析HTML为节点数组
         const parsedContent = this.parseHtmlToNodes(htmlContent)
+        
+        // 从解析后的内容中提取图片和视频节点（用于顶部横向滚动显示）
+        const parsedMedia = parsedContent.filter(node => node.type === 'image' || node.type === 'video')
+        // 向后兼容：保留 parsedImages 变量名
+        const parsedImages = parsedMedia
+        
+        // 过滤掉图片和视频节点，正文中不显示图片和视频（只显示文本、链接）
+        const parsedContentWithoutImages = parsedContent.filter(node => node.type !== 'image' && node.type !== 'video')
         
         // 处理HTML内容
         const processedContent = this.processHtmlContent(htmlContent)
@@ -271,6 +380,11 @@ Page({
         // 格式化浏览量
         const formattedViews = this.formatViews(views)
         
+        // 从API获取点赞数、收藏数、评论数
+        const likeCount = article.likesCount || 0
+        const favoriteCount = article.favoritesCount || 0
+        const commentsCount = article.commentsCount || 0
+        
         // 设置导航栏标题
         if (title) {
           wx.setNavigationBarTitle({
@@ -278,13 +392,53 @@ Page({
           })
         }
         
+        // 从API返回的数据中获取用户互动状态（如果API返回了这些字段）
+        // 支持 isLiked/isFavorited 和 liked/favorited 两种字段名
+        // 如果没有返回，则默认为false，稍后会通过fetchUserInteractions获取
+        const liked = article.isLiked === true || article.isLiked === 1 || article.isLiked === 'true' ||
+                      article.liked === true || article.liked === 1 || article.liked === 'true'
+        const favorited = article.isFavorited === true || article.isFavorited === 1 || article.isFavorited === 'true' ||
+                          article.favorited === true || article.favorited === 1 || article.favorited === 'true'
+        
+        console.log('[article-detail] 从文章详情获取互动状态:', { 
+          liked, 
+          favorited, 
+          isLiked: article.isLiked,
+          isFavorited: article.isFavorited,
+          articleLiked: article.liked, 
+          articleFavorited: article.favorited,
+          articleKeys: Object.keys(article).filter(k => k.includes('like') || k.includes('favor') || k.includes('Like') || k.includes('Favor'))
+        })
+        
+        // 处理评论列表（从API响应中获取）
+        let comments = []
+        let hasMoreComments = false
+        if (result.comments && result.comments.comments && Array.isArray(result.comments.comments)) {
+          comments = this.formatComments(result.comments.comments)
+          console.log('[article-detail] 获取到评论列表，数量:', comments.length)
+          
+          // 判断是否还有更多评论
+          const totalComments = result.comments.total || 0
+          const currentPage = result.comments.currentPage || 1
+          const totalPages = result.comments.totalPages || 1
+          hasMoreComments = currentPage < totalPages
+          
+          console.log('[article-detail] 评论分页信息:', {
+            total: totalComments,
+            currentPage: currentPage,
+            totalPages: totalPages,
+            hasMore: hasMoreComments
+          })
+        }
+
         this.setData({
           title: title,
           meta: meta,
           views: views,
           formattedViews: formattedViews,
           content: processedContent,
-          parsedContent: Array.isArray(parsedContent) ? parsedContent : [],
+          parsedContent: Array.isArray(parsedContentWithoutImages) ? parsedContentWithoutImages : [],
+          parsedImages: Array.isArray(parsedImages) ? parsedImages : [],
           links: Array.isArray(links) ? links : [],
           images: Array.isArray(images) ? images : [],
           videos: Array.isArray(videos) ? videos : [],
@@ -293,9 +447,33 @@ Page({
           coverImage: article.image || '', // 保存封面图片
           articleId: articleId, // 保存文章ID用于转发
           authorInfo: authorInfo, // 发布者信息
+          currentImageIndex: 0, // 当前图片索引
+          liked: liked,
+          likeCount: likeCount,
+          favorited: favorited,
+          favoriteCount: favoriteCount,
+          comments: comments,
+          commentsCount: commentsCount,
+          commentsPage: 1,
+          hasMoreComments: hasMoreComments,
+          loadingComments: false,
           loading: false,
           error: false
         })
+        
+        // 如果第一个媒体是视频，自动播放
+        if (parsedImages && parsedImages.length > 0 && parsedImages[0].type === 'video') {
+          setTimeout(() => {
+            const videoId = 'gallery-video-0'
+            const videoContext = wx.createVideoContext(videoId, this)
+            if (videoContext) {
+              videoContext.play()
+            }
+          }, 300)
+        }
+        
+        // 获取用户互动状态（是否已点赞/收藏）
+        this.fetchUserInteractions(articleId)
       } else {
         console.error('[article-detail] API返回失败:', result)
         this.showError('获取文章详情失败')
@@ -375,7 +553,7 @@ Page({
           content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
           title = firstItem.title || firstItem.name || ''
           // 优先显示更新时间，如果没有更新时间再显示发布时间
-          meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || firstItem.createdAt || '')
+          meta = formatRelativeTime(firstItem.meta || firstItem.date || firstItem.updatedAt || firstItem.createdAt || '')
           locationData = this.extractLocation(firstItem)
           coverImage = firstItem.image || ''
           views = firstItem.views || 0
@@ -386,7 +564,7 @@ Page({
           content = res.data.content || res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
           // 优先显示更新时间，如果没有更新时间再显示发布时间
-          meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || res.data.createdAt || '')
+          meta = formatRelativeTime(res.data.meta || res.data.date || res.data.updatedAt || res.data.createdAt || '')
           locationData = this.extractLocation(res.data)
           coverImage = res.data.image || ''
           views = res.data.views || 0
@@ -400,7 +578,7 @@ Page({
             content = firstItem.content || firstItem.html || firstItem.htmlContent || ''
             title = firstItem.title || firstItem.name || ''
             // 优先显示更新时间，如果没有更新时间再显示发布时间
-            meta = formatTimestamp(firstItem.meta || firstItem.date || firstItem.updatedAt || firstItem.createdAt || '')
+            meta = formatRelativeTime(firstItem.meta || firstItem.date || firstItem.updatedAt || firstItem.createdAt || '')
             locationData = this.extractLocation(firstItem)
             coverImage = firstItem.image || ''
             views = firstItem.views || 0
@@ -409,7 +587,7 @@ Page({
             content = res.data.data.content || res.data.data.html || res.data.data.htmlContent || ''
             title = res.data.data.title || ''
             // 优先显示更新时间，如果没有更新时间再显示发布时间
-            meta = formatTimestamp(res.data.data.meta || res.data.data.date || res.data.data.updatedAt || res.data.data.createdAt || '')
+            meta = formatRelativeTime(res.data.data.meta || res.data.data.date || res.data.data.updatedAt || res.data.data.createdAt || '')
             locationData = this.extractLocation(res.data.data)
             coverImage = res.data.data.image || ''
             views = res.data.data.views || 0
@@ -421,7 +599,7 @@ Page({
           content = res.data.html || res.data.htmlContent || ''
           title = res.data.title || ''
           // 优先显示更新时间，如果没有更新时间再显示发布时间
-          meta = formatTimestamp(res.data.meta || res.data.date || res.data.updatedAt || res.data.createdAt || '')
+          meta = formatRelativeTime(res.data.meta || res.data.date || res.data.updatedAt || res.data.createdAt || '')
           locationData = this.extractLocation(res.data)
           coverImage = res.data.image || ''
           views = res.data.views || 0
@@ -479,6 +657,14 @@ Page({
 
         // 解析HTML为节点数组（用于内联显示）
         const parsedContent = this.parseHtmlToNodes(content)
+        
+        // 从解析后的内容中提取图片和视频节点（用于顶部横向滚动显示）
+        const parsedMedia = parsedContent.filter(node => node.type === 'image' || node.type === 'video')
+        // 向后兼容：保留 parsedImages 变量名
+        const parsedImages = parsedMedia
+        
+        // 过滤掉图片和视频节点，正文中不显示图片和视频（只显示文本、链接）
+        const parsedContentWithoutImages = parsedContent.filter(node => node.type !== 'image' && node.type !== 'video')
 
         // 处理HTML内容，使图片自适应屏幕宽度，并移除视频标签（rich-text不支持，用于向后兼容）
         content = this.processHtmlContent(content)
@@ -512,13 +698,23 @@ Page({
         // 格式化浏览量
         const formattedViews = this.formatViews(views)
         
+        // 从API获取点赞、收藏、评论数据（如果API返回了这些字段）
+        // 注意：旧的API可能不返回这些字段，使用默认值
+        const liked = false
+        const likeCount = articleData?.likesCount || 0
+        const favorited = false
+        const favoriteCount = articleData?.favoritesCount || 0
+        const comments = []
+        const commentsCount = articleData?.commentsCount || 0
+
         this.setData({
           title: title,
           meta: meta,
           views: views,
           formattedViews: formattedViews,
           content: content,
-          parsedContent: Array.isArray(parsedContent) ? parsedContent : [],
+          parsedContent: Array.isArray(parsedContentWithoutImages) ? parsedContentWithoutImages : [],
+          parsedImages: Array.isArray(parsedImages) ? parsedImages : [],
           links: Array.isArray(links) ? links : [],
           images: Array.isArray(images) ? images : [],
           videos: Array.isArray(videos) ? videos : [],
@@ -526,6 +722,13 @@ Page({
           mapMarkers: Array.isArray(mapMarkers) ? mapMarkers : [],
           coverImage: coverImage, // 保存封面图片
           authorInfo: authorInfo, // 发布者信息
+          currentImageIndex: 0,
+          liked: liked,
+          likeCount: likeCount,
+          favorited: favorited,
+          favoriteCount: favoriteCount,
+          comments: comments,
+          commentsCount: commentsCount,
           loading: false,
           error: false
         })
@@ -838,6 +1041,9 @@ Page({
       }
 
       console.log('[parseHtmlToNodes] 解析完成，节点数量:', nodes.length)
+      const videoNodes = nodes.filter(n => n.type === 'video')
+      const imageNodes = nodes.filter(n => n.type === 'image')
+      console.log('[parseHtmlToNodes] 视频节点数量:', videoNodes.length, '图片节点数量:', imageNodes.length)
       return nodes
     } catch (err) {
       console.error('[parseHtmlToNodes] 解析HTML时出错:', err)
@@ -903,6 +1109,10 @@ Page({
         }
         return match
       })
+
+      // 移除 <img> 和 <image> 标签（图片只在上方显示，不在正文中显示）
+      processedHtml = processedHtml.replace(/<img[^>]*>/gi, '')
+      processedHtml = processedHtml.replace(/<image[^>]*>/gi, '')
 
       // 移除 <video> 标签（rich-text 不支持 video，我们会在单独的区域显示）
       processedHtml = processedHtml.replace(/<video[^>]*>.*?<\/video>/gi, '')
@@ -1357,6 +1567,90 @@ Page({
   },
 
   /**
+   * 图片滑动切换事件
+   * @param {Object} e - 事件对象
+   */
+  onImageSwiperChange(e) {
+    const current = e.detail.current || 0
+    const oldIndex = this.data.currentImageIndex
+    
+    this.setData({
+      currentImageIndex: current
+    })
+    
+    // 如果滑动到视频，自动播放；如果离开视频，暂停播放
+    const parsedImages = this.data.parsedImages || []
+    const currentMedia = parsedImages[current]
+    const oldMedia = parsedImages[oldIndex]
+    
+    // 暂停之前的视频
+    if (oldMedia && oldMedia.type === 'video') {
+      const oldVideoId = `gallery-video-${oldIndex}`
+      const oldVideoContext = wx.createVideoContext(oldVideoId, this)
+      if (oldVideoContext) {
+        oldVideoContext.pause()
+      }
+    }
+    
+    // 播放当前视频
+    if (currentMedia && currentMedia.type === 'video') {
+      const videoId = `gallery-video-${current}`
+      const videoContext = wx.createVideoContext(videoId, this)
+      if (videoContext) {
+        // 延迟一下，确保视频组件已渲染
+        setTimeout(() => {
+          videoContext.play()
+        }, 100)
+      }
+    }
+  },
+  
+  // 视频播放事件
+  onVideoPlay(e) {
+    console.log('[onVideoPlay] 视频开始播放:', e.detail)
+  },
+  
+  // 视频暂停事件
+  onVideoPause(e) {
+    console.log('[onVideoPause] 视频暂停:', e.detail)
+  },
+
+  /**
+   * 从图片画廊预览图片（横向滚动区域的图片）
+   * @param {Object} e - 事件对象
+   */
+  previewImageFromGallery(e) {
+    const url = e.currentTarget.dataset.url
+    const index = e.currentTarget.dataset.index
+    
+    // 获取所有图片URL（优先使用parsedImages，否则使用images）
+    const imageList = this.data.parsedImages && this.data.parsedImages.length > 0 
+      ? this.data.parsedImages 
+      : this.data.images.map(img => ({ url: img }))
+    const imageUrls = imageList.map(img => img.url || img)
+    
+    if (!imageUrls || imageUrls.length === 0) {
+      wx.showToast({
+        title: '没有图片可预览',
+        icon: 'none'
+      })
+      return
+    }
+    
+    // 转换为原图URL
+    const originalImages = imageUrls.map(imgUrl => this.getOriginalImageUrl(imgUrl))
+    const currentOriginalUrl = this.getOriginalImageUrl(url || imageUrls[index] || imageUrls[0])
+    
+    wx.previewImage({
+      current: currentOriginalUrl,
+      urls: originalImages,
+      success: () => {
+        this.setData({ currentImageIndex: index || 0 })
+      }
+    })
+  },
+
+  /**
    * 从节点预览图片（内联图片）
    * @param {Object} e - 事件对象
    */
@@ -1651,6 +1945,702 @@ Page({
         title: '视频加载失败',
         icon: 'none',
         duration: 2000
+      })
+    }
+  },
+
+  // 获取用户互动状态（是否已点赞/收藏）
+  async fetchUserInteractions(postId) {
+    if (!postId) return
+    
+    try {
+      const blogApi = require('../../utils/blogApi.js')
+      const result = await blogApi.blogInteractionApi.getInteractions(postId)
+      
+      if (result.success && result.data) {
+        // API返回的字段是 isLiked 和 isFavorited，需要转换为 liked 和 favorited
+        const liked = result.data.isLiked === true || result.data.isLiked === 1 || result.data.isLiked === 'true' || 
+                      result.data.liked === true || result.data.liked === 1 || result.data.liked === 'true'
+        const favorited = result.data.isFavorited === true || result.data.isFavorited === 1 || result.data.isFavorited === 'true' ||
+                          result.data.favorited === true || result.data.favorited === 1 || result.data.favorited === 'true'
+        
+        console.log('[article-detail] 从getInteractions API获取到用户互动状态:', { 
+          liked, 
+          favorited, 
+          isLiked: result.data.isLiked, 
+          isFavorited: result.data.isFavorited,
+          rawLiked: result.data.liked, 
+          rawFavorited: result.data.favorited,
+          allData: result.data
+        })
+        
+        this.setData({
+          liked: liked,
+          favorited: favorited
+        })
+      } else {
+        console.warn('[article-detail] 获取互动状态失败: API返回失败', result)
+      }
+    } catch (error) {
+      // 如果用户未登录，静默失败（不显示错误）
+      if (error.message && error.message.includes('认证')) {
+        console.log('[article-detail] 用户未登录，无法获取互动状态')
+      } else {
+        console.warn('[article-detail] 获取互动状态失败:', error.message)
+      }
+    }
+  },
+
+  // 切换点赞状态
+  async toggleLike() {
+    const postId = this.data.articleId
+    if (!postId) {
+      wx.showToast({
+        title: '文章ID不存在',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+    
+    const currentLiked = this.data.liked
+    const currentLikeCount = this.data.likeCount
+    
+    // 乐观更新UI
+    this.setData({
+      liked: !currentLiked,
+      likeCount: Math.max(0, currentLikeCount + (currentLiked ? -1 : 1))
+    })
+    
+    try {
+      const blogApi = require('../../utils/blogApi.js')
+      
+      if (currentLiked) {
+        // 取消点赞
+        await blogApi.blogInteractionApi.unlikePost(postId)
+      } else {
+        // 点赞
+        await blogApi.blogInteractionApi.likePost(postId)
+      }
+      
+      // 更新点赞数（从服务器获取最新数据）
+      const articleResult = await blogApi.articleApi.getDetail(postId)
+      if (articleResult.success && articleResult.data) {
+        this.setData({
+          likeCount: articleResult.data.likesCount || 0
+        })
+      }
+    } catch (error) {
+      // 回滚UI状态
+      this.setData({
+        liked: currentLiked,
+        likeCount: currentLikeCount
+      })
+      
+      if (error.message && error.message.includes('认证')) {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none',
+          duration: 1500
+        })
+      } else {
+        wx.showToast({
+          title: error.message || '操作失败',
+          icon: 'none',
+          duration: 1500
+        })
+      }
+    }
+  },
+
+  // 切换收藏状态
+  async toggleFavorite() {
+    const postId = this.data.articleId
+    if (!postId) {
+      wx.showToast({
+        title: '文章ID不存在',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+    
+    const currentFavorited = this.data.favorited
+    const currentFavoriteCount = this.data.favoriteCount
+    
+    // 乐观更新UI
+    this.setData({
+      favorited: !currentFavorited,
+      favoriteCount: Math.max(0, currentFavoriteCount + (currentFavorited ? -1 : 1))
+    })
+    
+    try {
+      const blogApi = require('../../utils/blogApi.js')
+      
+      if (currentFavorited) {
+        // 取消收藏
+        await blogApi.blogInteractionApi.unfavoritePost(postId)
+      } else {
+        // 收藏
+        await blogApi.blogInteractionApi.favoritePost(postId)
+      }
+      
+      // 更新收藏数（从服务器获取最新数据，不需要评论）
+      const articleResult = await blogApi.articleApi.getDetail(postId, {
+        includeComments: false
+      })
+      if (articleResult.success && articleResult.data) {
+        this.setData({
+          favoriteCount: articleResult.data.favoritesCount || 0
+        })
+      }
+    } catch (error) {
+      // 回滚UI状态
+      this.setData({
+        favorited: currentFavorited,
+        favoriteCount: currentFavoriteCount
+      })
+      
+      if (error.message && error.message.includes('认证')) {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none',
+          duration: 1500
+        })
+      } else {
+        wx.showToast({
+          title: error.message || '操作失败',
+          icon: 'none',
+          duration: 1500
+        })
+      }
+    }
+  },
+
+  // 聚焦评论输入框
+  focusCommentInput() {
+    this.setData({
+      showCommentInput: true,
+      commentInputFocus: true // 设置焦点状态，让输入框自动获得焦点
+    })
+  },
+
+  // 评论输入
+  onCommentInput(e) {
+    this.setData({
+      commentText: e.detail.value
+    })
+  },
+
+  // 评论输入框聚焦
+  onCommentFocus() {
+    // 确保焦点状态正确
+    this.setData({
+      commentInputFocus: true
+    })
+  },
+
+  // 评论输入框失焦
+  onCommentBlur() {
+    // 清除焦点状态
+    this.setData({
+      commentInputFocus: false
+    })
+    // 如果用户点击其他位置，直接取消评论（清空输入内容并隐藏输入框）
+    setTimeout(() => {
+      this.setData({
+        showCommentInput: false,
+        commentText: '',
+        replyingTo: null
+      })
+    }, 200)
+  },
+
+  /**
+   * 格式化单个评论（递归处理回复）
+   * @param {Object} comment - API返回的评论对象
+   * @returns {Object} 格式化后的评论对象
+   */
+  formatSingleComment(comment) {
+    // 获取评论者的用户ID（可能是 authorId、userId、author.id 等）
+    const authorId = comment.authorId || comment.userId || comment.author?.id || comment.user?.id || null
+    
+    // 根据用户ID生成固定的可爱头像emoji
+    const avatarEmoji = getCuteAvatar(authorId)
+    
+    const formatted = {
+      id: comment.id || '',
+      author: comment.authorName || comment.author || '匿名用户',
+      content: comment.content || '',
+      time: formatRelativeTime(comment.createdAt || ''),
+      likes: comment.likesCount || comment.likes || 0,
+      liked: comment.isLiked === true || comment.isLiked === 1 || comment.isLiked === 'true' ||
+             comment.liked === true || comment.liked === 1 || comment.liked === 'true',
+      avatarEmoji: avatarEmoji, // 使用可爱动物头像emoji
+      email: comment.authorEmail || '',
+      parentId: comment.parentId || null, // 用于回复功能
+      replies: [] // 回复列表
+    }
+    
+    // 递归处理回复（如果有）
+    if (comment.replies && Array.isArray(comment.replies) && comment.replies.length > 0) {
+      formatted.replies = comment.replies
+        .map(reply => this.formatSingleComment(reply))
+        .filter(reply => reply !== null) // 过滤掉无效的回复
+      console.log(`[formatSingleComment] 评论 ${formatted.id} 有 ${formatted.replies.length} 条回复`)
+    }
+    
+    return formatted
+  },
+
+  /**
+   * 格式化评论数据（将API返回的格式转换为前端需要的格式，支持树形结构）
+   * @param {Array} apiComments - API返回的评论列表（树形结构）
+   * @returns {Array} 格式化后的评论列表
+   */
+  formatComments(apiComments) {
+    if (!Array.isArray(apiComments)) {
+      console.warn('[formatComments] 评论数据不是数组:', apiComments)
+      return []
+    }
+    
+    const formatted = apiComments
+      .map(comment => this.formatSingleComment(comment))
+      .filter(comment => comment !== null) // 过滤掉无效的评论
+    
+    console.log('[formatComments] 格式化完成，根评论数量:', formatted.length)
+    formatted.forEach((comment, index) => {
+      console.log(`[formatComments] 根评论 ${index + 1}: ID=${comment.id}, 回复数=${comment.replies ? comment.replies.length : 0}`)
+    })
+    
+    return formatted
+  },
+
+  // 提交评论
+  async submitComment() {
+    // 防止重复提交
+    if (this.data.submittingComment) {
+      return
+    }
+
+    const commentText = this.data.commentText.trim()
+    if (!commentText) {
+      wx.showToast({
+        title: '请输入评论内容',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+
+    const postId = this.data.articleId
+    if (!postId) {
+      wx.showToast({
+        title: '文章ID不存在',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+
+    // 设置提交状态，显示加载反馈
+    this.setData({
+      submittingComment: true
+    })
+
+    const replyingTo = this.data.replyingTo
+    const commentData = {
+      content: commentText,
+      parentId: replyingTo || null // 1级评论：parentId为null；2级回复：parentId为1级评论ID
+    }
+
+    try {
+      const blogApi = require('../../utils/blogApi.js')
+      const result = await blogApi.blogInteractionApi.createComment(postId, commentData)
+      
+      if (result.success) {
+        // 重新获取文章详情（包含最新的评论列表）
+        const articleResult = await blogApi.articleApi.getDetail(postId, {
+          includeComments: true,
+          commentsPage: 1,
+          commentsPageSize: 10
+        })
+        
+        if (articleResult.success && articleResult.data) {
+          // 更新互动数据
+          this.setData({
+            favoriteCount: articleResult.data.favoritesCount || this.data.favoriteCount,
+            likeCount: articleResult.data.likesCount || this.data.likeCount,
+            commentsCount: articleResult.data.commentsCount || 0
+          })
+          
+          // 更新评论列表
+          if (articleResult.comments && articleResult.comments.comments && Array.isArray(articleResult.comments.comments)) {
+            const comments = this.formatComments(articleResult.comments.comments)
+            this.setData({
+              comments: comments
+            })
+          }
+        }
+        
+        // 清空输入框
+        this.setData({
+          commentText: '',
+          showCommentInput: false,
+          replyingTo: null,
+          commentInputFocus: false,
+          submittingComment: false // 清除提交状态
+        })
+        
+        wx.showToast({
+          title: '评论成功',
+          icon: 'success',
+          duration: 1500
+        })
+      }
+    } catch (error) {
+      // 提交失败时也要清除提交状态
+      this.setData({
+        submittingComment: false
+      })
+      
+      wx.showToast({
+        title: error.message || '评论失败',
+        icon: 'none',
+        duration: 2000
+      })
+      if (error.message && error.message.includes('认证')) {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none',
+          duration: 1500
+        })
+      } else {
+        wx.showToast({
+          title: error.message || '评论失败',
+          icon: 'none',
+          duration: 1500
+        })
+      }
+    }
+  },
+
+  /**
+   * 在评论列表中查找评论（支持嵌套查找）
+   * @param {Array} comments - 评论列表
+   * @param {string} commentId - 评论ID
+   * @returns {Object|null} 找到的评论对象和其父数组，格式：{ comment, parentArray, index }
+   */
+  findCommentInList(comments, commentId) {
+    for (let i = 0; i < comments.length; i++) {
+      const comment = comments[i]
+      
+      // 检查当前评论
+      if (comment.id === commentId) {
+        return { comment, parentArray: comments, index: i }
+      }
+      
+      // 递归检查回复
+      if (comment.replies && Array.isArray(comment.replies) && comment.replies.length > 0) {
+        const found = this.findCommentInList(comment.replies, commentId)
+        if (found) {
+          return found
+        }
+      }
+    }
+    
+    return null
+  },
+
+  /**
+   * 更新评论列表中的某个评论（支持嵌套更新）
+   * @param {Array} comments - 评论列表
+   * @param {string} commentId - 评论ID
+   * @param {Function} updater - 更新函数，接收评论对象并返回更新后的对象
+   * @returns {Array} 更新后的评论列表
+   */
+  updateCommentInList(comments, commentId, updater) {
+    return comments.map(comment => {
+      if (comment.id === commentId) {
+        // 找到目标评论，更新它
+        return updater(comment)
+      }
+      
+      // 递归更新回复
+      if (comment.replies && Array.isArray(comment.replies) && comment.replies.length > 0) {
+        return {
+          ...comment,
+          replies: this.updateCommentInList(comment.replies, commentId, updater)
+        }
+      }
+      
+      return comment
+    })
+  },
+
+  // 点赞评论
+  async likeComment(e) {
+    const commentId = e.currentTarget.dataset.commentId
+    const isReply = e.currentTarget.dataset.isReply === 'true'
+    const parentId = e.currentTarget.dataset.parentId
+    
+    if (!commentId) {
+      wx.showToast({
+        title: '评论ID不存在',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+
+    // 查找评论
+    const found = this.findCommentInList(this.data.comments, commentId)
+    if (!found) {
+      wx.showToast({
+        title: '评论不存在',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+
+    const currentLiked = found.comment.liked
+    const currentLikes = found.comment.likes
+
+    // 乐观更新UI
+    const updatedComments = this.updateCommentInList(this.data.comments, commentId, (comment) => ({
+      ...comment,
+      liked: !currentLiked,
+      likes: Math.max(0, currentLikes + (currentLiked ? -1 : 1))
+    }))
+    
+    this.setData({
+      comments: updatedComments
+    })
+
+    try {
+      const blogApi = require('../../utils/blogApi.js')
+      
+      console.log('[likeComment] 开始点赞/取消点赞评论，commentId:', commentId, 'currentLiked:', currentLiked)
+      
+      if (currentLiked) {
+        // 取消点赞
+        console.log('[likeComment] 调用 unlikeComment API，路径: /api/blog/comments/' + commentId + '/like')
+        await blogApi.blogInteractionApi.unlikeComment(commentId)
+      } else {
+        // 点赞
+        console.log('[likeComment] 调用 likeComment API，路径: /api/blog/comments/' + commentId + '/like')
+        await blogApi.blogInteractionApi.likeComment(commentId)
+      }
+      
+      console.log('[likeComment] 点赞/取消点赞成功')
+      
+      // 可选：重新获取评论的点赞状态（确保数据同步）
+      // const interactionsResult = await blogApi.blogInteractionApi.getCommentInteractions(commentId)
+      // if (interactionsResult.success && interactionsResult.data) {
+      //   // 更新点赞状态
+      // }
+    } catch (error) {
+      // 回滚UI状态
+      const rolledBackComments = this.updateCommentInList(this.data.comments, commentId, (comment) => ({
+        ...comment,
+        liked: currentLiked,
+        likes: currentLikes
+      }))
+      
+      this.setData({
+        comments: rolledBackComments
+      })
+      
+      if (error.message && error.message.includes('认证')) {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none',
+          duration: 1500
+        })
+      } else {
+        wx.showToast({
+          title: error.message || '操作失败',
+          icon: 'none',
+          duration: 1500
+        })
+      }
+    }
+  },
+
+  // 回复评论
+  replyComment(e) {
+    const commentId = e.currentTarget.dataset.commentId
+    const parentId = e.currentTarget.dataset.parentId
+    
+    if (!commentId) {
+      return
+    }
+
+    // 查找评论（支持根评论和回复）
+    const found = this.findCommentInList(this.data.comments, commentId)
+    if (!found) {
+      wx.showToast({
+        title: '评论不存在',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+
+    const comment = found.comment
+    // 确定回复目标ID：
+    // 1. 如果comment.parentId存在，说明这是2级评论，回复时应该使用1级评论ID（comment.parentId）
+    // 2. 如果comment.parentId不存在，说明这是1级评论，回复时使用当前评论ID
+    // 3. 如果从dataset传入了parentId（WXML中传递的），优先使用它（这是1级评论ID）
+    let replyToId
+    if (parentId) {
+      // WXML中传递的parentId（1级评论ID）
+      replyToId = parentId
+    } else if (comment.parentId) {
+      // 2级评论，使用其parentId（1级评论ID）
+      replyToId = comment.parentId
+    } else {
+      // 1级评论，使用当前评论ID
+      replyToId = commentId
+    }
+    
+    this.setData({
+      showCommentInput: true,
+      replyingTo: replyToId, // 设置为1级评论ID（用于创建2级回复）
+      commentText: `@${comment.author || '匿名用户'} `,
+      commentInputFocus: true // 设置焦点状态，让输入框自动获得焦点
+    })
+  },
+
+  // 删除评论
+  async deleteComment(commentId) {
+    const postId = this.data.articleId
+    if (!postId || !commentId) {
+      wx.showToast({
+        title: '参数错误',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+
+    try {
+      const blogApi = require('../../utils/blogApi.js')
+      const result = await blogApi.blogInteractionApi.deleteComment(postId, commentId)
+      
+      if (result.success) {
+        // 重新获取文章详情（包含最新的评论列表）
+        const articleResult = await blogApi.articleApi.getDetail(postId, {
+          includeComments: true,
+          commentsPage: 1,
+          commentsPageSize: 10
+        })
+        
+        if (articleResult.success && articleResult.data) {
+          const commentsCount = articleResult.data.commentsCount || 0
+          
+          // 更新评论列表
+          let comments = []
+          if (articleResult.comments && articleResult.comments.comments && Array.isArray(articleResult.comments.comments)) {
+            comments = this.formatComments(articleResult.comments.comments)
+          }
+          
+          this.setData({
+            comments: comments,
+            commentsCount: commentsCount
+          })
+        }
+        
+        wx.showToast({
+          title: '删除成功',
+          icon: 'success',
+          duration: 1500
+        })
+      }
+    } catch (error) {
+      if (error.message && error.message.includes('认证')) {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none',
+          duration: 1500
+        })
+      } else if (error.message && error.message.includes('权限')) {
+        wx.showToast({
+          title: '无权删除此评论',
+          icon: 'none',
+          duration: 1500
+        })
+      } else {
+        wx.showToast({
+          title: error.message || '删除失败',
+          icon: 'none',
+          duration: 1500
+        })
+      }
+    }
+  },
+
+  // 加载更多评论
+  async loadMoreComments() {
+    const postId = this.data.articleId
+    if (!postId) {
+      wx.showToast({
+        title: '文章ID不存在',
+        icon: 'none',
+        duration: 1500
+      })
+      return
+    }
+
+    const nextPage = this.data.commentsPage + 1
+    
+    this.setData({
+      loadingComments: true
+    })
+
+    try {
+      const blogApi = require('../../utils/blogApi.js')
+      const result = await blogApi.articleApi.getDetail(postId, {
+        includeComments: true,
+        commentsPage: nextPage,
+        commentsPageSize: this.data.commentsPageSize || 10
+      })
+
+      if (result.success && result.comments && result.comments.comments && Array.isArray(result.comments.comments)) {
+        const newComments = this.formatComments(result.comments.comments)
+        const currentComments = this.data.comments || []
+        
+        // 合并评论列表（追加到现有列表）
+        const updatedComments = [...currentComments, ...newComments]
+        
+        // 判断是否还有更多评论
+        const totalPages = result.comments.totalPages || 1
+        const hasMoreComments = nextPage < totalPages
+        
+        this.setData({
+          comments: updatedComments,
+          commentsPage: nextPage,
+          hasMoreComments: hasMoreComments,
+          loadingComments: false
+        })
+        
+        console.log('[loadMoreComments] 加载更多评论成功，当前页:', nextPage, '总页数:', totalPages, '是否还有更多:', hasMoreComments)
+      } else {
+        this.setData({
+          loadingComments: false
+        })
+      }
+    } catch (error) {
+      console.error('[loadMoreComments] 加载更多评论失败:', error)
+      this.setData({
+        loadingComments: false
+      })
+      
+      wx.showToast({
+        title: error.message || '加载失败',
+        icon: 'none',
+        duration: 1500
       })
     }
   }

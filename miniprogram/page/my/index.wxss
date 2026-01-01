@@ -6,31 +6,147 @@
   background: #f5f5f5;
 }
 
+/* 键盘显示时，禁用页面滚动和点击穿透 */
+.page.keyboard-showing {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
 .container {
   padding: 0;
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* ========== 用户信息区域 ========== */
-.user-section {
-  padding: 80rpx 40rpx 60rpx;
+/* 键盘显示时，禁用容器内的交互（防止点击穿透） */
+.container.keyboard-showing {
+  pointer-events: none;
+  /* 确保容器内容不可点击 */
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ========== 沉浸式头部区域 ========== */
+.header-section {
+  position: relative;
+  padding: calc(env(safe-area-inset-top) + 80rpx) 40rpx 60rpx;
+  background: linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 50%, #d4c4b0 100%);
+  /* 埃及主题暖沙色渐变 */
+  min-height: 300rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 设置按钮（右上角） */
+.settings-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 20rpx);
+  right: 40rpx;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.settings-icon {
+  font-size: 40rpx;
+  color: #333333;
+  opacity: 0.8;
+}
+
+/* 设置菜单 */
+.settings-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.settings-menu-content {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 80rpx);
+  right: 40rpx;
   background: #ffffff;
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  min-width: 200rpx;
+}
+
+.settings-menu-item {
+  padding: 32rpx 40rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.settings-menu-item:last-child {
+  border-bottom: none;
+}
+
+.settings-menu-item:active {
+  background-color: #f5f5f5;
+}
+
+.settings-menu-divider {
+  height: 1rpx;
+  background: #f5f5f5;
+  margin: 8rpx 0;
+}
+
+.settings-menu-icon {
+  font-size: 36rpx;
+  line-height: 1;
+}
+
+.settings-menu-text {
+  font-size: 28rpx;
+  color: #333333;
+  flex: 1;
+}
+
+/* 用户信息卡片 */
+.user-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 60rpx 40rpx 40rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 600rpx;
+  margin: 0 auto;
+}
+
+.user-section {
+  padding: 0;
+  background: transparent;
   position: relative;
 }
 
 .user-avatar-wrapper {
   margin-bottom: 32rpx;
+  text-align: center;
 }
 
 .user-avatar {
-  width: 120rpx;
-  height: 120rpx;
+  width: 140rpx;
+  height: 140rpx;
   border-radius: 50%;
   background: #f0f0f0;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
 }
 
 .user-avatar-text {
@@ -61,13 +177,8 @@
   display: block;
   font-size: 26rpx;
   color: #999999;
-}
-
-.logout-btn {
-  margin-top: 20rpx;
-  color: #666666;
-  border-color: #e0e0e0;
-  font-size: 26rpx;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  letter-spacing: 0.5rpx;
 }
 
 .welcome-section {
@@ -138,6 +249,41 @@
   display: flex;
   flex-direction: column;
   gap: 48rpx;
+}
+
+/* 登录提示信息 */
+.login-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 24rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  border-left: 4rpx solid #333333;
+  margin-bottom: 8rpx;
+}
+
+.tip-icon {
+  font-size: 32rpx;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.tip-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #666666;
+  line-height: 1.6;
+}
+
+/* 暗色主题 - 登录提示 */
+[data-weui-theme=dark] .login-tip {
+  background: #2c2c2e;
+  border-left-color: #ffffff;
+}
+
+[data-weui-theme=dark] .tip-text {
+  color: #8e8e93;
 }
 
 .form-group {
@@ -239,6 +385,47 @@
   position: relative;
   margin-top: 16rpx;
   min-height: 88rpx;
+}
+
+/* PIN 表单组 - 键盘显示时隐藏 */
+.pin-form-group {
+  transition: opacity 0.2s;
+}
+
+.page.keyboard-showing .pin-form-group {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 固定定位的 PIN 输入框（键盘显示时） */
+.pin-input-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9998;
+  background: #ffffff;
+  padding: 40rpx;
+  padding-top: calc(env(safe-area-inset-top) + 40rpx);
+  border-bottom: 1rpx solid #e0e0e0;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+
+.pin-fixed-label {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #333333;
+  margin-bottom: 16rpx;
+}
+
+/* 暗色主题 - 固定 PIN 输入框 */
+[data-weui-theme=dark] .pin-input-fixed {
+  background: #1c1c1e;
+  border-bottom-color: #38383a;
+}
+
+[data-weui-theme=dark] .pin-fixed-label {
+  color: #ffffff;
 }
 
 /* 隐藏实际输入框，但保持可点击和聚焦 */
@@ -367,11 +554,254 @@
   opacity: 0.8;
 }
 
+/* ========== 数据统计区域 ========== */
+.stats-section {
+  margin: -40rpx 40rpx 32rpx;
+  position: relative;
+  z-index: 5;
+}
+
+.stats-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 48rpx 0;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 40rpx;
+}
+
+.stat-number {
+  font-size: 56rpx;
+  font-weight: 600;
+  color: #333333;
+  line-height: 1.2;
+  margin-bottom: 12rpx;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.stat-label {
+  font-size: 26rpx;
+  color: #666666;
+  font-weight: 400;
+}
+
+.stat-divider {
+  width: 1rpx;
+  height: 80rpx;
+  background: #e8e8e8;
+  opacity: 0.5;
+}
+
+/* ========== 功能菜单区域 ========== */
+.menu-section {
+  margin: 0 40rpx 32rpx;
+}
+
+.menu-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 40rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+  transition: background-color 0.2s;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:active {
+  background-color: #f8f8f8;
+}
+
+.menu-item-left {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  flex: 1;
+}
+
+.menu-icon {
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.menu-text {
+  font-size: 30rpx;
+  color: #333333;
+  font-weight: 400;
+}
+
+.menu-arrow {
+  font-size: 36rpx;
+  color: #cccccc;
+  font-weight: 300;
+}
+
+/* 文章列表区域 */
+.articles-section {
+  margin: 0 40rpx 32rpx;
+}
+
+.loading-container,
+.error-container,
+.empty-container {
+  padding: 80rpx 0;
+  text-align: center;
+}
+
+.loading-text,
+.error-text,
+.empty-text {
+  font-size: 28rpx;
+  color: #999999;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.retry-btn {
+  margin-top: 24rpx;
+  color: #333333;
+  border-color: #e0e0e0;
+}
+
+.articles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.article-card {
+  display: flex;
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+  margin-bottom: 32rpx;
+}
+
+.article-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+}
+
+.article-image-wrapper {
+  width: 240rpx;
+  height: 180rpx;
+  flex-shrink: 0;
+  background: #f5f5f5;
+  overflow: hidden;
+  border-radius: 24rpx 0 0 24rpx;
+}
+
+.article-image {
+  width: 100%;
+  height: 100%;
+}
+
+.article-content {
+  flex: 1;
+  padding: 32rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.article-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333333;
+  line-height: 1.5;
+  margin-bottom: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.article-description {
+  font-size: 26rpx;
+  color: #999999;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.article-meta {
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 16rpx;
+}
+
+.meta-time {
+  font-size: 22rpx;
+  color: #cccccc;
+  font-weight: 300;
+}
+
+.load-more-container {
+  padding: 40rpx 0;
+  text-align: center;
+  min-height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.load-more-btn {
+  color: #333333;
+  border-color: #e0e0e0;
+}
+
+.loading-more {
+  padding: 20rpx 0;
+}
+
+.loading-more-text {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+.no-more {
+  padding: 20rpx 0;
+}
+
+.no-more-text {
+  font-size: 24rpx;
+  color: #cccccc;
+}
+
 /* ========== 反馈建议区域 ========== */
 .feedback-section {
-  margin-top: 24rpx;
-  padding: 0 40rpx 40rpx;
+  margin: 0 40rpx 32rpx;
   background: #ffffff;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .section-header {
@@ -497,10 +927,41 @@
   background: #000000;
 }
 
-[data-weui-theme=dark] .user-section,
+[data-weui-theme=dark] .header-section {
+  background: linear-gradient(135deg, #2c2c2e 0%, #1c1c1e 50%, #0f0f0f 100%);
+}
+
+[data-weui-theme=dark] .user-card,
+[data-weui-theme=dark] .stats-card,
+[data-weui-theme=dark] .menu-card,
 [data-weui-theme=dark] .login-section,
 [data-weui-theme=dark] .feedback-section {
   background: #1c1c1e;
+}
+
+[data-weui-theme=dark] .settings-menu-content {
+  background: #2c2c2e;
+}
+
+[data-weui-theme=dark] .settings-menu-text {
+  color: #ffffff;
+}
+
+[data-weui-theme=dark] .settings-menu-item {
+  border-bottom-color: #38383a;
+}
+
+[data-weui-theme=dark] .settings-menu-item:active {
+  background-color: #38383a;
+}
+
+[data-weui-theme=dark] .settings-menu-divider {
+  background: #38383a;
+}
+
+[data-weui-theme=dark] .settings-icon {
+  color: #ffffff;
+  opacity: 0.8;
 }
 
 [data-weui-theme=dark] .user-avatar {
@@ -592,6 +1053,72 @@
   border-color: #38383a;
 }
 
+/* 暗色主题 - 数据统计 */
+[data-weui-theme=dark] .stat-number {
+  color: #ffffff;
+}
+
+[data-weui-theme=dark] .stat-label {
+  color: #8e8e93;
+}
+
+[data-weui-theme=dark] .stat-divider {
+  background: #38383a;
+}
+
+/* 暗色主题 - 功能菜单 */
+[data-weui-theme=dark] .menu-item {
+  border-bottom-color: #38383a;
+}
+
+[data-weui-theme=dark] .menu-item:active {
+  background-color: #2c2c2e;
+}
+
+[data-weui-theme=dark] .menu-text {
+  color: #ffffff;
+}
+
+[data-weui-theme=dark] .menu-arrow {
+  color: #666666;
+}
+
+[data-weui-theme=dark] .article-card {
+  background: #2c2c2e;
+}
+
+[data-weui-theme=dark] .article-title {
+  color: #ffffff;
+}
+
+[data-weui-theme=dark] .article-description {
+  color: #8e8e93;
+}
+
+[data-weui-theme=dark] .meta-time {
+  color: #8e8e93;
+}
+
+[data-weui-theme=dark] .loading-text,
+[data-weui-theme=dark] .error-text,
+[data-weui-theme=dark] .empty-text {
+  color: #8e8e93;
+}
+
+[data-weui-theme=dark] .retry-btn,
+[data-weui-theme=dark] .load-more-btn {
+  color: #ffffff;
+  border-color: #38383a;
+}
+
+[data-weui-theme=dark] .loading-more-text {
+  color: #8e8e93;
+}
+
+[data-weui-theme=dark] .no-more-text {
+  color: #666666;
+}
+
 /* 暗色主题 - PIN码输入框 */
 [data-weui-theme=dark] .pin-box {
   background: #1F1F1F;
@@ -623,4 +1150,215 @@
   50% {
     box-shadow: 0 0 0 4rpx rgba(255, 255, 255, 0.3);
   }
+}
+
+/* ========== PIN输入弹窗 ========== */
+.pin-input-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+}
+
+.pin-input-modal-content {
+  background: #ffffff;
+  border-radius: 24rpx;
+  width: 100%;
+  max-width: 600rpx;
+  overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
+}
+
+.pin-input-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.pin-input-modal-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333333;
+}
+
+.pin-input-modal-close {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  color: #999999;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.pin-input-modal-close:active {
+  background-color: #f5f5f5;
+}
+
+.pin-input-modal-body {
+  padding: 40rpx;
+}
+
+.pin-input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.pin-input-form .form-label {
+  font-size: 24rpx;
+}
+
+.pin-input-wrapper-modal {
+  position: relative;
+  padding-bottom: 16rpx;
+  border-bottom: 2rpx solid #e0e0e0;
+  transition: border-color 0.2s;
+}
+
+.pin-input-wrapper-modal:focus-within {
+  border-bottom-color: #333333;
+}
+
+.pin-input-field {
+  width: 100%;
+  font-size: 36rpx;
+  color: #333333;
+  text-align: center;
+  letter-spacing: 12rpx;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-weight: 500;
+}
+
+.pin-input-placeholder {
+  color: #cccccc;
+}
+
+.pin-input-hint {
+  text-align: center;
+  margin-top: 8rpx;
+}
+
+.pin-input-hint text {
+  font-size: 22rpx;
+  color: #999999;
+}
+
+.pin-input-modal-footer {
+  display: flex;
+  gap: 24rpx;
+  padding: 32rpx 40rpx;
+  border-top: 1rpx solid #f5f5f5;
+}
+
+.pin-input-btn-cancel,
+.pin-input-btn-confirm {
+  flex: 1;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  border-radius: 12rpx;
+  border: none;
+  padding: 0;
+}
+
+.pin-input-btn-cancel {
+  background: #f5f5f5;
+  color: #666666;
+}
+
+.pin-input-btn-cancel::after {
+  border: none;
+}
+
+.pin-input-btn-confirm {
+  background: #e0e0e0;
+  color: #999999;
+}
+
+.pin-input-btn-confirm::after {
+  border: none;
+}
+
+.pin-input-btn-confirm.active {
+  background: #333333;
+  color: #ffffff;
+}
+
+.pin-input-btn-confirm[disabled] {
+  background: #e0e0e0;
+  color: #999999;
+}
+
+/* 暗色主题 - PIN输入弹窗 */
+[data-weui-theme=dark] .pin-input-modal-content {
+  background: #1c1c1e;
+}
+
+[data-weui-theme=dark] .pin-input-modal-title {
+  color: #ffffff;
+}
+
+[data-weui-theme=dark] .pin-input-modal-close {
+  color: #8e8e93;
+}
+
+[data-weui-theme=dark] .pin-input-modal-close:active {
+  background-color: #2c2c2e;
+}
+
+[data-weui-theme=dark] .pin-input-modal-header,
+[data-weui-theme=dark] .pin-input-modal-footer {
+  border-color: #38383a;
+}
+
+[data-weui-theme=dark] .pin-input-field {
+  color: #ffffff;
+}
+
+[data-weui-theme=dark] .pin-input-wrapper-modal {
+  border-bottom-color: #38383a;
+}
+
+[data-weui-theme=dark] .pin-input-wrapper-modal:focus-within {
+  border-bottom-color: #ffffff;
+}
+
+[data-weui-theme=dark] .pin-input-hint text {
+  color: #8e8e93;
+}
+
+[data-weui-theme=dark] .pin-input-btn-cancel {
+  background: #2c2c2e;
+  color: #8e8e93;
+}
+
+[data-weui-theme=dark] .pin-input-btn-confirm {
+  background: #2c2c2e;
+  color: #666666;
+}
+
+[data-weui-theme=dark] .pin-input-btn-confirm.active {
+  background: #ffffff;
+  color: #000000;
+}
+
+[data-weui-theme=dark] .pin-input-btn-confirm[disabled] {
+  background: #2c2c2e;
+  color: #666666;
 }

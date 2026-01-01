@@ -1,6 +1,7 @@
 // 发现页面 - 显示文章管理内容
 const blogApi = require('../../utils/blogApi.js')
-const { formatTimestamp } = require('../../util/util.js')
+const util = require('../../util/util.js')
+const formatRelativeTime = util.formatRelativeTime
 const authHelper = require('../../utils/authHelper.js')
 
 Page({
@@ -22,6 +23,8 @@ Page({
     categories: ['全部'],
     showCategories: false, // 控制分类区域显示
     showMyPosts: false, // 是否仅显示我的发布
+    // 需要排除的类别（默认不显示）- 支持部分匹配，如"汇率"会匹配"汇率转换"
+    excludedCategories: ['汇率', '天气', '翻译'],
     // 分类映射：中文名称 -> 原始名称数组（用于合并相同中文的不同英文变体）
     categoryNameMap: {},
     // 分页相关
@@ -62,11 +65,14 @@ Page({
     // 加载API列表（用于创建文章时选择分类）
     this.loadApiList()
     
-    // 一次性加载所有分类列表（不受文章加载影响）
-    this.loadAllCategories()
-    
-    // 加载文章列表
-    this.fetchArticles()
+    // 一次性加载所有分类列表，然后加载文章列表（确保分类列表加载完成后再请求文章，以便正确排除类别）
+    this.loadAllCategories().then(() => {
+      // 分类列表加载完成后，再加载文章列表（此时可以正确构建排除类别的请求参数）
+      this.fetchArticles()
+    }).catch(() => {
+      // 即使分类列表加载失败，也尝试加载文章列表（会在客户端过滤）
+      this.fetchArticles()
+    })
   },
 
   onShow() {
@@ -250,37 +256,65 @@ Page({
     
     const category = this.data.selectedCategory || ''
     const keyword = (this.data.searchKeyword || '').trim()
+    const excludedCategories = this.data.excludedCategories || []
     
-    console.log('[fetchArticles] 请求参数:', {
-      page: requestPage,
-      pageSize: pageSize,
-      category: category || '无',
-      search: keyword || '无',
-      isLoadMore: isLoadMore,
-      isPreload: isPreload
-    })
+    // 构建category参数
+    let categoryParam = undefined
+    if (category) {
+      // 如果用户选择了特定分类，使用用户选择的分类（允许显示被排除的类别，因为用户明确选择了）
+      categoryParam = category
+    } else {
+      // 如果用户没有选择分类（显示全部），需要排除指定的类别
+      // 获取所有可用分类，排除需要排除的类别（支持部分匹配）
+      const allCategories = this.data.categories.filter(cat => cat !== '全部')
+      const allowedCategories = allCategories.filter(cat => {
+        // 检查分类是否包含被排除的关键词（部分匹配）
+        return !excludedCategories.some(excluded => cat.includes(excluded))
+      })
+      
+      // 如果有允许的分类，使用逗号分隔的字符串格式请求多个类别
+      if (allowedCategories.length > 0) {
+        categoryParam = allowedCategories.join(',')
+        console.log('[fetchArticles] 默认排除类别，使用允许的分类:', allowedCategories)
+      }
+      // 如果没有允许的分类，categoryParam保持undefined，API会返回所有文章
+      // 这种情况下，我们会在客户端过滤掉被排除的类别
+    }
     
     // 使用新的 /api/blog/posts API 获取文章列表
     const params = {
       page: requestPage,
       pageSize: pageSize,
-      category: category || undefined,
-      search: keyword || undefined,
-      published: 'true' // 只返回已发布的文章
+      category: categoryParam,
+      search: keyword || undefined
     }
     
     // 如果选中了"仅显示我的发布"，检查是否已登录
     if (this.data.showMyPosts) {
       if (!authHelper.isLoggedInLocally()) {
         // 如果未登录，重置状态
+        console.log('[fetchArticles] 未登录，重置showMyPosts状态')
         this.setData({
           showMyPosts: false
         })
       } else {
-        // 已登录，添加 myPosts 参数
+        // 已登录，添加 myPosts 和 published 参数
         params.myPosts = true
+        params.published = 'true' // 只返回已发布的文章
+        console.log('[fetchArticles] 已登录，添加myPosts=true和published=true参数')
       }
     }
+    
+    console.log('[fetchArticles] 请求参数:', {
+      page: requestPage,
+      pageSize: pageSize,
+      category: category || '无',
+      search: keyword || '无',
+      showMyPosts: this.data.showMyPosts,
+      myPosts: params.myPosts || false,
+      isLoadMore: isLoadMore,
+      isPreload: isPreload
+    })
     
     return blogApi.blogPostApi.getList(params).then((result) => {
       console.log('[fetchArticles] API响应:', result)
@@ -367,7 +401,19 @@ Page({
       const originalCount = items.length
       console.log(`[fetchArticles] 开始过滤，原始数据${originalCount}条`)
       
+      // 如果用户没有选择特定分类，需要过滤掉被排除的类别
+      const excludedCategories = this.data.excludedCategories || []
+      const shouldFilterExcluded = !this.data.selectedCategory // 只有在没有选择特定分类时才过滤
+      
       items = items.filter(item => {
+        // 如果用户没有选择特定分类，过滤掉被排除的类别
+        if (shouldFilterExcluded && excludedCategories.length > 0) {
+          const itemCategory = (item.category || item.apiName || '').trim()
+          if (excludedCategories.some(excluded => itemCategory === excluded || itemCategory.includes(excluded))) {
+            console.log('[fetchArticles] 过滤掉被排除的类别:', itemCategory)
+            return false
+          }
+        }
         // 必须有id字段
         if (!item.id) {
           console.warn('[fetchArticles] 过滤掉无id的数据:', item)
@@ -516,12 +562,12 @@ Page({
         const canDelete = canEdit // 删除权限与编辑权限一致
         
         // 优先显示更新时间，如果没有更新时间再显示发布时间
-        const displayTime = item.updatedAt ? formatTimestamp(item.updatedAt) : (item.createdAt ? formatTimestamp(item.createdAt) : '')
+        const displayTime = item.updatedAt ? formatRelativeTime(item.updatedAt) : (item.createdAt ? formatRelativeTime(item.createdAt) : '')
         
         return {
           ...item,
-          createdAt: formatTimestamp(item.createdAt),
-          updatedAt: formatTimestamp(item.updatedAt),
+          createdAt: formatRelativeTime(item.createdAt),
+          updatedAt: formatRelativeTime(item.updatedAt),
           displayTime: displayTime, // 显示时间（优先更新时间）
           views: views,
           formattedViews: formattedViews,
@@ -664,6 +710,12 @@ Page({
   toggleMyPosts() {
     const newValue = !this.data.showMyPosts
     
+    console.log('[toggleMyPosts] 切换状态:', {
+      oldValue: this.data.showMyPosts,
+      newValue: newValue,
+      isLoggedIn: authHelper.isLoggedInLocally()
+    })
+    
     // 如果要开启"仅显示我的发布"，检查是否已登录
     if (newValue && !authHelper.isLoggedInLocally()) {
       wx.showModal({
@@ -686,9 +738,12 @@ Page({
       showMyPosts: newValue,
       page: 1,
       hasMore: true
+    }, () => {
+      // 在setData回调中确保状态已更新后再调用fetchArticles
+      console.log('[toggleMyPosts] 状态已更新，开始重新加载文章列表')
+      // 重新加载文章列表
+      this.fetchArticles()
     })
-    // 重新加载文章列表
-    this.fetchArticles()
   },
 
   viewDetail(e) {
@@ -793,6 +848,17 @@ Page({
         title: '删除成功',
         icon: 'success'
       })
+      
+      // 如果用户之前选中了"我的发布"，取消选中并刷新列表
+      if (this.data.showMyPosts) {
+        this.setData({
+          showMyPosts: false,
+          page: 1,
+          hasMore: true
+        })
+      }
+      
+      // 刷新列表
       this.fetchArticles()
     } catch (error) {
       wx.hideLoading()
@@ -868,85 +934,7 @@ Page({
     }
   },
 
-  // 双击瀑布流卡片图片区域回到顶部（微信推荐的最佳实践）
-  onItemImageTap(e) {
-    // 阻止事件冒泡，避免触发viewDetail
-    e.stopPropagation && e.stopPropagation()
-    
-    const now = Date.now()
-    const item = e.currentTarget.dataset.item
-    const itemId = item?.id || ''
-    const lastTapTime = this._lastImageTapTime || 0
-    const lastItemId = this._lastImageTapItemId || ''
-    const timeDiff = now - lastTapTime
-    
-    // 清除之前的定时器
-    if (this._imageTapTimer) {
-      clearTimeout(this._imageTapTimer)
-      this._imageTapTimer = null
-    }
-    
-    // 如果两次点击间隔小于350ms且是同一个item，认为是双击
-    if (timeDiff > 0 && timeDiff < 350 && itemId === lastItemId) {
-      // 双击：滚动到顶部
-      this.scrollToTop()
-      this._lastImageTapTime = 0
-      this._lastImageTapItemId = ''
-    } else {
-      // 单次点击：记录时间和itemId，等待可能的第二次点击
-      this._lastImageTapTime = now
-      this._lastImageTapItemId = itemId
-      // 如果350ms内没有第二次点击，执行查看详情
-      this._imageTapTimer = setTimeout(() => {
-        if (item) {
-          this.viewDetail({ currentTarget: { dataset: { item: item } } })
-        }
-        this._lastImageTapTime = 0
-        this._lastImageTapItemId = ''
-        this._imageTapTimer = null
-      }, 350)
-    }
-  },
-
-  // 双击标题回到顶部（微信推荐的最佳实践）
-  onItemTitleTap(e) {
-    // 阻止事件冒泡，避免触发viewDetail
-    e.stopPropagation && e.stopPropagation()
-    
-    const now = Date.now()
-    const item = e.currentTarget.dataset.item
-    const itemId = item?.id || ''
-    const lastTapTime = this._lastTitleTapTime || 0
-    const lastItemId = this._lastTitleTapItemId || ''
-    const timeDiff = now - lastTapTime
-    
-    // 清除之前的定时器
-    if (this._titleTapTimer) {
-      clearTimeout(this._titleTapTimer)
-      this._titleTapTimer = null
-    }
-    
-    // 如果两次点击间隔小于350ms且是同一个item，认为是双击
-    if (timeDiff > 0 && timeDiff < 350 && itemId === lastItemId) {
-      // 双击：滚动到顶部
-      this.scrollToTop()
-      this._lastTitleTapTime = 0
-      this._lastTitleTapItemId = ''
-    } else {
-      // 单次点击：记录时间和itemId，等待可能的第二次点击
-      this._lastTitleTapTime = now
-      this._lastTitleTapItemId = itemId
-      // 如果350ms内没有第二次点击，执行查看详情
-      this._titleTapTimer = setTimeout(() => {
-        if (item) {
-          this.viewDetail({ currentTarget: { dataset: { item: item } } })
-        }
-        this._lastTitleTapTime = 0
-        this._lastTitleTapItemId = ''
-        this._titleTapTimer = null
-      }, 350)
-    }
-  },
+  // 双击功能已移除，现在点击卡片立即跳转
 
   // 滚动到顶部（微信推荐的最佳实践）
   scrollToTop() {

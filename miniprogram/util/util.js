@@ -90,6 +90,85 @@ function formatTimestamp(timestamp) {
   return formatDateTime(date, false)
 }
 
+/**
+ * 格式化时间戳为相对时间（人性化显示）
+ * @param {string|Date|number} timestamp - 时间戳（ISO字符串、Date对象或时间戳数字）
+ * @returns {string} 相对时间字符串，如 "刚刚"、"5分钟前"、"2小时前"、"3天前"、"2024-01-01"
+ */
+function formatRelativeTime(timestamp) {
+  if (!timestamp) {
+    return ''
+  }
+  
+  let date
+  if (timestamp instanceof Date) {
+    date = timestamp
+  } else if (typeof timestamp === 'string') {
+    // 处理ISO格式字符串，如 "2025-12-25T19:12:29.950+02:00"
+    date = new Date(timestamp)
+  } else if (typeof timestamp === 'number') {
+    // 处理时间戳数字
+    date = new Date(timestamp)
+  } else {
+    return String(timestamp)
+  }
+  
+  // 检查日期是否有效
+  if (isNaN(date.getTime())) {
+    return String(timestamp)
+  }
+  
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  
+  // 如果时间在未来（可能是服务器时间比客户端快，或者时区问题），返回具体日期
+  // 但允许小的时间差（5分钟内），可能是时钟不同步导致的
+  if (diff < -5 * 60 * 1000) {
+    // 时间在未来超过5分钟，返回具体日期
+    const year = date.getFullYear()
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    return [year, month, day].map(value => formatLeadingZeroNumber(value, 2)).join('-')
+  }
+  
+  // 如果时间在未来但在5分钟内，当作"刚刚"处理（可能是时钟不同步）
+  if (diff < 0) {
+    return '刚刚'
+  }
+  
+  // 计算时间差（毫秒）
+  const seconds = Math.floor(diff / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  
+  // 1分钟内：刚刚
+  if (seconds < 60) {
+    return '刚刚'
+  }
+  
+  // 1-59分钟：xx分钟前
+  if (minutes < 60) {
+    return `${minutes}分钟前`
+  }
+  
+  // 1-23小时：xx小时前
+  if (hours < 24) {
+    return `${hours}小时前`
+  }
+  
+  // 1-6天：x天前
+  if (days < 7) {
+    return `${days}天前`
+  }
+  
+  // 超过7天：显示具体日期 YYYY-MM-DD
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return [year, month, day].map(value => formatLeadingZeroNumber(value, 2)).join('-')
+}
+
 function compareVersion(v1, v2) {
   v1 = v1.split('.')
   v2 = v2.split('.')
@@ -151,6 +230,7 @@ module.exports = {
   fib,
   formatDateTime,
   formatTimestamp,
+  formatRelativeTime,
   compareVersion,
   extractChineseName
 }

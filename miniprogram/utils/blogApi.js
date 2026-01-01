@@ -5,12 +5,88 @@
 
 const envHelper = require('./envHelper.js')
 const config = require('../config.js')
+const authHelper = require('./authHelper.js')
+
+/**
+ * 处理未登录错误：清除登录状态并跳转到"我的"页面
+ * @param {string} message - 错误消息
+ */
+function handleUnauthorizedError(message) {
+  console.log('[blogApi] 检测到未登录错误，清除登录状态并跳转')
+  
+  // 清除登录状态
+  try {
+    authHelper.clearLoginInfo()
+    // 更新全局状态（安全地获取app实例）
+    try {
+      const app = getApp()
+      if (app && app.globalData) {
+        app.globalData.user = null
+        app.globalData.isLoggedIn = false
+      }
+    } catch (appError) {
+      console.warn('[blogApi] 无法获取app实例:', appError)
+    }
+  } catch (error) {
+    console.error('[blogApi] 清除登录状态失败:', error)
+  }
+  
+  // 提示用户并跳转
+  wx.showToast({
+    title: '登录已过期，请重新登录',
+    icon: 'none',
+    duration: 2000
+  })
+  
+  // 延迟跳转，让用户看到提示
+  setTimeout(() => {
+    try {
+      wx.switchTab({
+        url: '/page/my/index',
+        fail: (err) => {
+          console.error('[blogApi] 跳转到"我的"页面失败:', err)
+          // 如果switchTab失败，尝试使用navigateTo（但需要确保路径正确）
+          wx.navigateTo({
+            url: '/page/my/index',
+            fail: () => {
+              console.error('[blogApi] navigateTo也失败，无法跳转')
+            }
+          })
+        }
+      })
+    } catch (error) {
+      console.error('[blogApi] 跳转异常:', error)
+    }
+  }, 500)
+}
+
+/**
+ * 检查响应是否为未登录错误
+ * @param {Object} responseData - API响应数据
+ * @param {number} statusCode - HTTP状态码
+ * @returns {boolean} 是否为未登录错误
+ */
+function isUnauthorizedError(responseData, statusCode) {
+  // 检查状态码401
+  if (statusCode === 401) {
+    return true
+  }
+  
+  // 检查业务状态：success: false 且 message 包含"未登录"
+  if (responseData && responseData.success === false && responseData.message) {
+    const message = String(responseData.message).toLowerCase()
+    return message.includes('未登录') || 
+           message.includes('未认证') || 
+           message.includes('unauthorized') ||
+           message.includes('请先登录') ||
+           message.includes('需要登录')
+  }
+  
+  return false
+}
 
 // API基础URL
 const API_BASE_URL = `${config.apiBaseDomain}/api/blog-admin`
-
-// API Token（应该从安全的地方获取，这里先硬编码，后续可以改为从配置或云函数获取）
-const API_TOKEN = '210311199405041819'
 
 /**
  * 通用请求函数
@@ -28,11 +104,15 @@ function request(options) {
     // 构建完整URL
     const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`
     
-    // 构建请求头
+    // 获取用户认证头（包含 x-user-token）
+    const authApi = require('./authApi.js')
+    const authHeaders = authApi.getAuthHeaders ? authApi.getAuthHeaders() : {}
+    
+    // 构建请求头（不再固定添加 X-API-Token，可通过 header 参数自定义）
     const requestHeader = {
       'Content-Type': 'application/json',
-      'X-API-Token': API_TOKEN,
-      ...header
+      ...authHeaders, // 合并用户认证头（包含 x-user-token）
+      ...header // 允许通过 header 参数自定义所有请求头
     }
     
     console.log(`[blogApi] ${method} ${fullUrl}`, data)
@@ -54,6 +134,12 @@ function request(options) {
         if (res.statusCode === 200) {
           // 检查业务状态
           if (responseData && responseData.success === false) {
+            // 检查是否为未登录错误
+            if (isUnauthorizedError(responseData, res.statusCode)) {
+              handleUnauthorizedError(responseData.message || '未登录')
+              reject(new Error(responseData.message || '未登录'))
+              return
+            }
             reject(new Error(responseData.message || '请求失败'))
             return
           }
@@ -69,6 +155,8 @@ function request(options) {
           // 成功：返回数据
           resolve(responseData)
         } else if (res.statusCode === 401) {
+          // 处理未登录错误
+          handleUnauthorizedError(responseData && responseData.message || '未登录')
           reject(new Error(responseData && responseData.message || '认证失败，请检查API Token'))
         } else if (res.statusCode === 403) {
           reject(new Error(responseData && responseData.message || '权限不足'))
@@ -117,11 +205,41 @@ const articleApi = {
 
   /**
    * 获取文章详情
-   * @param {string} id - 文章ID
-   * @returns {Promise} 返回文章详情
+   * @param {string} id - 文章ID或slug
+   * @param {Object} options - 查询选项
+   * @param {boolean} options.includeComments - 是否包含评论列表（默认 true，API 默认也包含）
+   * @param {number} options.commentsPage - 评论页码（默认 1）
+   * @param {number} options.commentsPageSize - 每页评论数量（默认 10）
+   * @returns {Promise} 返回文章详情，可能包含 comments 字段
    */
-  getDetail(id) {
-    return request({ url: `/posts/${id}`, method: 'GET' })
+  getDetail(id, options = {}) {
+    const queryParams = []
+    
+    // 默认包含评论（如果未指定或为 true）
+    if (options.includeComments !== false) {
+      queryParams.push('includeComments=true')
+      
+      // 添加评论分页参数（如果指定了）
+      if (options.commentsPage) {
+        queryParams.push(`commentsPage=${options.commentsPage}`)
+      } else {
+        // 默认第一页
+        queryParams.push('commentsPage=1')
+      }
+      
+      if (options.commentsPageSize) {
+        queryParams.push(`commentsPageSize=${options.commentsPageSize}`)
+      } else {
+        // 默认每页10条
+        queryParams.push('commentsPageSize=10')
+      }
+    } else {
+      // 明确不包含评论
+      queryParams.push('includeComments=false')
+    }
+    
+    const url = `/posts/${id}${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`
+    return request({ url, method: 'GET' })
   },
 
   /**
@@ -308,11 +426,11 @@ const blogPostApi = {
       
       const requestHeader = {
         'Content-Type': 'application/json',
-        'X-API-Token': API_TOKEN,
         ...authHeaders // 合并用户认证头（包含 x-user-token）
       }
       
       console.log(`[blogPostApi] GET ${fullUrl}`)
+      console.log(`[blogPostApi] 请求参数:`, params)
       console.log(`[blogPostApi] 请求头:`, requestHeader)
       
       wx.request({
@@ -328,6 +446,12 @@ const blogPostApi = {
           if (res.statusCode === 200) {
             // 检查业务状态
             if (responseData && responseData.success === false) {
+              // 检查是否为未登录错误
+              if (isUnauthorizedError(responseData, res.statusCode)) {
+                handleUnauthorizedError(responseData.message || '未登录')
+                reject(new Error(responseData.message || '未登录'))
+                return
+              }
               reject(new Error(responseData.message || '请求失败'))
               return
             }
@@ -341,6 +465,8 @@ const blogPostApi = {
             
             resolve(responseData)
           } else if (res.statusCode === 401) {
+            // 处理未登录错误
+            handleUnauthorizedError(responseData && responseData.message || '未登录')
             reject(new Error(responseData && responseData.message || '认证失败，请检查API Token'))
           } else if (res.statusCode === 403) {
             reject(new Error(responseData && responseData.message || '权限不足'))
@@ -380,8 +506,7 @@ const blogCategoryApi = {
     
     return new Promise((resolve, reject) => {
       const requestHeader = {
-        'Content-Type': 'application/json',
-        'X-API-Token': API_TOKEN
+        'Content-Type': 'application/json'
       }
       
       console.log(`[blogCategoryApi] GET ${fullUrl}`)
@@ -400,6 +525,12 @@ const blogCategoryApi = {
           if (res.statusCode === 200) {
             // 检查业务状态
             if (responseData && responseData.success === false) {
+              // 检查是否为未登录错误
+              if (isUnauthorizedError(responseData, res.statusCode)) {
+                handleUnauthorizedError(responseData.message || '未登录')
+                reject(new Error(responseData.message || '未登录'))
+                return
+              }
               reject(new Error(responseData.message || '请求失败'))
               return
             }
@@ -413,6 +544,8 @@ const blogCategoryApi = {
             
             resolve(responseData)
           } else if (res.statusCode === 401) {
+            // 处理未登录错误
+            handleUnauthorizedError(responseData && responseData.message || '未登录')
             reject(new Error(responseData && responseData.message || '认证失败，请检查API Token'))
           } else if (res.statusCode === 403) {
             reject(new Error(responseData && responseData.message || '权限不足'))
@@ -436,6 +569,213 @@ const blogCategoryApi = {
   }
 }
 
+/**
+ * 博客互动API（点赞、收藏、评论）
+ * 注意：这个API在 /api/blog 路径下，需要用户认证（Token）
+ */
+const blogInteractionApi = {
+  /**
+   * 通用请求函数（用于互动API）
+   * @param {string} url - 请求URL
+   * @param {string} method - 请求方法
+   * @param {Object} data - 请求数据
+   * @returns {Promise} 返回Promise对象
+   */
+  _request(url, method = 'GET', data = {}) {
+    return new Promise((resolve, reject) => {
+      const blogApiBaseUrl = `${config.apiBaseDomain}/api/blog`
+      const fullUrl = url.startsWith('http') ? url : `${blogApiBaseUrl}${url}`
+      
+      // 获取用户认证头（包含 x-user-token）
+      const authApi = require('./authApi.js')
+      const authHeaders = authApi.getAuthHeaders ? authApi.getAuthHeaders() : {}
+      
+      const requestHeader = {
+        'Content-Type': 'application/json',
+        ...authHeaders // 合并用户认证头（包含 x-user-token）
+      }
+      
+      console.log(`[blogInteractionApi] ${method} ${fullUrl}`, data)
+      console.log(`[blogInteractionApi] 请求头:`, requestHeader)
+      
+      wx.request({
+        url: fullUrl,
+        method: method,
+        header: requestHeader,
+        data: data,
+        timeout: 30000,
+        success: (res) => {
+          console.log(`[blogInteractionApi] 响应状态码:`, res.statusCode)
+          
+          let responseData = res.data
+          
+          if (res.statusCode === 200 || res.statusCode === 201) {
+            // 检查业务状态
+            if (responseData && responseData.success === false) {
+              reject(new Error(responseData.message || '请求失败'))
+              return
+            }
+            
+            // 处理URL替换
+            try {
+              responseData = envHelper.processApiResponse(responseData)
+            } catch (error) {
+              console.warn('[blogInteractionApi] URL处理失败，使用原始数据:', error)
+            }
+            
+            resolve(responseData)
+          } else if (res.statusCode === 401) {
+            // 处理未登录错误
+            handleUnauthorizedError(responseData && responseData.message || '未登录')
+            reject(new Error(responseData && responseData.message || '认证失败，请先登录'))
+          } else if (res.statusCode === 403) {
+            reject(new Error(responseData && responseData.message || '权限不足'))
+          } else if (res.statusCode === 404) {
+            reject(new Error(responseData && responseData.message || '资源不存在'))
+          } else if (res.statusCode === 400) {
+            const errorMsg = (responseData && responseData.message) || '请求参数错误'
+            const errors = (responseData && responseData.errors) || []
+            reject(new Error(`${errorMsg}${errors.length > 0 ? ': ' + errors.map(e => e.msg).join(', ') : ''}`))
+          } else {
+            reject(new Error((responseData && responseData.message) || `请求失败 (${res.statusCode})`))
+          }
+        },
+        fail: (err) => {
+          console.error('[blogInteractionApi] 请求失败:', err)
+          console.error('[blogInteractionApi] 错误详情:', JSON.stringify(err))
+          reject(new Error(err.errMsg || '网络错误，请检查网络连接'))
+        }
+      })
+    })
+  },
+
+  /**
+   * 点赞文章
+   * @param {string} postId - 文章ID
+   * @returns {Promise} 返回点赞结果
+   */
+  likePost(postId) {
+    return this._request(`/posts/${postId}/like`, 'POST')
+  },
+
+  /**
+   * 取消点赞文章
+   * @param {string} postId - 文章ID
+   * @returns {Promise} 返回取消点赞结果
+   */
+  unlikePost(postId) {
+    return this._request(`/posts/${postId}/like`, 'DELETE')
+  },
+
+  /**
+   * 收藏文章
+   * @param {string} postId - 文章ID
+   * @returns {Promise} 返回收藏结果
+   */
+  favoritePost(postId) {
+    return this._request(`/posts/${postId}/favorite`, 'POST')
+  },
+
+  /**
+   * 取消收藏文章
+   * @param {string} postId - 文章ID
+   * @returns {Promise} 返回取消收藏结果
+   */
+  unfavoritePost(postId) {
+    return this._request(`/posts/${postId}/favorite`, 'DELETE')
+  },
+
+  /**
+   * 创建评论
+   * @param {string} postId - 文章ID
+   * @param {Object} data - 评论数据
+   * @param {string} data.content - 评论内容（必填）
+   * @param {string} data.parentId - 父评论ID（可选，用于回复评论）
+   * @returns {Promise} 返回创建的评论
+   */
+  createComment(postId, data) {
+    return this._request(`/posts/${postId}/comments`, 'POST', data)
+  },
+
+  /**
+   * 删除评论
+   * @param {string} postId - 文章ID
+   * @param {string} commentId - 评论ID
+   * @returns {Promise} 返回删除结果
+   */
+  deleteComment(postId, commentId) {
+    return this._request(`/posts/${postId}/comments/${commentId}`, 'DELETE')
+  },
+
+  /**
+   * 获取用户对文章的互动状态（是否已点赞/收藏）
+   * @param {string} postId - 文章ID
+   * @returns {Promise} 返回互动状态，格式：{ success: true, data: { liked: boolean, favorited: boolean } }
+   */
+  getInteractions(postId) {
+    return this._request(`/posts/${postId}/interactions`, 'GET')
+  },
+
+  /**
+   * 点赞评论
+   * @param {string} commentId - 评论ID
+   * @returns {Promise} 返回点赞结果
+   */
+  likeComment(commentId) {
+    return this._request(`/comments/${commentId}/like`, 'POST')
+  },
+
+  /**
+   * 取消点赞评论
+   * @param {string} commentId - 评论ID
+   * @returns {Promise} 返回取消点赞结果
+   */
+  unlikeComment(commentId) {
+    return this._request(`/comments/${commentId}/like`, 'DELETE')
+  },
+
+  /**
+   * 获取用户对评论的互动状态（是否已点赞）
+   * @param {string} commentId - 评论ID
+   * @returns {Promise} 返回互动状态，格式：{ success: true, data: { liked: boolean } }
+   */
+  getCommentInteractions(commentId) {
+    return this._request(`/comments/${commentId}/interactions`, 'GET')
+  },
+
+  /**
+   * 获取我点赞的文章列表
+   * @param {Object} params - 查询参数
+   * @param {number} params.page - 页码（默认：1）
+   * @param {number} params.pageSize - 每页数量（默认：6）
+   * @returns {Promise} 返回文章列表，格式：{ success: true, data: [...], pagination: {...} }
+   */
+  getMyLikes(params = {}) {
+    const queryParams = []
+    if (params.page) queryParams.push(`page=${params.page}`)
+    if (params.pageSize) queryParams.push(`pageSize=${params.pageSize}`)
+    
+    const url = `/posts/my-likes${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`
+    return this._request(url, 'GET')
+  },
+
+  /**
+   * 获取我的收藏文章列表
+   * @param {Object} params - 查询参数
+   * @param {number} params.page - 页码（默认：1）
+   * @param {number} params.pageSize - 每页数量（默认：6）
+   * @returns {Promise} 返回文章列表，格式：{ success: true, data: [...], pagination: {...} }
+   */
+  getMyFavorites(params = {}) {
+    const queryParams = []
+    if (params.page) queryParams.push(`page=${params.page}`)
+    if (params.pageSize) queryParams.push(`pageSize=${params.pageSize}`)
+    
+    const url = `/posts/my-favorites${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`
+    return this._request(url, 'GET')
+  }
+}
+
 module.exports = {
   articleApi,
   categoryApi,
@@ -443,6 +783,7 @@ module.exports = {
   apiConfigApi,
   blogPostApi,
   blogCategoryApi,
+  blogInteractionApi,
   request
 }
 
