@@ -297,12 +297,18 @@ Page({
         this.setData({
           showMyPosts: false
         })
+        // 未登录时，默认只请求已发布的文章
+        params.published = 'true'
+        console.log('[fetchArticles] 未登录，默认只请求已发布的文章，published=true')
       } else {
-        // 已登录，添加 myPosts 和 published 参数
+        // 已登录，添加 myPosts 参数，不设置 published（显示我的所有文章，包括未发布的）
         params.myPosts = true
-        params.published = 'true' // 只返回已发布的文章
-        console.log('[fetchArticles] 已登录，添加myPosts=true和published=true参数')
+        console.log('[fetchArticles] 已登录，添加myPosts=true参数，不设置published（显示我的所有文章）')
       }
+    } else {
+      // 未选中"我的发布"，默认只请求已发布的文章
+      params.published = 'true'
+      console.log('[fetchArticles] 默认只请求已发布的文章，published=true')
     }
     
     console.log('[fetchArticles] 请求参数:', {
