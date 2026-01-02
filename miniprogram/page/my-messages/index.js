@@ -86,12 +86,12 @@ Page({
               phone: item.createdBy.phone || item.createdBy.phoneNumber || null
             }
           }
-          // 使用扁平字段
-          if (item.userName || item.userPhone || item.userId || item.nickname) {
+          // 使用扁平字段（包括 authorName，这是评论数据中常见的字段）
+          if (item.userName || item.userPhone || item.userId || item.nickname || item.authorName) {
             return {
-              id: item.userId || item.user_id || null,
-              name: item.userName || item.user_name || item.nickname || null,
-              phone: item.userPhone || item.user_phone || item.phone || null
+              id: item.userId || item.user_id || item.id || null,
+              name: item.userName || item.user_name || item.nickname || item.authorName || item.author_name || null,
+              phone: item.userPhone || item.user_phone || item.phone || item.authorPhone || item.author_phone || null
             }
           }
           // 如果没有找到用户信息，返回 null
