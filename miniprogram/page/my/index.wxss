@@ -633,6 +633,19 @@
   background-color: #f8f8f8;
 }
 
+.menu-item.active {
+  background-color: #e8f4ff;
+}
+
+.menu-item.active .menu-text {
+  color: #007aff;
+  font-weight: 500;
+}
+
+.menu-item.active .menu-icon {
+  opacity: 1;
+}
+
 .menu-item-left {
   display: flex;
   align-items: center;

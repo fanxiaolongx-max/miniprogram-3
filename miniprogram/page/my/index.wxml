@@ -247,7 +247,7 @@
           <text class="menu-arrow">›</text>
           </view>
         </view>
-        <view class="menu-item" bindtap="showFeedbackForm">
+        <view class="menu-item {{feedbackButtonActive ? 'active' : ''}}" bindtap="showFeedbackForm">
           <view class="menu-item-left">
             <text class="menu-icon">💡</text>
             <text class="menu-text">功能反馈</text>

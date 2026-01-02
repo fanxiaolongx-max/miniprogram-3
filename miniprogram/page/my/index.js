@@ -109,6 +109,7 @@ Page({
     hasUnreadMessage: false, // 是否有未读消息（用于显示红点）
     showSettingsMenu: false, // 是否显示设置菜单
     showFeedbackForm: false, // 是否显示反馈表单
+    feedbackButtonActive: false, // 功能反馈按钮是否高亮
     // 修改PIN相关
     showPinInputModal: false, // 是否显示PIN输入弹窗
     pinInputType: '', // 'oldPin' | 'newPin' | 'confirmPin'
@@ -1882,10 +1883,12 @@ Page({
     }
   },
 
-  // 显示反馈表单
+  // 显示/隐藏反馈表单（切换）
   showFeedbackForm() {
+    const newState = !this.data.showFeedbackForm
     this.setData({
-      showFeedbackForm: true,
+      showFeedbackForm: newState,
+      feedbackButtonActive: newState,
       currentView: '' // 确保不在列表视图
     })
   },
