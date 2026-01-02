@@ -92,16 +92,21 @@ Page({
     isLoggedIn: false,
     user: null,
     // 我的喜欢和收藏相关
-    currentView: '', // 'likes' | 'favorites' | ''（空字符串表示显示反馈建议）
-    articlesList: [], // 文章列表
+    currentView: '', // 'likes' | 'favorites' | 'comments' | 'messages' | ''（空字符串表示显示反馈建议）
+    articlesList: [], // 文章列表（也用于评论和消息）
     articlesLoading: false, // 加载状态
     articlesError: false, // 错误状态
     articlesErrorMessage: '', // 错误消息
     currentPage: 1, // 当前页码
-    pageSize: 6, // 每页数量
+    pageSize: 6, // 每页数量（文章）
+    commentsPageSize: 10, // 评论每页数量
+    messagesPageSize: 10, // 消息每页数量
     hasMoreArticles: false, // 是否还有更多文章
     likesCount: 0, // 喜欢数量
     favoritesCount: 0, // 收藏数量
+    commentsCount: 0, // 评论数量
+    messagesUnreadCount: 0, // 未读消息数量
+    hasUnreadMessage: false, // 是否有未读消息（用于显示红点）
     showSettingsMenu: false, // 是否显示设置菜单
     showFeedbackForm: false, // 是否显示反馈表单
     // 修改PIN相关
@@ -179,18 +184,20 @@ Page({
       app.globalData.isLoggedIn = true
     }
 
-    // 然后验证服务器端登录状态
-    this.checkLoginStatus()
-    
-    // 如果已登录，加载统计数据
-    if (this.data.isLoggedIn) {
-      this.loadStats()
-    }
+    // 然后验证服务器端登录状态（首次加载，总是加载统计数据）
+    this.checkLoginStatus(true)
   },
 
   onShow() {
-    // 每次显示页面时检查并更新登录状态
-    this.checkLoginStatus()
+    // 每次显示页面时检查登录状态
+    this.checkLoginStatus(false)
+    
+    // 如果已登录，总是刷新统计数据（特别是未读消息数量）
+    // loadStats() 内部有防重复调用机制，不会重复请求
+    if (this.data.isLoggedIn && this.data.user) {
+      console.log('[onShow] 刷新统计数据')
+      this.loadStats()
+    }
   },
 
   onUnload() {
@@ -201,24 +208,122 @@ Page({
   },
 
   // 检查登录状态（使用统一的登录状态管理）
-  async checkLoginStatus() {
+  // @param {boolean} shouldLoadStats - 是否应该加载统计数据（首次加载时为true，onShow时为false）
+  async checkLoginStatus(shouldLoadStats = false) {
+    // 记录登录前的状态
+    const wasLoggedIn = this.data.isLoggedIn
+    const previousUserId = this.data.user?.id
+    
+    // 如果本地有登录信息，主动验证服务器端状态（认证错误时清除）
+    const localUser = authHelper.getLoginInfo()
+    if (localUser) {
+      try {
+        // 主动验证服务器端登录状态，如果认证失败则清除
+        const serverUser = await authHelper.verifyLoginStatus(true)
+        if (!serverUser) {
+          // 服务器验证失败（可能是认证错误），触发自动退出登录
+          console.log('[checkLoginStatus] 服务器验证失败，触发自动退出登录')
+          this.handleUnauthorizedError()
+          return
+        }
+        // 验证成功，更新状态
+        app.globalData.user = serverUser
+        app.globalData.isLoggedIn = true
+        this.setData({
+          isLoggedIn: true,
+          user: serverUser
+        })
+      } catch (error) {
+        // 如果是认证错误，触发自动退出登录
+        if (error.isAuthError || error.statusCode === 401) {
+          console.log('[checkLoginStatus] 检测到认证错误，触发自动退出登录')
+          this.handleUnauthorizedError()
+          return
+        }
+        // 其他错误，继续使用本地状态
+        console.warn('[checkLoginStatus] 验证登录状态异常:', error)
+      }
+    } else {
+      // 本地没有登录信息，使用标准方法检查
     await authHelper.checkAndUpdateLoginStatus(app, this)
-    // 如果已登录，设置头像图案并加载统计数据
-    if (this.data.isLoggedIn && this.data.user) {
+    }
+    
+    // 检查登录状态是否发生变化
+    const isNowLoggedIn = this.data.isLoggedIn
+    const currentUserId = this.data.user?.id
+    
+    // 如果从已登录变为未登录，或用户ID发生变化（重新登录），重置页面状态
+    const loginStatusChanged = wasLoggedIn !== isNowLoggedIn
+    const userChanged = previousUserId && currentUserId && previousUserId !== currentUserId
+    
+    if (loginStatusChanged || userChanged) {
+      console.log('[checkLoginStatus] 登录状态发生变化，重置页面状态', {
+        wasLoggedIn,
+        isNowLoggedIn,
+        previousUserId,
+        currentUserId
+      })
+      
+      // 重置页面到初始状态
+      this.setData({
+        currentView: '', // 重置视图，显示菜单
+        articlesList: [],
+        articlesError: false,
+        articlesErrorMessage: '',
+        articlesLoading: false,
+        currentPage: 1,
+        hasMoreArticles: false,
+        likesCount: 0,
+        favoritesCount: 0,
+        commentsCount: 0,
+        messagesUnreadCount: 0,
+        hasUnreadMessage: false,
+        showSettingsMenu: false,
+        showFeedbackForm: false,
+        showPinInputModal: false
+      })
+    }
+    
+    // 如果已登录，设置头像图案
+    if (isNowLoggedIn && this.data.user) {
       const avatarEmoji = getCuteAvatar(this.data.user.id)
       this.setData({
         avatarEmoji: avatarEmoji,
         showSettingsMenu: false, // 确保设置菜单关闭
         showPinInputModal: false // 确保PIN输入弹窗关闭
       })
-      // 加载统计数据
+      
+      // 只在以下情况加载统计数据：
+      // 1. 首次加载（shouldLoadStats = true）
+      // 2. 登录状态发生变化（loginStatusChanged = true）
+      // 3. 用户ID发生变化（userChanged = true）
+      if (shouldLoadStats || loginStatusChanged || userChanged) {
+        console.log('[checkLoginStatus] 加载统计数据', {
+          shouldLoadStats,
+          loginStatusChanged,
+          userChanged,
+          wasLoggedIn,
+          isNowLoggedIn,
+          previousUserId,
+          currentUserId
+        })
       this.loadStats()
+      } else {
+        console.log('[checkLoginStatus] 跳过加载统计数据（状态未变化）', {
+          shouldLoadStats,
+          loginStatusChanged,
+          userChanged
+        })
+      }
     } else {
       // 未登录时清空头像图案和统计数据
       this.setData({
         avatarEmoji: '',
         likesCount: 0,
         favoritesCount: 0,
+        commentsCount: 0,
+        messagesUnreadCount: 0,
+        hasUnreadMessage: false,
         showSettingsMenu: false, // 确保设置菜单关闭
         showPinInputModal: false // 确保PIN输入弹窗关闭
       })
@@ -591,10 +696,24 @@ Page({
         authHelper.handleLoginSuccess(result.user, app, this, result.token)
         // 设置头像图案
         const avatarEmoji = getCuteAvatar(result.user.id)
+        // 登录成功后重置页面状态
         this.setData({
           avatarEmoji: avatarEmoji,
+          currentView: '', // 重置视图，显示菜单
+          articlesList: [],
+          articlesError: false,
+          articlesErrorMessage: '',
+          articlesLoading: false,
+          currentPage: 1,
+          hasMoreArticles: false,
+          likesCount: 0,
+          favoritesCount: 0,
+          commentsCount: 0,
+          messagesUnreadCount: 0,
+          lastMessagesTotal: 0,
           showSettingsMenu: false, // 确保设置菜单关闭
-          showPinInputModal: false // 确保PIN输入弹窗关闭
+          showPinInputModal: false, // 确保PIN输入弹窗关闭
+          showFeedbackForm: false
         })
         // 登录成功后立即刷新统计数据
         this.loadStats()
@@ -767,10 +886,24 @@ Page({
       authHelper.handleLoginSuccess(result.user, app, this, result.token)
       // 设置头像图案
       const avatarEmoji = getCuteAvatar(result.user.id)
+      // 登录成功后重置页面状态
       this.setData({
         avatarEmoji: avatarEmoji,
+        currentView: '', // 重置视图，显示菜单
+        articlesList: [],
+        articlesError: false,
+        articlesErrorMessage: '',
+        articlesLoading: false,
+        currentPage: 1,
+        hasMoreArticles: false,
+        likesCount: 0,
+        favoritesCount: 0,
+        commentsCount: 0,
+        messagesUnreadCount: 0,
+        hasUnreadMessage: false,
         showSettingsMenu: false, // 确保设置菜单关闭
-        showPinInputModal: false // 确保PIN输入弹窗关闭
+        showPinInputModal: false, // 确保PIN输入弹窗关闭
+        showFeedbackForm: false
       })
       // 登录成功后立即刷新统计数据
       this.loadStats()
@@ -1181,48 +1314,32 @@ Page({
     })
   },
 
-  // 显示我的喜欢
-  showMyLikes() {
-    if (this.data.currentView === 'likes') {
-      // 如果已经是喜欢视图，点击后隐藏
-      this.setData({
-        currentView: '',
-        showFeedbackForm: false
-      })
-      return
-    }
-    this.setData({
-      currentView: 'likes',
-      articlesList: [],
-      currentPage: 1,
-      hasMoreArticles: false,
-      articlesError: false,
-      articlesErrorMessage: '',
-      showFeedbackForm: false
+  // 跳转到我的喜欢页面
+  navigateToMyLikes() {
+    wx.navigateTo({
+      url: '/page/my-likes/index'
     })
-    this.loadMyLikes()
   },
 
-  // 显示我的收藏
-  showMyFavorites() {
-    if (this.data.currentView === 'favorites') {
-      // 如果已经是收藏视图，点击后隐藏
-      this.setData({
-        currentView: '',
-        showFeedbackForm: false
-      })
-      return
-    }
-    this.setData({
-      currentView: 'favorites',
-      articlesList: [],
-      currentPage: 1,
-      hasMoreArticles: false,
-      articlesError: false,
-      articlesErrorMessage: '',
-      showFeedbackForm: false
+  // 跳转到我的收藏页面
+  navigateToMyFavorites() {
+    wx.navigateTo({
+      url: '/page/my-favorites/index'
     })
-    this.loadMyFavorites()
+  },
+
+  // 跳转到我的评论页面
+  navigateToMyComments() {
+    wx.navigateTo({
+      url: '/page/my-comments/index'
+    })
+  },
+
+  // 跳转到我的消息页面
+  navigateToMyMessages() {
+    wx.navigateTo({
+      url: '/page/my-messages/index'
+    })
   },
 
   // 检查是否为未登录错误
@@ -1236,33 +1353,42 @@ Page({
                        errorMessage.includes('请先登录') ||
                        errorMessage.includes('需要登录') ||
                        errorMessage.includes('认证失败') ||
+                       errorMessage.includes('登录过期') ||
                        errorMessage.includes('token') ||
-                       errorMessage.includes('401')
+                       errorMessage.includes('token已过期') ||
+                       errorMessage.includes('token expired') ||
+                       errorMessage.includes('expired') ||
+                       errorMessage.includes('401') ||
+                       error.statusCode === 401
     
     return isAuthError
   },
 
   // 处理未登录错误
   handleUnauthorizedError() {
-    console.log('[handleUnauthorizedError] 检测到未登录错误，清除登录状态')
+    console.log('[handleUnauthorizedError] 检测到未登录错误，自动退出登录')
     
-    // 清除登录状态
-    authHelper.clearLoginInfo()
+    // 使用统一的登出处理，确保完整清除所有状态
+    authHelper.handleLogout(app, this)
     
-    // 更新全局状态
-    app.globalData.user = null
-    app.globalData.isLoggedIn = false
-    
-    // 更新页面状态
+    // 重置页面到初始状态
     this.setData({
-      isLoggedIn: false,
-      user: null,
       avatarEmoji: '',
       currentView: '', // 隐藏文章列表，显示反馈建议
       articlesList: [],
       articlesError: false,
       articlesErrorMessage: '',
-      articlesLoading: false
+      articlesLoading: false,
+      currentPage: 1,
+      hasMoreArticles: false,
+      likesCount: 0,
+      favoritesCount: 0,
+      commentsCount: 0,
+      messagesUnreadCount: 0,
+      hasUnreadMessage: false,
+      showSettingsMenu: false,
+      showFeedbackForm: false,
+      showPinInputModal: false
     })
     
     // 提示用户
@@ -1419,6 +1545,10 @@ Page({
       this.loadMyLikes(this.data.currentPage + 1)
     } else if (this.data.currentView === 'favorites') {
       this.loadMyFavorites(this.data.currentPage + 1)
+    } else if (this.data.currentView === 'comments') {
+      this.loadMyComments(this.data.currentPage + 1)
+    } else if (this.data.currentView === 'messages') {
+      this.loadMyMessages(this.data.currentPage + 1)
     }
   },
 
@@ -1428,6 +1558,10 @@ Page({
       this.loadMyLikes(1)
     } else if (this.data.currentView === 'favorites') {
       this.loadMyFavorites(1)
+    } else if (this.data.currentView === 'comments') {
+      this.loadMyComments(1)
+    } else if (this.data.currentView === 'messages') {
+      this.loadMyMessages(1)
     }
   },
 
@@ -1756,20 +1890,221 @@ Page({
     })
   },
 
-  // 加载统计数据（在登录后调用）
-  async loadStats() {
-    if (!this.data.isLoggedIn) return
+  // 加载我的评论
+  async loadMyComments(page = 1) {
+    if (this.data.articlesLoading) return
+
+    this.setData({
+      articlesLoading: true,
+      articlesError: false,
+      articlesErrorMessage: ''
+    })
 
     try {
-      // 并行加载喜欢和收藏的第一页数据来获取总数
+      const result = await blogApi.blogInteractionApi.getMyComments({
+        page: page,
+        pageSize: this.data.commentsPageSize
+      })
+
+      // 检查业务状态中的未登录错误
+      if (result && result.success === false) {
+        const errorMessage = result.message || ''
+        if (this.isUnauthorizedError({ message: errorMessage })) {
+          this.handleUnauthorizedError()
+          return
+        }
+        throw new Error(errorMessage || '获取数据失败')
+      }
+
+      if (result && result.success && result.data) {
+        // 如果是第一页，替换整个列表；否则追加到现有列表
+        const currentList = this.data.articlesList || []
+        const newComments = page === 1 ? result.data : [...currentList, ...result.data]
+        const pagination = result.pagination || {}
+        const hasMore = pagination.currentPage < pagination.totalPages
+
+        console.log(`[loadMyComments] 加载第${page}页，当前列表长度: ${currentList.length}，新数据长度: ${result.data.length}，追加后长度: ${newComments.length}`)
+
+        // 更新统计数量（如果是第一页）
+        const updateData = {
+          articlesList: newComments,
+          currentPage: page,
+          hasMoreArticles: hasMore,
+          articlesLoading: false,
+          articlesError: false
+        }
+        if (page === 1) {
+          updateData.commentsCount = pagination.total || result.total || 0
+          console.log(`[loadMyComments] 更新评论数量: ${updateData.commentsCount}`)
+        }
+
+        this.setData(updateData)
+      } else {
+        throw new Error(result?.message || '获取数据失败')
+      }
+    } catch (error) {
+      console.error('[loadMyComments] 加载失败:', error)
+      
+      // 检查是否为未登录错误
+      if (this.isUnauthorizedError(error)) {
+        this.handleUnauthorizedError()
+        return
+      }
+      
+      this.setData({
+        articlesError: true,
+        articlesErrorMessage: error.message || '获取数据失败，请稍后重试',
+        articlesLoading: false
+      })
+    }
+  },
+
+  // 加载我的消息
+  async loadMyMessages(page = 1) {
+    if (this.data.articlesLoading) return
+
+    this.setData({
+      articlesLoading: true,
+      articlesError: false,
+      articlesErrorMessage: ''
+    })
+
+    try {
+      const result = await blogApi.blogInteractionApi.getMyPostsInteractions({
+        page: page,
+        pageSize: this.data.messagesPageSize,
+        type: 'all'
+      })
+
+      // 检查业务状态中的未登录错误
+      if (result && result.success === false) {
+        const errorMessage = result.message || ''
+        if (this.isUnauthorizedError({ message: errorMessage })) {
+          this.handleUnauthorizedError()
+          return
+        }
+        throw new Error(errorMessage || '获取数据失败')
+      }
+
+      if (result && result.success && result.data) {
+        // 合并所有类型的消息
+        const allMessages = []
+        if (result.data.comments && Array.isArray(result.data.comments)) {
+          result.data.comments.forEach(item => {
+            allMessages.push({ ...item, type: 'comment' })
+          })
+        }
+        if (result.data.likes && Array.isArray(result.data.likes)) {
+          result.data.likes.forEach(item => {
+            allMessages.push({ ...item, type: 'like' })
+          })
+        }
+        if (result.data.favorites && Array.isArray(result.data.favorites)) {
+          result.data.favorites.forEach(item => {
+            allMessages.push({ ...item, type: 'favorite' })
+          })
+        }
+
+        // 按时间排序（最新的在前）
+        allMessages.sort((a, b) => {
+          const timeA = new Date(a.createdAt || a.created_at || 0).getTime()
+          const timeB = new Date(b.createdAt || b.created_at || 0).getTime()
+          return timeB - timeA
+        })
+
+        // 如果是第一页，替换整个列表；否则追加到现有列表
+        const currentList = this.data.articlesList || []
+        const newMessages = page === 1 ? allMessages : [...currentList, ...allMessages]
+        const pagination = result.pagination || {}
+        const hasMore = pagination.currentPage < pagination.totalPages
+
+        console.log(`[loadMyMessages] 加载第${page}页，当前列表长度: ${currentList.length}，新数据长度: ${allMessages.length}，追加后长度: ${newMessages.length}`)
+
+        // 更新统计信息和未读数量
+        const statistics = result.data.statistics || {}
+        const totalMessages = (statistics.totalComments || 0) + (statistics.totalLikes || 0) + (statistics.totalFavorites || 0)
+        const lastTotal = this.data.lastMessagesTotal || 0
+        const unreadCount = totalMessages > lastTotal ? totalMessages - lastTotal : 0
+
+        const updateData = {
+          articlesList: newMessages,
+          currentPage: page,
+          hasMoreArticles: hasMore,
+          articlesLoading: false,
+          articlesError: false
+        }
+        
+        // 只在第一页时更新总数和未读数量
+        if (page === 1) {
+          updateData.lastMessagesTotal = totalMessages
+          // 如果当前正在查看消息页面，重置未读数量为0
+          if (this.data.currentView === 'messages') {
+            updateData.messagesUnreadCount = 0
+            updateData.hasUnreadMessage = false
+          } else {
+            // 如果不在消息页面，更新未读数量
+            updateData.messagesUnreadCount = unreadCount
+            updateData.hasUnreadMessage = unreadCount > 0
+          }
+        }
+
+        this.setData(updateData)
+      } else {
+        throw new Error(result?.message || '获取数据失败')
+      }
+    } catch (error) {
+      console.error('[loadMyMessages] 加载失败:', error)
+      
+      // 检查是否为未登录错误
+      if (this.isUnauthorizedError(error)) {
+        this.handleUnauthorizedError()
+        return
+      }
+      
+      this.setData({
+        articlesError: true,
+        articlesErrorMessage: error.message || '获取数据失败，请稍后重试',
+        articlesLoading: false
+      })
+    }
+  },
+
+  // 加载统计数据（在登录后调用）
+  async loadStats() {
+    if (!this.data.isLoggedIn) {
+      console.log('[loadStats] 用户未登录，跳过')
+      return
+    }
+    
+    // 防止重复调用
+    if (this._loadingStats) {
+      console.log('[loadStats] 正在加载中，跳过重复调用')
+      return
+    }
+    
+    // 记录调用堆栈，便于调试
+    console.log('[loadStats] 开始加载统计数据，调用堆栈:', new Error().stack)
+    
+    this._loadingStats = true
+
+    try {
+      // 并行加载喜欢、收藏、评论和消息的第一页数据来获取总数
       // 使用 pageSize=1 只获取第一页，但会返回完整的 pagination 信息（包括 total）
-      const [likesResult, favoritesResult] = await Promise.all([
+      const [likesResult, favoritesResult, commentsResult, messagesResult] = await Promise.all([
         blogApi.blogInteractionApi.getMyLikes({ page: 1, pageSize: 1 }).catch((err) => {
           console.error('[loadStats] 获取喜欢数量失败:', err)
           return { success: false }
         }),
         blogApi.blogInteractionApi.getMyFavorites({ page: 1, pageSize: 1 }).catch((err) => {
           console.error('[loadStats] 获取收藏数量失败:', err)
+          return { success: false }
+        }),
+        blogApi.blogInteractionApi.getMyComments({ page: 1, pageSize: 1 }).catch((err) => {
+          console.error('[loadStats] 获取评论数量失败:', err)
+          return { success: false }
+        }),
+        blogApi.blogInteractionApi.getMyPostsInteractions({ page: 1, pageSize: 1, type: 'all' }).catch((err) => {
+          console.error('[loadStats] 获取消息数量失败:', err)
           return { success: false }
         })
       ])
@@ -1782,7 +2117,6 @@ Page({
           likesCount: total
         })
       } else if (likesResult && likesResult.success === false) {
-        // 如果是业务错误（如未登录），不更新数量
         console.warn('[loadStats] 获取喜欢数量失败:', likesResult.message)
       }
 
@@ -1794,12 +2128,111 @@ Page({
           favoritesCount: total
         })
       } else if (favoritesResult && favoritesResult.success === false) {
-        // 如果是业务错误（如未登录），不更新数量
         console.warn('[loadStats] 获取收藏数量失败:', favoritesResult.message)
+      }
+
+      // 更新评论数量
+      if (commentsResult && commentsResult.success && commentsResult.pagination) {
+        const total = commentsResult.pagination.total || commentsResult.total || 0
+        console.log('[loadStats] 更新评论数量:', total)
+        this.setData({
+          commentsCount: total
+        })
+      } else if (commentsResult && commentsResult.success === false) {
+        console.warn('[loadStats] 获取评论数量失败:', commentsResult.message)
+      }
+
+      // 更新消息数量和未读提示（使用服务器返回的 notifications 对象）
+      console.log('[loadStats] messagesResult 完整数据:', messagesResult)
+      console.log('[loadStats] messagesResult.success:', messagesResult?.success)
+      console.log('[loadStats] messagesResult.data:', messagesResult?.data)
+      console.log('[loadStats] messagesResult.notifications:', messagesResult?.notifications)
+      console.log('[loadStats] messagesResult.data.notifications:', messagesResult?.data?.notifications)
+      
+      if (messagesResult && messagesResult.success) {
+        // 尝试从多个位置获取 notifications
+        // 1. 优先从 data.notifications 获取
+        // 2. 如果不存在，从顶层 notifications 获取
+        let notifications = null
+        if (messagesResult.data && messagesResult.data.notifications) {
+          notifications = messagesResult.data.notifications
+          console.log('[loadStats] 从 data.notifications 获取')
+        } else if (messagesResult.notifications) {
+          notifications = messagesResult.notifications
+          console.log('[loadStats] 从顶层 notifications 获取')
+        } else {
+          console.warn('[loadStats] notifications 不存在，检查数据结构:')
+          console.warn('[loadStats] messagesResult 键:', Object.keys(messagesResult))
+          if (messagesResult.data) {
+            console.warn('[loadStats] messagesResult.data 键:', Object.keys(messagesResult.data))
+          }
+          notifications = {}
+        }
+        
+        const notificationsObj = notifications || {}
+        
+        console.log('[loadStats] notifications 对象:', notificationsObj)
+        console.log('[loadStats] notifications 类型:', typeof notificationsObj)
+        console.log('[loadStats] notifications 键:', Object.keys(notificationsObj))
+        
+        // 计算未读数量：使用三个值的和
+        const unreadCommentsCount = Number(notificationsObj.unreadCommentsCount) || 0
+        const unreadLikesCount = Number(notificationsObj.unreadLikesCount) || 0
+        const unreadFavoritesCount = Number(notificationsObj.unreadFavoritesCount) || 0
+        const unreadCount = unreadCommentsCount + unreadLikesCount + unreadFavoritesCount
+        
+        console.log('[loadStats] 计算过程:', {
+          unreadCommentsCount_raw: notificationsObj.unreadCommentsCount,
+          unreadLikesCount_raw: notificationsObj.unreadLikesCount,
+          unreadFavoritesCount_raw: notificationsObj.unreadFavoritesCount,
+          unreadCommentsCount: unreadCommentsCount,
+          unreadLikesCount: unreadLikesCount,
+          unreadFavoritesCount: unreadFavoritesCount,
+          sum: unreadCount
+        })
+        
+        // 优先使用服务器返回的 hasUnreadMessage，如果不存在则根据计算的总数判断
+        const hasUnread = notificationsObj.hasUnreadMessage === true || (notificationsObj.hasUnreadMessage === undefined && unreadCount > 0)
+        
+        console.log('[loadStats] 更新消息通知状态:', {
+          hasUnreadMessage: hasUnread,
+          unreadCount: unreadCount,
+          unreadCommentsCount: unreadCommentsCount,
+          unreadLikesCount: unreadLikesCount,
+          unreadFavoritesCount: unreadFavoritesCount,
+          calculatedTotal: unreadCount,
+          rawNotifications: notificationsObj,
+          notificationsHasUnreadMessage: notificationsObj.hasUnreadMessage,
+          notificationsUnreadCount: notificationsObj.unreadCount
+        })
+        
+        // 总是更新未读数量（即使为0也要更新，以清除之前的未读状态）
+        this.setData({
+          messagesUnreadCount: unreadCount,
+          hasUnreadMessage: hasUnread
+        })
+        
+        console.log('[loadStats] 已更新页面数据:', {
+          messagesUnreadCount: unreadCount,
+          hasUnreadMessage: hasUnread
+        })
+      } else if (messagesResult && messagesResult.success === false) {
+        console.warn('[loadStats] 获取消息数量失败:', messagesResult.message)
+        // 如果获取失败，不清除未读状态（保持之前的状态）
+      } else {
+        console.warn('[loadStats] 消息结果格式异常:', {
+          hasMessagesResult: !!messagesResult,
+          success: messagesResult?.success,
+          hasData: !!messagesResult?.data,
+          messagesResult: messagesResult
+        })
       }
     } catch (error) {
       console.error('[loadStats] 加载统计数据失败:', error)
       // 静默失败，不影响用户体验
+    } finally {
+      // 清除加载标志
+      this._loadingStats = false
     }
   }
 })

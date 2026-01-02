@@ -1,4 +1,5 @@
 const { formatRelativeTime } = require('../../util/util.js')
+const app = getApp()
 
 /**
  * 根据用户ID生成固定的可爱头像图案
@@ -133,7 +134,9 @@ Page({
     commentText: '', // 评论内容
     replyingTo: null, // 正在回复的评论ID
     commentInputFocus: false, // 评论输入框焦点状态
-    submittingComment: false // 是否正在提交评论
+    submittingComment: false, // 是否正在提交评论
+    // 文章状态
+    published: true // 文章是否已发布（false表示草稿）
   },
 
   onLoad(options) {
@@ -233,6 +236,9 @@ Page({
       const comments = []
       const commentsCount = 0
       
+      // 如果通过 options 传递了 published 参数，使用它；否则默认为 true（已发布）
+      const published = options.published !== undefined ? (options.published !== false && options.published !== 'false' && options.published !== 0) : true
+      
       this.setData({
         title: title,
         meta: meta,
@@ -251,6 +257,7 @@ Page({
         favoriteCount: favoriteCount,
         comments: comments,
         commentsCount: commentsCount,
+        published: published, // 保存文章发布状态
         loading: false,
         error: false
       })
@@ -431,6 +438,9 @@ Page({
           })
         }
 
+        // 获取文章发布状态（默认为true，表示已发布）
+        const published = article.published !== false && article.published !== 'false' && article.published !== 0
+        
         this.setData({
           title: title,
           meta: meta,
@@ -458,7 +468,8 @@ Page({
           hasMoreComments: hasMoreComments,
           loadingComments: false,
           loading: false,
-          error: false
+          error: false,
+          published: published // 保存文章发布状态
         })
         
         // 如果第一个媒体是视频，自动播放
@@ -706,6 +717,9 @@ Page({
         const favoriteCount = articleData?.favoritesCount || 0
         const comments = []
         const commentsCount = articleData?.commentsCount || 0
+        
+        // 获取文章发布状态（默认为true，表示已发布）
+        const published = articleData ? (articleData.published !== false && articleData.published !== 'false' && articleData.published !== 0) : true
 
         this.setData({
           title: title,
@@ -729,6 +743,7 @@ Page({
           favoriteCount: favoriteCount,
           comments: comments,
           commentsCount: commentsCount,
+          published: published, // 保存文章发布状态
           loading: false,
           error: false
         })
@@ -2164,6 +2179,14 @@ Page({
   formatSingleComment(comment) {
     // 获取评论者的用户ID（可能是 authorId、userId、author.id 等）
     const authorId = comment.authorId || comment.userId || comment.author?.id || comment.user?.id || null
+    const authorPhone = comment.authorPhone || comment.userPhone || comment.author?.phone || comment.user?.phone || null
+    
+    // 判断是否是当前用户的评论
+    const currentUser = app.globalData.user
+    const isMyComment = currentUser && (
+      (authorId && currentUser.id && String(authorId) === String(currentUser.id)) ||
+      (authorPhone && currentUser.phone && authorPhone === currentUser.phone)
+    )
     
     // 根据用户ID生成固定的可爱头像emoji
     const avatarEmoji = getCuteAvatar(authorId)
@@ -2179,6 +2202,10 @@ Page({
       avatarEmoji: avatarEmoji, // 使用可爱动物头像emoji
       email: comment.authorEmail || '',
       parentId: comment.parentId || null, // 用于回复功能
+      authorId: authorId, // 保存作者ID，用于判断是否是当前用户的评论
+      authorPhone: authorPhone, // 保存作者手机号，用于判断是否是当前用户的评论
+      postId: comment.postId || null, // 保存文章ID，用于删除评论
+      isMyComment: isMyComment || false, // 是否是当前用户的评论
       replies: [] // 回复列表
     }
     
@@ -2249,9 +2276,17 @@ Page({
     })
 
     const replyingTo = this.data.replyingTo
+    
+    // 获取客户端时区偏移量（分钟）
+    const timezoneOffset = new Date().getTimezoneOffset() // 返回的是 UTC 相对于本地时间的偏移（分钟），需要取反
+    const clientTimezoneOffset = -timezoneOffset // 转换为本地时间相对于 UTC 的偏移（分钟）
+    
     const commentData = {
       content: commentText,
-      parentId: replyingTo || null // 1级评论：parentId为null；2级回复：parentId为1级评论ID
+      parentId: replyingTo || null, // 1级评论：parentId为null；2级回复：parentId为1级评论ID
+      // 发送客户端时区信息，供后端参考
+      clientTimezoneOffset: clientTimezoneOffset, // 本地时间相对于 UTC 的偏移（分钟），例如埃及 UTC+2 为 120
+      clientTimestamp: new Date().toISOString() // 客户端当前时间的 ISO 字符串
     }
 
     try {
@@ -2514,8 +2549,11 @@ Page({
   },
 
   // 删除评论
-  async deleteComment(commentId) {
-    const postId = this.data.articleId
+  async deleteComment(e) {
+    // 从事件对象中获取参数
+    const commentId = e.currentTarget.dataset.commentId
+    const postId = e.currentTarget.dataset.postId || this.data.articleId
+    
     if (!postId || !commentId) {
       wx.showToast({
         title: '参数错误',
@@ -2525,60 +2563,95 @@ Page({
       return
     }
 
-    try {
-      const blogApi = require('../../utils/blogApi.js')
-      const result = await blogApi.blogInteractionApi.deleteComment(postId, commentId)
-      
-      if (result.success) {
-        // 重新获取文章详情（包含最新的评论列表）
-        const articleResult = await blogApi.articleApi.getDetail(postId, {
-          includeComments: true,
-          commentsPage: 1,
-          commentsPageSize: 10
-        })
-        
-        if (articleResult.success && articleResult.data) {
-          const commentsCount = articleResult.data.commentsCount || 0
-          
-          // 更新评论列表
-          let comments = []
-          if (articleResult.comments && articleResult.comments.comments && Array.isArray(articleResult.comments.comments)) {
-            comments = this.formatComments(articleResult.comments.comments)
+    // 确认删除
+    wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这条评论吗？删除后无法恢复。',
+      confirmText: '删除',
+      confirmColor: '#ff3b30',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            // 显示加载提示
+            wx.showLoading({
+              title: '删除中...',
+              mask: true
+            })
+
+            const blogApi = require('../../utils/blogApi.js')
+            const result = await blogApi.blogInteractionApi.deleteComment(postId, commentId)
+            
+            wx.hideLoading()
+
+            if (result.success) {
+              // 从评论列表中移除该评论（支持根评论和回复）
+              const comments = this.data.comments || []
+              const updatedComments = this.removeCommentFromList(comments, commentId)
+              
+              // 更新评论数量
+              const commentsCount = Math.max(0, (this.data.commentsCount || 0) - 1)
+              
+              this.setData({
+                comments: updatedComments,
+                commentsCount: commentsCount
+              })
+              
+              wx.showToast({
+                title: '删除成功',
+                icon: 'success',
+                duration: 1500
+              })
+            } else {
+              throw new Error(result.message || '删除失败')
+            }
+          } catch (error) {
+            wx.hideLoading()
+            
+            if (error.message && error.message.includes('认证')) {
+              wx.showToast({
+                title: '请先登录',
+                icon: 'none',
+                duration: 1500
+              })
+            } else if (error.message && error.message.includes('权限')) {
+              wx.showToast({
+                title: '无权删除此评论',
+                icon: 'none',
+                duration: 1500
+              })
+            } else {
+              wx.showToast({
+                title: error.message || '删除失败',
+                icon: 'none',
+                duration: 1500
+              })
+            }
           }
-          
-          this.setData({
-            comments: comments,
-            commentsCount: commentsCount
-          })
         }
-        
-        wx.showToast({
-          title: '删除成功',
-          icon: 'success',
-          duration: 1500
-        })
       }
-    } catch (error) {
-      if (error.message && error.message.includes('认证')) {
-        wx.showToast({
-          title: '请先登录',
-          icon: 'none',
-          duration: 1500
-        })
-      } else if (error.message && error.message.includes('权限')) {
-        wx.showToast({
-          title: '无权删除此评论',
-          icon: 'none',
-          duration: 1500
-        })
-      } else {
-        wx.showToast({
-          title: error.message || '删除失败',
-          icon: 'none',
-          duration: 1500
-        })
+    })
+  },
+
+  /**
+   * 从评论列表中移除指定评论（支持嵌套删除）
+   * @param {Array} comments - 评论列表
+   * @param {string} commentId - 要删除的评论ID
+   * @returns {Array} 更新后的评论列表
+   */
+  removeCommentFromList(comments, commentId) {
+    return comments.filter(comment => {
+      // 如果是目标评论，直接过滤掉
+      if (comment.id === commentId) {
+        return false
       }
-    }
+      
+      // 如果有回复列表，递归处理
+      if (comment.replies && Array.isArray(comment.replies) && comment.replies.length > 0) {
+        comment.replies = this.removeCommentFromList(comment.replies, commentId)
+      }
+      
+      return true
+    })
   },
 
   // 加载更多评论

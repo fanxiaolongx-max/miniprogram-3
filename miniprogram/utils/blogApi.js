@@ -72,14 +72,18 @@ function isUnauthorizedError(responseData, statusCode) {
     return true
   }
   
-  // 检查业务状态：success: false 且 message 包含"未登录"
+  // 检查业务状态：success: false 且 message 包含"未登录"或"登录过期"
   if (responseData && responseData.success === false && responseData.message) {
     const message = String(responseData.message).toLowerCase()
     return message.includes('未登录') || 
            message.includes('未认证') || 
            message.includes('unauthorized') ||
            message.includes('请先登录') ||
-           message.includes('需要登录')
+           message.includes('需要登录') ||
+           message.includes('登录过期') ||
+           message.includes('token已过期') ||
+           message.includes('token expired') ||
+           message.includes('expired')
   }
   
   return false
@@ -609,6 +613,11 @@ const blogInteractionApi = {
           
           let responseData = res.data
           
+          // 如果是 my-posts-interactions 请求，记录原始响应数据
+          if (fullUrl.includes('my-posts-interactions')) {
+            console.log('[blogInteractionApi] my-posts-interactions 原始响应数据:', JSON.stringify(responseData, null, 2))
+          }
+          
           if (res.statusCode === 200 || res.statusCode === 201) {
             // 检查业务状态
             if (responseData && responseData.success === false) {
@@ -617,13 +626,18 @@ const blogInteractionApi = {
             }
             
             // 处理URL替换
+            let processedData = responseData
             try {
-              responseData = envHelper.processApiResponse(responseData)
+              processedData = envHelper.processApiResponse(responseData)
+              // 如果是 my-posts-interactions 请求，记录处理后的数据
+              if (fullUrl.includes('my-posts-interactions')) {
+                console.log('[blogInteractionApi] my-posts-interactions 处理后的数据:', JSON.stringify(processedData, null, 2))
+              }
             } catch (error) {
               console.warn('[blogInteractionApi] URL处理失败，使用原始数据:', error)
             }
             
-            resolve(responseData)
+            resolve(processedData)
           } else if (res.statusCode === 401) {
             // 处理未登录错误
             handleUnauthorizedError(responseData && responseData.message || '未登录')
@@ -773,6 +787,59 @@ const blogInteractionApi = {
     
     const url = `/posts/my-favorites${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`
     return this._request(url, 'GET')
+  },
+
+  /**
+   * 获取我发布的评论列表
+   * @param {Object} params - 查询参数
+   * @param {number} params.page - 页码（默认：1）
+   * @param {number} params.pageSize - 每页数量（默认：10）
+   * @returns {Promise} 返回评论列表，格式：{ success: true, data: [...], pagination: {...}, total: number }
+   */
+  getMyComments(params = {}) {
+    const queryParams = []
+    if (params.page) queryParams.push(`page=${params.page}`)
+    if (params.pageSize) queryParams.push(`pageSize=${params.pageSize}`)
+    
+    const url = `/my-comments${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`
+    return this._request(url, 'GET')
+  },
+
+  /**
+   * 删除评论
+   * @param {string} postId - 文章ID
+   * @param {string} commentId - 评论ID
+   * @returns {Promise} 返回删除结果，格式：{ success: true, message: "评论删除成功" }
+   */
+  deleteComment(postId, commentId) {
+    const url = `/posts/${postId}/comments/${commentId}`
+    return this._request(url, 'DELETE')
+  },
+
+  /**
+   * 获取别人对我发布文章的互动（评论、点赞、收藏）
+   * @param {Object} params - 查询参数
+   * @param {number} params.page - 页码（默认：1）
+   * @param {number} params.pageSize - 每页数量（默认：10）
+   * @param {string} params.type - 筛选类型：'comments' | 'likes' | 'favorites' | 'all'（默认：'all'）
+   * @returns {Promise} 返回互动数据，格式：{ success: true, data: { comments: [...], likes: [...], favorites: [...], statistics: {...}, notifications: {...} }, pagination: {...} }
+   */
+  getMyPostsInteractions(params = {}) {
+    const queryParams = []
+    if (params.page) queryParams.push(`page=${params.page}`)
+    if (params.pageSize) queryParams.push(`pageSize=${params.pageSize}`)
+    if (params.type) queryParams.push(`type=${encodeURIComponent(params.type)}`)
+    
+    const url = `/my-posts-interactions${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`
+    return this._request(url, 'GET')
+  },
+
+  /**
+   * 标记消息为已读
+   * @returns {Promise} 返回标记结果
+   */
+  markMessagesAsRead() {
+    return this._request('/my-posts-interactions/mark-as-read', 'POST')
   }
 }
 

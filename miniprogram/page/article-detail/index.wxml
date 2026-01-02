@@ -1,4 +1,9 @@
 <view class="page" data-weui-theme="{{theme}}">
+  <!-- 草稿标识（右上角固定定位） -->
+  <view wx:if="{{!published}}" class="draft-badge-fixed">
+    <text class="draft-badge-text">草稿</text>
+  </view>
+  
   <view class="container">
     <!-- 加载状态 -->
     <view wx:if="{{loading}}" class="loading-container">
@@ -171,6 +176,11 @@
                     <text class="comment-action-icon">💬</text>
                     <text class="comment-action-text">回复</text>
                   </view>
+                  <!-- 删除按钮（只在自己的评论上显示） -->
+                  <view wx:if="{{comment.isMyComment}}" class="comment-action-btn comment-delete-btn" catchtap="deleteComment" data-comment-id="{{comment.id}}" data-post-id="{{comment.postId || articleId}}">
+                    <text class="comment-action-icon">🗑️</text>
+                    <text class="comment-action-text">删除</text>
+                  </view>
                 </view>
                 
                 <!-- 回复列表 -->
@@ -194,6 +204,11 @@
                           <view class="comment-action-btn" bindtap="replyComment" data-comment-id="{{reply.id}}" data-parent-id="{{reply.parentId || comment.id}}" data-index="{{commentIndex}}">
                             <text class="comment-action-icon">💬</text>
                             <text class="comment-action-text">回复</text>
+                          </view>
+                          <!-- 删除按钮（只在自己的回复上显示） -->
+                          <view wx:if="{{reply.isMyComment}}" class="comment-action-btn comment-delete-btn" catchtap="deleteComment" data-comment-id="{{reply.id}}" data-post-id="{{reply.postId || articleId}}" data-parent-id="{{comment.id}}">
+                            <text class="comment-action-icon">🗑️</text>
+                            <text class="comment-action-text">删除</text>
                           </view>
                         </view>
                       </view>

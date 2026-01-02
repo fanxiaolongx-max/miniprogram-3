@@ -1,0 +1,62 @@
+<view class="page">
+  <view class="container">
+    <!-- 首次加载状态 -->
+    <view wx:if="{{loading && (!commentsList || commentsList.length === 0)}}" class="loading-container">
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <!-- 错误状态 -->
+    <view wx:elif="{{error && (!commentsList || commentsList.length === 0)}}" class="error-container">
+      <text class="error-text">{{errorMessage || '获取数据失败，请稍后重试'}}</text>
+      <button class="retry-btn" bindtap="retryLoad" size="mini" plain>重试</button>
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:elif="{{!commentsList || commentsList.length === 0}}" class="empty-container">
+      <text class="empty-text">暂无评论</text>
+    </view>
+
+    <!-- 评论列表 -->
+    <view wx:else class="comments-list">
+      <view 
+        wx:for="{{commentsList}}" 
+        wx:key="id"
+        class="comment-card"
+      >
+        <view class="comment-content-wrapper" bindtap="viewArticleDetail" data-item="{{item.post || item}}">
+          <text class="comment-post-title">{{item.post ? (item.post.title || item.post.name) : '文章已删除'}}</text>
+          <view class="comment-meta-row">
+            <text class="comment-time">{{item.createdAt || item.created_at}}</text>
+          </view>
+          <view class="comment-text">{{item.content}}</view>
+        </view>
+        <view class="comment-actions">
+          <view class="delete-btn" catchtap="deleteComment" data-comment="{{item}}">
+            <text class="delete-icon">🗑️</text>
+            <text class="delete-text">删除</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 加载更多按钮和加载状态 -->
+      <view class="load-more-container">
+        <view wx:if="{{loading && commentsList.length > 0}}" class="loading-more">
+          <text class="loading-more-text">加载中...</text>
+        </view>
+        <button 
+          wx:elif="{{hasMore && !loading}}" 
+          class="load-more-btn" 
+          bindtap="loadMore" 
+          size="mini" 
+          plain
+        >
+          加载更多
+        </button>
+        <view wx:elif="{{!hasMore && commentsList.length > 0}}" class="no-more">
+          <text class="no-more-text">没有更多了</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+

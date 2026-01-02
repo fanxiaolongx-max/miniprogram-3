@@ -20,7 +20,11 @@
     "page/emergency/index",
     "page/article-detail/index",
     "page/article-admin/index",
-    "page/article-edit/index"
+    "page/article-edit/index",
+    "page/my-likes/index",
+    "page/my-favorites/index",
+    "page/my-comments/index",
+    "page/my-messages/index"
   ],
   "subpackages": [
     {

@@ -1,0 +1,66 @@
+<view class="page">
+  <view class="container">
+    <!-- 首次加载状态 -->
+    <view wx:if="{{loading && (!articlesList || articlesList.length === 0)}}" class="loading-container">
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <!-- 错误状态 -->
+    <view wx:elif="{{error && (!articlesList || articlesList.length === 0)}}" class="error-container">
+      <text class="error-text">{{errorMessage || '获取数据失败，请稍后重试'}}</text>
+      <button class="retry-btn" bindtap="retryLoad" size="mini" plain>重试</button>
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:elif="{{!articlesList || articlesList.length === 0}}" class="empty-container">
+      <text class="empty-text">暂无收藏的文章</text>
+    </view>
+
+    <!-- 文章列表 -->
+    <view wx:else class="articles-list">
+      <view 
+        wx:for="{{articlesList}}" 
+        wx:key="id"
+        class="article-card"
+        bindtap="viewArticleDetail"
+        data-item="{{item}}"
+      >
+        <view class="article-image-wrapper">
+          <image 
+            class="article-image" 
+            src="{{item.image || '/image/icon64_appwx_logo.png'}}" 
+            mode="aspectFill"
+            binderror="onImageError"
+          ></image>
+        </view>
+        <view class="article-content">
+          <view class="article-title">{{item.title || item.name}}</view>
+          <view wx:if="{{item.description}}" class="article-description">{{item.description}}</view>
+          <view class="article-meta">
+            <text wx:if="{{item.favoritedAt}}" class="meta-time">{{item.favoritedAt}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 加载更多按钮和加载状态 -->
+      <view class="load-more-container">
+        <view wx:if="{{loading && articlesList.length > 0}}" class="loading-more">
+          <text class="loading-more-text">加载中...</text>
+        </view>
+        <button 
+          wx:elif="{{hasMore && !loading}}" 
+          class="load-more-btn" 
+          bindtap="loadMore" 
+          size="mini" 
+          plain
+        >
+          加载更多
+        </button>
+        <view wx:elif="{{!hasMore && articlesList.length > 0}}" class="no-more">
+          <text class="no-more-text">没有更多了</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+
