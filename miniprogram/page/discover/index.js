@@ -37,15 +37,21 @@ Page({
     // API列表（用于创建文章时选择分类）
     apiList: [],
     // 页面滚动位置
-    scrollTop: 0
+    scrollTop: 0,
+    // 登录状态
+    isLoggedIn: false
   },
 
   onLoad() {
     const systemInfo = require('../../utils/systemInfo.js')
     const { debounce } = require('../../utils/debounce.js')
     
+    // 检查登录状态
+    const isLoggedIn = authHelper.isLoggedInLocally()
+    
     this.setData({
-      theme: systemInfo.getTheme()
+      theme: systemInfo.getTheme(),
+      isLoggedIn: isLoggedIn
     })
     
     this._savedScrollTop = 0
@@ -76,6 +82,12 @@ Page({
   },
 
   onShow() {
+    // 检查登录状态（每次显示页面时更新）
+    const isLoggedIn = authHelper.isLoggedInLocally()
+    this.setData({
+      isLoggedIn: isLoggedIn
+    })
+    
     // 从编辑页面返回时刷新列表
     if (this._needRefresh) {
       this._needRefresh = false
@@ -767,6 +779,21 @@ Page({
 
 
   createArticle() {
+    // 检查登录状态
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     wx.navigateTo({
       url: '/page/article-edit/index?mode=create'
     })

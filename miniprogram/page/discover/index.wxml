@@ -185,8 +185,8 @@
       </view>
     </block>
 
-    <!-- 浮动新建按钮 -->
-    <view class="floating-add-btn" bindtap="createArticle">
+    <!-- 浮动新建按钮（仅登录后显示） -->
+    <view wx:if="{{isLoggedIn}}" class="floating-add-btn" bindtap="createArticle">
       <text class="floating-add-icon">➕</text>
     </view>
   </view>
