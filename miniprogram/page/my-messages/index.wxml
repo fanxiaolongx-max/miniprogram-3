@@ -41,7 +41,7 @@
           </view>
           <view class="message-post-title">{{item.post ? (item.post.title || item.post.name) : '文章已删除'}}</view>
           <view class="message-meta-row">
-            <text class="message-time">{{item.displayTime || item.createdAt || item.created_at || item.likedAt || item.favoritedAt || ''}}</text>
+            <text class="message-time">{{item.displayTime || item.sortTime || item.createdAt || item.created_at || item.likedAt || item.favoritedAt || ''}}</text>
           </view>
           <view wx:if="{{item.type === 'comment' && item.content}}" class="message-comment-content">{{item.content}}</view>
         </view>

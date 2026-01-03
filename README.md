@@ -1,6 +1,6 @@
 # 埃及华人生活服务小程序
 
-一个专为在埃及生活的华人提供实用生活服务的微信小程序，包含汇率查询、天气预警、问路卡片、话费助手、租房信息、二手集市等多种实用功能。
+一个专为在埃及生活的华人提供实用生活服务的微信小程序，包含汇率查询、天气预警、问路卡片、话费助手、租房信息、二手集市、社区博客等多种实用功能。
 
 ## 📱 功能特性
 
@@ -23,8 +23,17 @@
 - **🎩 小费指南** - 埃及小费文化指南
 - **📸 热门打卡** - 推荐旅游景点和打卡地
 
+### 社区博客
+
+- **📰 发现页** - 浏览社区文章和动态，支持分类筛选
+- **✍️ 文章发布** - 发布文章，支持富文本编辑、图片上传、地址标注
+- **💬 评论互动** - 支持一级评论和二级回复，点赞和收藏功能
+- **🔔 消息通知** - 查看评论、点赞、收藏等互动消息
+- **📊 个人中心** - 查看我的评论、点赞、收藏和发布记录
+
 ### 用户中心
 
+- **👤 用户登录** - 支持手机号+验证码/PIN码登录
 - **📝 反馈建议** - 提交功能反馈和建议，支持分类选择
 
 ## 🚀 快速开始
@@ -157,7 +166,36 @@ const config = {
     - `gender`: 性别
     - `country`, `province`, `city`: 地区信息
 
-详细 API 文档请查看 `miniprogram/config.js` 中的注释说明。
+### 博客/社区 API
+
+#### 1. 用户认证
+- **登录**：`/api/auth/user/login` 或 `/api/auth/user/login-with-code`
+- **获取当前用户**：`/api/auth/user/me`
+- **登出**：`/api/auth/user/logout`
+- **认证方式**：Token（`Authorization` 头或 `x-user-token` 头）
+
+#### 2. 文章管理
+- **获取文章列表**：`/api/blog-admin/posts`
+- **获取文章详情**：`/api/blog-admin/posts/:id`
+- **创建/更新文章**：`/api/blog-admin/posts` (POST/PUT)
+- **删除文章**：`/api/blog-admin/posts/:id` (DELETE)
+
+#### 3. 评论系统
+- **创建评论**：`/api/blog-admin/posts/:postId/comments` (POST)
+  - 一级评论：`parentId` 为 `null`
+  - 二级评论：`parentId` 为一级评论ID
+  - 评论者信息通过 Token 自动识别
+- **点赞/取消点赞评论**：`/api/blog-admin/comments/:commentId/like` (POST/DELETE)
+- **删除评论**：`/api/blog-admin/posts/:postId/comments/:commentId` (DELETE)
+
+#### 4. 消息通知
+- **获取我的消息**：`/api/blog-admin/my-posts-interactions`
+  - 支持新结构：`{ data: { items: [...], pagination: {...}, notifications: {...} } }`
+  - 兼容旧结构：`{ data: { comments: [...], likes: [...], favorites: [...] } }`
+  - 每个消息项包含 `type` 字段（`comment`/`like`/`favorite`）
+- **标记消息已读**：`/api/blog-admin/my-posts-interactions/mark-as-read`
+
+详细 API 文档请查看 `miniprogram/config.js` 和 `miniprogram/utils/blogApi.js` 中的注释说明。
 
 ## 📁 项目结构
 
@@ -170,7 +208,15 @@ miniprogram-3/
 │   ├── config.js            # API 配置文件
 │   ├── page/                # 页面目录
 │   │   ├── component/       # 首页
+│   │   ├── discover/        # 发现页（文章列表）
 │   │   ├── my/              # 我的页面
+│   │   ├── article-detail/  # 文章详情页
+│   │   ├── article-admin/   # 文章管理页
+│   │   ├── article-edit/   # 文章编辑页
+│   │   ├── my-comments/     # 我的评论
+│   │   ├── my-messages/     # 我的消息
+│   │   ├── my-likes/        # 我的点赞
+│   │   ├── my-favorites/    # 我的收藏
 │   │   ├── exchange-rate/   # 汇率转换
 │   │   ├── translation/     # 问路卡片
 │   │   ├── phone-helper/    # 话费助手
@@ -179,8 +225,16 @@ miniprogram-3/
 │   │   ├── tip-guide/       # 小费指南
 │   │   ├── hot-activity/    # 热门活动
 │   │   └── weather/         # 天气预警
-│   ├── util/                # 工具函数
-│   └── common/              # 公共组件和样式
+│   ├── utils/               # 工具函数目录
+│   │   ├── blogApi.js       # 博客API封装
+│   │   ├── authApi.js       # 认证API封装
+│   │   ├── authHelper.js    # 认证辅助函数
+│   │   └── ...              # 其他工具函数
+│   ├── components/          # 公共组件
+│   │   ├── article-meta/    # 文章元信息组件
+│   │   ├── rich-text-editor/ # 富文本编辑器
+│   │   └── number-keyboard/  # 数字键盘组件
+│   └── common/              # 公共样式和模板
 ├── cloudfunctions/           # 云函数目录
 ├── project.config.json       # 项目配置
 └── package.json             # 项目依赖
@@ -193,6 +247,10 @@ miniprogram-3/
 - ✅ **响应式设计** - 适配不同屏幕尺寸
 - ✅ **图片错误处理** - 自动使用占位图
 - ✅ **数据格式兼容** - 支持多种 API 返回格式
+- ✅ **用户认证** - 支持手机号+验证码/PIN码登录，Token自动管理
+- ✅ **评论系统** - 支持一级评论和二级回复，评论者信息自动识别
+- ✅ **消息通知** - 支持评论、点赞、收藏等消息通知，未读数量提醒
+- ✅ **富文本编辑** - 支持文章富文本编辑，图片上传，地址标注
 - ✅ **用户反馈** - 支持分类反馈和建议提交
 
 ## 🔧 开发说明
@@ -218,6 +276,16 @@ miniprogram-3/
 
 ## 📝 更新日志
 
+### v2.0.0
+- ✅ 新增社区博客功能
+- ✅ 实现用户认证系统（手机号+验证码/PIN码登录）
+- ✅ 添加文章发布、编辑、管理功能
+- ✅ 实现评论系统（支持一级评论和二级回复）
+- ✅ 添加消息通知功能（评论、点赞、收藏）
+- ✅ 支持富文本编辑和图片上传
+- ✅ 实现点赞、收藏、评论等互动功能
+- ✅ 优化消息数据结构兼容性（支持新/旧格式）
+
 ### v1.0.0
 - ✅ 完成所有核心功能开发
 - ✅ 实现统一的错误处理机制
@@ -239,4 +307,9 @@ MIT License
 
 ---
 
-**注意**：本项目需要配置后端 API 服务才能正常使用。请确保 API 服务正常运行，并在微信公众平台配置正确的域名白名单。
+**注意**：
+- 本项目需要配置后端 API 服务才能正常使用。请确保 API 服务正常运行，并在微信公众平台配置正确的域名白名单。
+- 博客/社区功能需要后端支持用户认证、文章管理、评论系统等 API。
+- 消息通知 API 支持两种数据结构格式，代码会自动适配：
+  - 新格式：`{ data: { items: [...], pagination: {...}, notifications: {...} } }`
+  - 旧格式：`{ data: { comments: [...], likes: [...], favorites: [...] } }`
