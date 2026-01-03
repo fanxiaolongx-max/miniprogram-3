@@ -86,8 +86,8 @@ Page({
               phone: item.createdBy.phone || item.createdBy.phoneNumber || null
             }
           }
-          // 使用扁平字段（包括 authorName，这是评论数据中常见的字段）
-          if (item.userName || item.userPhone || item.userId || item.nickname || item.authorName) {
+          // 使用扁平字段（支持新数据结构：评论用authorName/authorPhone，点赞/收藏用userName/userPhone）
+          if (item.userName || item.userPhone || item.userId || item.nickname || item.authorName || item.authorPhone) {
             return {
               id: item.userId || item.user_id || item.id || null,
               name: item.userName || item.user_name || item.nickname || item.authorName || item.author_name || null,
@@ -100,53 +100,79 @@ Page({
 
         // 合并所有类型的消息
         const allMessages = []
-        if (result.data.comments && Array.isArray(result.data.comments)) {
-          result.data.comments.forEach((item, index) => {
-            // 统一时间字段
-            const time = item.createdAt || item.created_at || item.createdTime || item.created_time || ''
+        
+        // 新结构：优先处理 items 数组（每个item都有type字段）
+        if (result.data.items && Array.isArray(result.data.items)) {
+          result.data.items.forEach((item, index) => {
+            // 根据type字段确定时间字段
+            let time = ''
+            if (item.type === 'comment') {
+              time = item.createdAt || item.created_at || item.sortTime || item.createdTime || item.created_time || ''
+            } else if (item.type === 'like') {
+              time = item.likedAt || item.liked_at || item.sortTime || item.createdAt || item.created_at || item.createdTime || item.created_time || ''
+            } else if (item.type === 'favorite') {
+              time = item.favoritedAt || item.favorited_at || item.sortTime || item.createdAt || item.created_at || item.createdTime || item.created_time || ''
+            } else {
+              // 默认使用sortTime或createdAt
+              time = item.sortTime || item.createdAt || item.created_at || item.createdTime || item.created_time || ''
+            }
+            
             const userInfo = extractUserInfo(item)
             allMessages.push({ 
               ...item, 
-              type: 'comment',
-              uniqueKey: `comment-${item.id || 'unknown'}-${index}`,
-              displayTime: time, // 统一的时间字段
-              user: userInfo // 提取的用户信息
+              type: item.type || 'comment',
+              uniqueKey: `${item.type || 'comment'}-${item.id || item.postId || 'unknown'}-${index}`,
+              displayTime: time,
+              user: userInfo
             })
           })
-        }
-        if (result.data.likes && Array.isArray(result.data.likes)) {
-          result.data.likes.forEach((item, index) => {
-            // 统一时间字段：点赞可能使用 likedAt, createdAt, created_at 等
-            const time = item.likedAt || item.liked_at || item.createdAt || item.created_at || item.createdTime || item.created_time || ''
-            const userInfo = extractUserInfo(item)
-            allMessages.push({ 
-              ...item, 
-              type: 'like',
-              uniqueKey: `like-${item.id || 'unknown'}-${index}`,
-              displayTime: time, // 统一的时间字段
-              user: userInfo // 提取的用户信息
+        } else {
+          // 旧结构：分别处理 comments、likes、favorites（兼容性）
+          if (result.data.comments && Array.isArray(result.data.comments)) {
+            result.data.comments.forEach((item, index) => {
+              const time = item.createdAt || item.created_at || item.createdTime || item.created_time || ''
+              const userInfo = extractUserInfo(item)
+              allMessages.push({ 
+                ...item, 
+                type: 'comment',
+                uniqueKey: `comment-${item.id || 'unknown'}-${index}`,
+                displayTime: time,
+                user: userInfo
+              })
             })
-          })
-        }
-        if (result.data.favorites && Array.isArray(result.data.favorites)) {
-          result.data.favorites.forEach((item, index) => {
-            // 统一时间字段：收藏可能使用 favoritedAt, createdAt, created_at 等
-            const time = item.favoritedAt || item.favorited_at || item.createdAt || item.created_at || item.createdTime || item.created_time || ''
-            const userInfo = extractUserInfo(item)
-            allMessages.push({ 
-              ...item, 
-              type: 'favorite',
-              uniqueKey: `favorite-${item.id || 'unknown'}-${index}`,
-              displayTime: time, // 统一的时间字段
-              user: userInfo // 提取的用户信息
+          }
+          if (result.data.likes && Array.isArray(result.data.likes)) {
+            result.data.likes.forEach((item, index) => {
+              const time = item.likedAt || item.liked_at || item.createdAt || item.created_at || item.createdTime || item.created_time || ''
+              const userInfo = extractUserInfo(item)
+              allMessages.push({ 
+                ...item, 
+                type: 'like',
+                uniqueKey: `like-${item.id || 'unknown'}-${index}`,
+                displayTime: time,
+                user: userInfo
+              })
             })
-          })
+          }
+          if (result.data.favorites && Array.isArray(result.data.favorites)) {
+            result.data.favorites.forEach((item, index) => {
+              const time = item.favoritedAt || item.favorited_at || item.createdAt || item.created_at || item.createdTime || item.created_time || ''
+              const userInfo = extractUserInfo(item)
+              allMessages.push({ 
+                ...item, 
+                type: 'favorite',
+                uniqueKey: `favorite-${item.id || 'unknown'}-${index}`,
+                displayTime: time,
+                user: userInfo
+              })
+            })
+          }
         }
 
-        // 按时间排序（最新的在前）
+        // 按时间排序（最新的在前）- 新结构服务器已排序，但为了兼容性保留排序逻辑
         allMessages.sort((a, b) => {
-          const timeA = new Date(a.displayTime || a.createdAt || a.created_at || a.likedAt || a.favoritedAt || 0).getTime()
-          const timeB = new Date(b.displayTime || b.createdAt || b.created_at || b.likedAt || b.favoritedAt || 0).getTime()
+          const timeA = new Date(a.displayTime || a.sortTime || a.createdAt || a.created_at || a.likedAt || a.favoritedAt || 0).getTime()
+          const timeB = new Date(b.displayTime || b.sortTime || b.createdAt || b.created_at || b.likedAt || b.favoritedAt || 0).getTime()
           return timeB - timeA
         })
 
@@ -165,7 +191,8 @@ Page({
 
         const currentList = this.data.messagesList || []
         const newMessages = page === 1 ? allMessages : [...currentList, ...allMessages]
-        const pagination = result.pagination || {}
+        // 分页信息可能在 result.data.pagination 或 result.pagination
+        const pagination = result.data.pagination || result.pagination || {}
         const hasMore = pagination.currentPage < pagination.totalPages
 
         // 如果是第一页，更新未读数量（使用服务器返回的 notifications）

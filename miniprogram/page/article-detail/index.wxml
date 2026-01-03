@@ -149,7 +149,7 @@
       <!-- 评论区 -->
       <view class="comments-section">
         <view class="comments-header">
-          <text class="comments-title">评论</text>
+          <text class="comments-title">笔记</text>
           <text class="comments-count">{{commentsCount || 0}}</text>
         </view>
         
@@ -222,7 +222,7 @@
           <!-- 加载更多评论按钮 -->
           <view wx:if="{{hasMoreComments && !loadingComments}}" class="comment-load-more">
             <view class="comment-load-more-btn" bindtap="loadMoreComments">
-              <text>加载更多评论</text>
+              <text>加载更多笔记</text>
             </view>
           </view>
           
@@ -234,7 +234,7 @@
         
         <!-- 空评论提示 -->
         <view wx:else class="comments-empty">
-          <text class="comments-empty-text">暂无评论，快来抢沙发吧~</text>
+          <text class="comments-empty-text">暂无笔记，快来留下第一个笔记吧~</text>
         </view>
       </view>
 

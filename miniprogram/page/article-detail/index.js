@@ -2253,7 +2253,7 @@ Page({
     const commentText = this.data.commentText.trim()
     if (!commentText) {
       wx.showToast({
-        title: '请输入评论内容',
+        title: '请输入笔记内容',
         icon: 'none',
         duration: 1500
       })
@@ -2328,7 +2328,7 @@ Page({
         })
         
         wx.showToast({
-          title: '评论成功',
+          title: '笔记发布成功',
           icon: 'success',
           duration: 1500
         })
@@ -2340,7 +2340,7 @@ Page({
       })
       
       wx.showToast({
-        title: error.message || '评论失败',
+        title: error.message || '笔记发布失败',
         icon: 'none',
         duration: 2000
       })
@@ -2352,7 +2352,7 @@ Page({
         })
       } else {
         wx.showToast({
-          title: error.message || '评论失败',
+          title: error.message || '笔记发布失败',
           icon: 'none',
           duration: 1500
         })
@@ -2421,7 +2421,7 @@ Page({
     
     if (!commentId) {
       wx.showToast({
-        title: '评论ID不存在',
+        title: '笔记ID不存在',
         icon: 'none',
         duration: 1500
       })
@@ -2432,7 +2432,7 @@ Page({
     const found = this.findCommentInList(this.data.comments, commentId)
     if (!found) {
       wx.showToast({
-        title: '评论不存在',
+        title: '笔记不存在',
         icon: 'none',
         duration: 1500
       })
@@ -2516,7 +2516,7 @@ Page({
     const found = this.findCommentInList(this.data.comments, commentId)
     if (!found) {
       wx.showToast({
-        title: '评论不存在',
+        title: '笔记不存在',
         icon: 'none',
         duration: 1500
       })
@@ -2566,7 +2566,7 @@ Page({
     // 确认删除
     wx.showModal({
       title: '确认删除',
-      content: '确定要删除这条评论吗？删除后无法恢复。',
+      content: '确定要删除这条笔记吗？删除后无法恢复。',
       confirmText: '删除',
       confirmColor: '#ff3b30',
       success: async (res) => {
@@ -2615,7 +2615,7 @@ Page({
               })
             } else if (error.message && error.message.includes('权限')) {
               wx.showToast({
-                title: '无权删除此评论',
+                title: '无权删除此笔记',
                 icon: 'none',
                 duration: 1500
               })
