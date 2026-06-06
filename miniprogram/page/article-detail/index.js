@@ -1,5 +1,6 @@
 const { formatRelativeTime } = require('../../util/util.js')
 const app = getApp()
+const authHelper = require('../../utils/authHelper.js')
 
 /**
  * 根据用户ID生成固定的可爱头像图案
@@ -136,15 +137,25 @@ Page({
     commentInputFocus: false, // 评论输入框焦点状态
     submittingComment: false, // 是否正在提交评论
     // 文章状态
-    published: true // 文章是否已发布（false表示草稿）
+    published: true, // 文章是否已发布（false表示草稿）
+    // 登录状态
+    isLoggedIn: false,
+    // 写权限（读写权限）
+    hasWritePermission: false
   },
 
   onLoad(options) {
+    // 检查登录状态和权限
+    const isLoggedIn = authHelper.isLoggedInLocally()
+    const hasWritePermission = authHelper.hasWritePermission()
+    
     this.setData({
       theme: (() => {
         const systemInfo = require('../../utils/systemInfo.js')
         return systemInfo.getTheme()
-      })()
+      })(),
+      isLoggedIn: isLoggedIn,
+      hasWritePermission: hasWritePermission
     })
 
     if (wx.onThemeChange) {
@@ -273,6 +284,16 @@ Page({
 
     this.setData({ apiUrl })
     this.fetchArticleDetail()
+  },
+
+  onShow() {
+    // 每次显示页面时更新登录状态和权限
+    const isLoggedIn = authHelper.isLoggedInLocally()
+    const hasWritePermission = authHelper.hasWritePermission()
+    this.setData({
+      isLoggedIn: isLoggedIn,
+      hasWritePermission: hasWritePermission
+    })
   },
 
   // 通过文章ID获取详情（列表API不再返回htmlContent，统一通过此方法获取）
@@ -2134,6 +2155,21 @@ Page({
 
   // 聚焦评论输入框
   focusCommentInput() {
+    // 检查登录状态
+    if (!authHelper.isLoggedInLocally()) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none',
+        duration: 2000
+      })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/page/my/index'
+        })
+      }, 1500)
+      return
+    }
+    
     this.setData({
       showCommentInput: true,
       commentInputFocus: true // 设置焦点状态，让输入框自动获得焦点

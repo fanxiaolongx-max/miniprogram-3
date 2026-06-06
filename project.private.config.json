@@ -19,17 +19,5 @@
     "useIsolateContext": false,
     "ignoreDevUnusedFiles": true
   },
-  "condition": {
-    "miniprogram": {
-      "list": [
-        {
-          "name": "page/test/index",
-          "pathName": "page/article-admin/index",
-          "query": "",
-          "scene": null,
-          "launchMode": "default"
-        }
-      ]
-    }
-  }
+  "condition": {}
 }

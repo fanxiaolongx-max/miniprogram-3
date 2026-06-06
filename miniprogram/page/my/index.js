@@ -91,6 +91,8 @@ Page({
     // 登录状态
     isLoggedIn: false,
     user: null,
+    // 写权限（读写权限）
+    hasWritePermission: false,
     // 我的喜欢和收藏相关
     currentView: '', // 'likes' | 'favorites' | 'comments' | 'messages' | ''（空字符串表示显示反馈建议）
     articlesList: [], // 文章列表（也用于评论和消息）
@@ -176,10 +178,12 @@ Page({
     const localUser = authHelper.getLoginInfo()
     if (localUser) {
       const avatarEmoji = getCuteAvatar(localUser.id)
+      const hasWritePermission = authHelper.hasWritePermission()
       this.setData({
         isLoggedIn: true,
         user: localUser,
-        avatarEmoji: avatarEmoji
+        avatarEmoji: avatarEmoji,
+        hasWritePermission: hasWritePermission
       })
       app.globalData.user = localUser
       app.globalData.isLoggedIn = true
@@ -227,12 +231,14 @@ Page({
           this.handleUnauthorizedError()
           return
         }
-        // 验证成功，更新状态
+        // 验证成功，更新状态和权限
         app.globalData.user = serverUser
         app.globalData.isLoggedIn = true
+        const hasWritePermission = authHelper.hasWritePermission()
         this.setData({
           isLoggedIn: true,
-          user: serverUser
+          user: serverUser,
+          hasWritePermission: hasWritePermission
         })
       } catch (error) {
         // 如果是认证错误，触发自动退出登录
@@ -247,6 +253,13 @@ Page({
     } else {
       // 本地没有登录信息，使用标准方法检查
     await authHelper.checkAndUpdateLoginStatus(app, this)
+    // 更新权限状态
+    if (this.data.isLoggedIn) {
+      const hasWritePermission = authHelper.hasWritePermission()
+      this.setData({
+        hasWritePermission: hasWritePermission
+      })
+    }
     }
     
     // 检查登录状态是否发生变化
@@ -695,11 +708,13 @@ Page({
       // 使用统一的登录成功处理，传递token（添加错误处理）
       try {
         authHelper.handleLoginSuccess(result.user, app, this, result.token)
-        // 设置头像图案
+        // 设置头像图案和权限状态
         const avatarEmoji = getCuteAvatar(result.user.id)
+        const hasWritePermission = authHelper.hasWritePermission()
         // 登录成功后重置页面状态
         this.setData({
           avatarEmoji: avatarEmoji,
+          hasWritePermission: hasWritePermission,
           currentView: '', // 重置视图，显示菜单
           articlesList: [],
           articlesError: false,
@@ -885,11 +900,13 @@ Page({
       
       // 使用统一的登录成功处理，传递token
       authHelper.handleLoginSuccess(result.user, app, this, result.token)
-      // 设置头像图案
+      // 设置头像图案和权限状态
       const avatarEmoji = getCuteAvatar(result.user.id)
+      const hasWritePermission = authHelper.hasWritePermission()
       // 登录成功后重置页面状态
       this.setData({
         avatarEmoji: avatarEmoji,
+        hasWritePermission: hasWritePermission,
         currentView: '', // 重置视图，显示菜单
         articlesList: [],
         articlesError: false,

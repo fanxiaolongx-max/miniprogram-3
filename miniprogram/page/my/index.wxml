@@ -206,8 +206,8 @@
       </view>
     </view>
 
-    <!-- 数据统计区域（仅登录后显示） -->
-    <view wx:if="{{isLoggedIn && user}}" class="stats-section">
+    <!-- 数据统计区域（仅登录且有读写权限后显示） -->
+    <view wx:if="{{isLoggedIn && user && hasWritePermission}}" class="stats-section">
       <view class="stats-card">
         <view class="stat-item" bindtap="navigateToMyLikes">
           <view class="stat-number">{{likesCount}}</view>
@@ -224,7 +224,8 @@
     <!-- 功能列表区域（仅登录后显示） -->
     <view wx:if="{{isLoggedIn && user}}" class="menu-section">
       <view class="menu-card">
-        <view class="menu-item" bindtap="navigateToMyComments">
+        <!-- 我的评论（仅读写权限显示） -->
+        <view wx:if="{{hasWritePermission}}" class="menu-item" bindtap="navigateToMyComments">
           <view class="menu-item-left">
             <text class="menu-icon">💬</text>
             <text class="menu-text">我的评论</text>
@@ -233,7 +234,8 @@
           <text class="menu-arrow">›</text>
           </view>
         </view>
-        <view class="menu-item" bindtap="navigateToMyMessages">
+        <!-- 我的消息（仅读写权限显示） -->
+        <view wx:if="{{hasWritePermission}}" class="menu-item" bindtap="navigateToMyMessages">
           <view class="menu-item-left">
             <text class="menu-icon">🔔</text>
             <text class="menu-text">我的消息</text>

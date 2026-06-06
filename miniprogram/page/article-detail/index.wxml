@@ -146,8 +146,8 @@
       <!-- 文章视频区域 - 已移除，视频只在顶部轮播显示 -->
       <!-- 视频已在顶部轮播区域显示，不再在正文下方显示 -->
 
-      <!-- 评论区 -->
-      <view class="comments-section">
+      <!-- 评论区（仅登录且有读写权限后显示） -->
+      <view wx:if="{{isLoggedIn && hasWritePermission}}" class="comments-section">
         <view class="comments-header">
           <text class="comments-title">笔记</text>
           <text class="comments-count">{{commentsCount || 0}}</text>
@@ -243,8 +243,8 @@
     </view>
   </view>
 
-  <!-- 底部操作栏（点赞、收藏、评论） -->
-  <view class="bottom-action-bar">
+  <!-- 底部操作栏（点赞、收藏、评论，仅登录且有读写权限后显示） -->
+  <view wx:if="{{isLoggedIn && hasWritePermission}}" class="bottom-action-bar">
     <view class="action-input-wrapper" bindtap="focusCommentInput">
       <text class="action-input-placeholder">说点什么...</text>
     </view>
@@ -264,8 +264,8 @@
     </view>
   </view>
 
-  <!-- 评论输入框（固定在底部） -->
-  <view wx:if="{{showCommentInput}}" class="comment-input-bar">
+  <!-- 评论输入框（固定在底部，仅登录后显示） -->
+  <view wx:if="{{isLoggedIn && showCommentInput}}" class="comment-input-bar">
     <view class="comment-input-wrapper">
       <input 
         id="comment-input"

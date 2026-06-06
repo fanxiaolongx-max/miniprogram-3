@@ -39,19 +39,23 @@ Page({
     // 页面滚动位置
     scrollTop: 0,
     // 登录状态
-    isLoggedIn: false
+    isLoggedIn: false,
+    // 写权限（读写权限）
+    hasWritePermission: false
   },
 
   onLoad() {
     const systemInfo = require('../../utils/systemInfo.js')
     const { debounce } = require('../../utils/debounce.js')
     
-    // 检查登录状态
+    // 检查登录状态和权限
     const isLoggedIn = authHelper.isLoggedInLocally()
+    const hasWritePermission = authHelper.hasWritePermission()
     
     this.setData({
       theme: systemInfo.getTheme(),
-      isLoggedIn: isLoggedIn
+      isLoggedIn: isLoggedIn,
+      hasWritePermission: hasWritePermission
     })
     
     this._savedScrollTop = 0
@@ -82,10 +86,12 @@ Page({
   },
 
   onShow() {
-    // 检查登录状态（每次显示页面时更新）
+    // 检查登录状态和权限（每次显示页面时更新）
     const isLoggedIn = authHelper.isLoggedInLocally()
+    const hasWritePermission = authHelper.hasWritePermission()
     this.setData({
-      isLoggedIn: isLoggedIn
+      isLoggedIn: isLoggedIn,
+      hasWritePermission: hasWritePermission
     })
     
     // 从编辑页面返回时刷新列表

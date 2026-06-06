@@ -94,6 +94,27 @@ const authHelper = {
   },
   
   /**
+   * 获取用户权限
+   * @returns {string} 'readonly' 或 'readwrite'，默认 'readwrite'
+   */
+  getUserPermission() {
+    const user = this.getLoginInfo()
+    if (!user) {
+      return 'readwrite' // 未登录时默认返回读写（实际不会用到）
+    }
+    return user.permission || 'readwrite'
+  },
+  
+  /**
+   * 检查是否有写权限（读写权限）
+   * @returns {boolean} true表示有读写权限，false表示只读
+   */
+  hasWritePermission() {
+    const permission = this.getUserPermission()
+    return permission === 'readwrite'
+  },
+  
+  /**
    * 验证服务器端登录状态
    * @param {boolean} clearOnAuthError - 认证错误时是否清除本地登录信息，默认false
    * @returns {Promise<Object|null>} 返回用户信息或null
@@ -231,6 +252,7 @@ const authHelper = {
         id: user.id || null,
         phone: user.phone || '',
         name: user.name || user.phone || '用户',
+        permission: user.permission || 'readwrite', // 权限字段，默认为读写
         ...user // 保留其他字段
       }
       
